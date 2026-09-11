@@ -63,7 +63,9 @@ export function GamePlayer({ game }: { game: GameRow }) {
   }
 
   if (stage === "playing" || stage === "submitting") {
-    return <div ref={hostRef} className="ghost fixed inset-0" />;
+    // Inline position/inset (not a Tailwind class) so it can't lose a cascade
+    // tie against .ghost's own `position: relative` from game-host.css.
+    return <div ref={hostRef} className="ghost" style={{ position: "fixed", inset: 0 }} />;
   }
 
   if (stage === "result" && result) {
