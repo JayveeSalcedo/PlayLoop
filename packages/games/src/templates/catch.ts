@@ -4,7 +4,7 @@
  * (reference/playloop-prototype.html, lines 1434-1481).
  */
 import { INK, THEMES, type ItemKind, type ThemeName } from "@playloop/ui";
-import { SPEED_BY_DIFFICULTY } from "../engine";
+import { GAME_DURATION_SECONDS, SPEED_BY_DIFFICULTY } from "../rules";
 import type { Difficulty, GameApi, GameDefinition } from "../types";
 
 export interface CatchConfig {
@@ -127,7 +127,7 @@ function drawItem(ctx: CanvasRenderingContext2D, item: ItemKind, x: number, y: n
 }
 
 export const catchGame: GameDefinition<CatchConfig> = {
-  duration: () => 25,
+  duration: () => GAME_DURATION_SECONDS.catch,
   hint: "Drag or use arrow keys to move the cup",
   start(stage: HTMLElement, config: CatchConfig, api: GameApi) {
     const c = document.createElement("canvas");

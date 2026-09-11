@@ -299,3 +299,193 @@
     transform: translateY(12px);
   }
 }
+
+/* reflex template (prototype lines 372-385) */
+.rx {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  gap: 12px;
+  padding: 16px 18px 56px;
+}
+.rx-h {
+  position: relative;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.06);
+  border: 2px dashed rgba(255, 255, 255, 0.2);
+  align-self: center;
+  justify-self: center;
+  width: 100%;
+  max-width: 100px;
+  aspect-ratio: 1;
+}
+.rx-t {
+  position: absolute;
+  inset: 4%;
+  padding: 0;
+  border-radius: 50%;
+  border: 3px solid var(--color-ink);
+  animation: gl-pop 0.2s cubic-bezier(0.2, 1.6, 0.4, 1) both;
+  display: grid;
+  place-items: center;
+  touch-action: manipulation;
+  box-shadow: inset -5px -6px 0 rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+}
+.rx-t svg {
+  width: 62%;
+  height: 62%;
+}
+.rx-t.c-mint {
+  background: var(--color-mint);
+}
+.rx-t.c-sky {
+  background: var(--color-sky);
+}
+.rx-t.c-lemon {
+  background: var(--color-lemon);
+}
+.rx-t.bad {
+  background: var(--color-gum);
+  border: 0;
+  box-shadow: none;
+  clip-path: polygon(
+    50% 0,
+    61% 18%,
+    82% 10%,
+    80% 32%,
+    100% 40%,
+    85% 56%,
+    96% 76%,
+    74% 78%,
+    68% 100%,
+    50% 86%,
+    32% 100%,
+    26% 78%,
+    4% 76%,
+    15% 56%,
+    0 40%,
+    20% 32%,
+    18% 10%,
+    39% 18%
+  );
+}
+.rx-t.hit {
+  animation: gl-hitout 0.22s forwards;
+}
+.rx-t.gone {
+  animation: gl-goneout 0.18s forwards;
+}
+@keyframes gl-pop {
+  from {
+    transform: scale(0);
+  }
+}
+@keyframes gl-hitout {
+  to {
+    transform: scale(1.5);
+    opacity: 0;
+  }
+}
+@keyframes gl-goneout {
+  to {
+    transform: scale(0);
+  }
+}
+.rx-combo {
+  position: absolute;
+  left: 50%;
+  bottom: 14px;
+  transform: translateX(-50%) scale(0.6);
+  padding: 6px 14px;
+  border-radius: 12px;
+  background: var(--color-lemon);
+  color: var(--color-ink);
+  border: 2.5px solid var(--color-ink);
+  font-weight: 800;
+  opacity: 0;
+  transition: 0.2s;
+  white-space: nowrap;
+}
+.rx-combo.on {
+  opacity: 1;
+  transform: translateX(-50%) scale(1);
+}
+
+/* memory template (prototype lines 386-399) */
+.mm {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(4, 1fr);
+  gap: 10px;
+  padding: 8px 18px 24px;
+}
+.mc {
+  perspective: 700px;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  padding: 0;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+.mc-in {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transition: transform 0.38s cubic-bezier(0.3, 1.3, 0.5, 1);
+  transform-style: preserve-3d;
+}
+.mc.flip .mc-in,
+.mc.done .mc-in {
+  transform: rotateY(180deg);
+}
+.mc-f,
+.mc-b {
+  position: absolute;
+  inset: 0;
+  border-radius: 14px;
+  border: 2.5px solid var(--color-ink);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+}
+.mc-f {
+  background: var(--color-violet);
+  background-image: radial-gradient(rgba(255, 255, 255, 0.2) 1.3px, transparent 1.3px);
+  background-size: 12px 12px;
+}
+.mc-f svg {
+  width: 44%;
+}
+.mc-b {
+  background: #fff;
+  transform: rotateY(180deg);
+}
+.mc-b img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.mc-b svg {
+  width: 62%;
+  height: 62%;
+}
+.mc.done .mc-b {
+  box-shadow: inset 0 0 0 4px var(--color-mint);
+}
+.mc.done .mc-in {
+  animation: gl-matched 0.4s 0.1s;
+}
+@keyframes gl-matched {
+  50% {
+    transform: rotateY(180deg) scale(1.08);
+  }
+}

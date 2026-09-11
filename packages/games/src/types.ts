@@ -1,4 +1,4 @@
-/** Difficulty affects spawn/timer speed via SPEED_BY_DIFFICULTY in engine.ts. */
+/** Difficulty affects spawn/timer speed via SPEED_BY_DIFFICULTY in rules.ts. */
 export type Difficulty = "Easy" | "Medium" | "Hard";
 
 /**

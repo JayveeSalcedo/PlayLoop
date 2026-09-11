@@ -35,3 +35,18 @@
   --shadow-hard: 5px 5px 0 var(--color-ink);
   --shadow-hard-sm: 3px 3px 0 var(--color-ink);
 }
+
+/* Styling for icon() output from art.ts (prototype line 27). */
+.ico {
+  width: 1em;
+  height: 1em;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  flex: none;
+}
+.ico.fill {
+  fill: currentColor;
+}

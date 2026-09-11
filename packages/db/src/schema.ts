@@ -8,6 +8,12 @@ import { boolean, integer, jsonb, pgEnum, pgTable, text, timestamp, uuid } from 
 
 export const gameTypeEnum = pgEnum("game_type", ["quiz", "catch", "memory", "reflex"]);
 export const difficultyEnum = pgEnum("difficulty", ["Easy", "Medium", "Hard"]);
+export const playSessionStatusEnum = pgEnum("play_session_status", [
+  "started",
+  "completed",
+  "rejected",
+  "abandoned",
+]);
 
 export const profiles = pgTable("profiles", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -60,11 +66,22 @@ export const games = pgTable("games", {
 });
 
 /**
- * A completed play. MVP trust boundary: the score is client-reported (the
- * engine runs in the browser) — the server only re-clamps the payout via
- * @playloop/economy's payout(), it does not yet validate session timing or
- * issue a pre-play token. Full anti-cheat (Upstash rate limiting + signed
- * play sessions) is deferred — see the plan's Phase 2 notes.
+ * A play attempt. The server issues a row here (status 'started', via
+ * startPlay) before the client runs the game, so a submission always has a
+ * server-known start time to check elapsed time against. submitPlay then
+ * validates the claimed score/duration against @playloop/games' playRules
+ * before crediting anything, and flips status to 'completed' or 'rejected'
+ * accordingly — see apps/web/app/play/[slug]/actions.ts. A session can only
+ * be submitted once ('started' is consumed atomically); starting a new game
+ * abandons any of the same profile's still-open sessions.
+ *
+ * Rejected rows are kept, not deleted, so they can feed a future admin
+ * fraud-review queue. score/payoutPoints/xpAwarded stay null until
+ * 'completed' (a rejected or abandoned session earns nothing).
+ *
+ * Still deferred: signed per-event telemetry / server-side replay, and
+ * Upstash rate limiting. A single live session per player plus the
+ * min/max-duration check already bounds how fast points can be earned.
  */
 export const playSessions = pgTable("play_sessions", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -74,10 +91,13 @@ export const playSessions = pgTable("play_sessions", {
   gameId: uuid("game_id")
     .notNull()
     .references(() => games.id),
-  score: integer("score").notNull(),
-  payoutPoints: integer("payout_points").notNull(),
-  xpAwarded: integer("xp_awarded").notNull(),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  status: playSessionStatusEnum("status").notNull().default("started"),
+  score: integer("score"),
+  payoutPoints: integer("payout_points"),
+  xpAwarded: integer("xp_awarded"),
+  rejectReason: text("reject_reason"),
+  startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
+  completedAt: timestamp("completed_at", { withTimezone: true }),
 });
 
 /**

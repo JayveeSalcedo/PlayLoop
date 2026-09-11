@@ -1,6 +1,6 @@
 /**
- * Seeds the two Phase-1 games, ported from the prototype's sample data
- * (reference/playloop-prototype.html, lines 1040-1046). Run with `pnpm db:seed`.
+ * Seeds the four starter games, ported from the prototype's sample data
+ * (reference/playloop-prototype.html, lines 1040-1048). Run with `pnpm db:seed`.
  */
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -58,10 +58,34 @@ async function main() {
         brandOriginal: false,
         published: true,
       },
+      {
+        slug: "neon-pairs",
+        type: "memory",
+        title: "Neon Pairs",
+        description: "Flip cards and match all six pairs before the clock runs out. Faster means a bigger time bonus.",
+        theme: "neon",
+        difficulty: "Medium",
+        maxPoints: 180,
+        config: {},
+        brandOriginal: false,
+        published: true,
+      },
+      {
+        slug: "tap-frenzy",
+        type: "reflex",
+        title: "Tap Frenzy",
+        description: "Tap the smiling orbs. Avoid the spiky ones. Chain hits for a combo multiplier.",
+        theme: "bloom",
+        difficulty: "Hard",
+        maxPoints: 300,
+        config: { target: "mint" },
+        brandOriginal: false,
+        published: true,
+      },
     ])
     .onConflictDoNothing({ target: games.slug });
 
-  console.log("Seeded games: bean-catcher, desert-genius");
+  console.log("Seeded games: bean-catcher, desert-genius, neon-pairs, tap-frenzy");
   process.exit(0);
 }
 

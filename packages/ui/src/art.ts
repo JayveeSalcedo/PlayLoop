@@ -145,4 +145,7 @@ export function artSVG(type: GameArtType, theme: ThemeName = "neon", item: ItemK
 
 /** Happy/sad face used by the reflex game's targets. */
 export const GOOD_FACE = `<svg viewBox="0 0 40 40"><circle cx="13" cy="17" r="3.4" fill="${INK}"/><circle cx="27" cy="17" r="3.4" fill="${INK}"/><path d="M13 25q7 6 14 0" stroke="${INK}" stroke-width="3.2" fill="none" stroke-linecap="round"/></svg>`;
-export const BAD_FACE = `<svg viewBox="0 0 40 40"><path d="M10 13l6 6M16 13l-6 6M24 13l6 6M30 13l-6 6" stroke="${INK}" stroke-width="3" stroke-linecap="round"/><path d="M13 29q7-5 14 0" stroke="${INK}" stroke-width="3" fill="none" stroke-linecap="round"/></svg>`;
+/** Card back for the memory game — the playloop loop mark (prototype's MEMBACK, playloop-prototype.html:1432). */
+export const MEMORY_BACK = `<svg viewBox="0 0 24 24"><path d="M6.5 8.5a3.5 3.5 0 1 0 0 7c2.5 0 3.5-2 5.5-3.5s3-3.5 5.5-3.5a3.5 3.5 0 1 1 0 7c-2.5 0-3.5-2-5.5-3.5S9 8.5 6.5 8.5z" fill="none" stroke="#FFDD3C" stroke-width="2.6" stroke-linecap="round"/></svg>`;
+
+export const BAD_FACE =`<svg viewBox="0 0 40 40"><path d="M10 13l6 6M16 13l-6 6M24 13l6 6M30 13l-6 6" stroke="${INK}" stroke-width="3" stroke-linecap="round"/><path d="M13 29q7-5 14 0" stroke="${INK}" stroke-width="3" fill="none" stroke-linecap="round"/></svg>`;

@@ -13,4 +13,8 @@ export default defineConfig({
   dbCredentials: {
     url: process.env.DATABASE_URL ?? "",
   },
+  // Supabase projects have several other schemas (auth, storage, realtime, ...)
+  // with constraint formats drizzle-kit's introspector can crash on. Our own
+  // tables all live in `public`, so there's no reason to introspect the rest.
+  schemaFilter: ["public"],
 });

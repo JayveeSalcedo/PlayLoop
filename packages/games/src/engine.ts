@@ -142,10 +142,3 @@ export function runGame<TConfig>(
 
   return { abort };
 }
-
-/** Difficulty -> spawn/timer speed multiplier, ported from the prototype's SPD (playloop-prototype.html:1429). */
-export const SPEED_BY_DIFFICULTY: Record<"Easy" | "Medium" | "Hard", number> = {
-  Easy: 0.85,
-  Medium: 1,
-  Hard: 1.25,
-};

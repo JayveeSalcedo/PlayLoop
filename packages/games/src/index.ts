@@ -1,4 +1,7 @@
 export * from "./types";
+export * from "./rules";
 export * from "./engine";
 export * from "./templates/catch";
 export * from "./templates/quiz";
+export * from "./templates/memory";
+export * from "./templates/reflex";

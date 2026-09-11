@@ -1,9 +1,19 @@
 "use client";
 
-import { catchGame, quizGame, runGame, type CatchConfig, type QuizConfig } from "@playloop/games";
+import {
+  catchGame,
+  memoryGame,
+  quizGame,
+  reflexGame,
+  runGame,
+  type CatchConfig,
+  type MemoryConfig,
+  type QuizConfig,
+  type ReflexConfig,
+} from "@playloop/games";
 import { artSVG, icon, type GameArtType, type ItemKind, type ThemeName } from "@playloop/ui";
 import { useRef, useState } from "react";
-import { submitPlay, type PlayResult } from "./actions";
+import { startPlay, submitPlay, type PlayResult } from "./actions";
 
 export interface GameRow {
   id: string;
@@ -17,17 +27,32 @@ export interface GameRow {
   config: unknown;
 }
 
-type Stage = "intro" | "playing" | "result" | "submitting";
+type Stage = "intro" | "starting" | "playing" | "result" | "submitting";
 
 export function GamePlayer({ game }: { game: GameRow }) {
   const [stage, setStage] = useState<Stage>("intro");
   const [result, setResult] = useState<PlayResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const hostRef = useRef<HTMLDivElement>(null);
-  const config = (game.config ?? {}) as { item?: ItemKind; questions?: QuizQuestionRow[] };
+  const config = (game.config ?? {}) as {
+    item?: ItemKind;
+    questions?: QuizQuestionRow[];
+    images?: (string | null)[];
+    target?: ReflexConfig["target"];
+  };
 
-  function start() {
+  async function start() {
     setError(null);
+    setStage("starting");
+    let sessionId: string;
+    try {
+      ({ sessionId } = await startPlay(game.id));
+    } catch {
+      setError("Couldn't start that game — check your connection and try again.");
+      setStage("intro");
+      return;
+    }
+
     setStage("playing");
     requestAnimationFrame(() => {
       const host = hostRef.current;
@@ -35,29 +60,41 @@ export function GamePlayer({ game }: { game: GameRow }) {
       const onEnd = async ({ score }: { score: number }) => {
         setStage("submitting");
         try {
-          const r = await submitPlay(game.id, score);
+          const r = await submitPlay(sessionId, score);
           setResult(r);
           setStage("result");
-        } catch {
-          setError("Couldn't save that play — check your connection and try again.");
+        } catch (e) {
+          setError(e instanceof Error ? e.message : "Couldn't save that play — try again.");
           setStage("intro");
         }
       };
       const onQuit = () => setStage("intro");
 
-      if (game.type === "catch") {
-        const catchConfig: CatchConfig = {
-          difficulty: game.difficulty,
-          theme: game.theme as ThemeName,
-          item: config.item ?? "bean",
-        };
-        runGame(catchGame, catchConfig, host, onEnd, onQuit);
-      } else if (game.type === "quiz") {
-        const quizConfig: QuizConfig = {
-          difficulty: game.difficulty,
-          questions: config.questions ?? [],
-        };
-        runGame(quizGame, quizConfig, host, onEnd, onQuit);
+      switch (game.type) {
+        case "catch": {
+          const catchConfig: CatchConfig = {
+            difficulty: game.difficulty,
+            theme: game.theme as ThemeName,
+            item: config.item ?? "bean",
+          };
+          runGame(catchGame, catchConfig, host, onEnd, onQuit);
+          break;
+        }
+        case "quiz": {
+          const quizConfig: QuizConfig = { difficulty: game.difficulty, questions: config.questions ?? [] };
+          runGame(quizGame, quizConfig, host, onEnd, onQuit);
+          break;
+        }
+        case "memory": {
+          const memoryConfig: MemoryConfig = { difficulty: game.difficulty, images: config.images };
+          runGame(memoryGame, memoryConfig, host, onEnd, onQuit);
+          break;
+        }
+        case "reflex": {
+          const reflexConfig: ReflexConfig = { difficulty: game.difficulty, target: config.target ?? "mint" };
+          runGame(reflexGame, reflexConfig, host, onEnd, onQuit);
+          break;
+        }
       }
     });
   }
@@ -115,8 +152,11 @@ export function GamePlayer({ game }: { game: GameRow }) {
       {error ? <p className="mt-3 text-sm font-bold text-gum">{error}</p> : null}
       <button
         onClick={start}
+        disabled={stage === "starting"}
         className="btn go lg block mt-6"
-        dangerouslySetInnerHTML={{ __html: `${icon("play", "fill")} Play now` }}
+        dangerouslySetInnerHTML={{
+          __html: stage === "starting" ? "Starting…" : `${icon("play", "fill")} Play now`,
+        }}
       />
     </main>
   );

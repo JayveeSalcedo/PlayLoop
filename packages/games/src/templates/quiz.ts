@@ -6,15 +6,16 @@
  * Self-terminating: duration() returns 0 (no shared clock), the template
  * calls api.end() itself after the last question.
  */
-import { escapeHtml } from "../util";
+import { QUIZ_SECONDS_PER_QUESTION } from "../rules";
 import type { Difficulty, GameApi, GameDefinition, QuizQuestion } from "../types";
+import { escapeHtml } from "../util";
 
 export interface QuizConfig {
   difficulty: Difficulty;
   questions: QuizQuestion[];
 }
 
-const SECONDS_PER_QUESTION: Record<Difficulty, number> = { Easy: 12, Medium: 10, Hard: 7 };
+const SECONDS_PER_QUESTION = QUIZ_SECONDS_PER_QUESTION;
 const LETTERS = ["A", "B", "C", "D"];
 
 export const quizGame: GameDefinition<QuizConfig> = {
