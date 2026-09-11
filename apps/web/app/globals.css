@@ -1,0 +1,37 @@
+@import "tailwindcss";
+@import "@playloop/ui/theme.css";
+@import "@playloop/ui/game-host.css";
+
+body {
+  font-family: var(--font-display);
+  background: var(--color-paper);
+  color: var(--color-ink);
+}
+
+/*
+ * Minimal button styling so the core-loop pages read as "playloop" without
+ * pulling in the prototype's full stylesheet yet. Visual polish (the
+ * hand-drawn shadow/border treatment) is a follow-up pass once the loop
+ * works end to end — see the plan's phased build order.
+ */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 13px 20px;
+  border: var(--border-thick);
+  border-radius: 14px;
+  font-weight: 800;
+  font-size: 15.5px;
+  background: var(--color-card);
+  box-shadow: var(--shadow-hard-sm);
+  color: var(--color-ink);
+  cursor: pointer;
+}
+.btn.go {
+  background: var(--color-lemon);
+}
+.btn.block {
+  width: 100%;
+}

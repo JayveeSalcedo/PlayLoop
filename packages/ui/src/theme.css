@@ -1,0 +1,37 @@
+/*
+ * Design tokens ported from the prototype's :root block
+ * (reference/playloop-prototype.html, lines 11-18).
+ *
+ * Tailwind v4 is CSS-first: importing this file registers these as
+ * theme values, so `bg-violet`, `text-ink`, `border-ink` etc. just work.
+ * Consuming app should `@import "@playloop/ui/theme.css";` before `@import "tailwindcss";`.
+ */
+@theme {
+  --color-paper: #f0ecff;
+  --color-card: #ffffff;
+  --color-ink: #18123f;
+  --color-soft: #5e5885;
+  --color-faint: #9d97bf;
+
+  --color-violet: #5b3bff;
+  --color-tang: #ff7a1a;
+  --color-gum: #ff5fa2;
+  --color-mint: #22d39b;
+  --color-lemon: #ffdd3c;
+  --color-sky: #3fc8ff;
+
+  --color-night: #1b1446;
+  --color-night-2: #261d5c;
+
+  --font-display: "Bricolage Grotesque", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+/*
+ * Raw tokens that aren't Tailwind theme keys (used via `style={{ border: 'var(--border-thick)' }}`
+ * or an arbitrary-value class like `[box-shadow:var(--shadow-hard)]`).
+ */
+:root {
+  --border-thick: 2.5px solid var(--color-ink);
+  --shadow-hard: 5px 5px 0 var(--color-ink);
+  --shadow-hard-sm: 3px 3px 0 var(--color-ink);
+}
