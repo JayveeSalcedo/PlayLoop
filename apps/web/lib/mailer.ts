@@ -19,12 +19,15 @@ function getTransporter(): Transporter {
 
 /**
  * Sends a login code by email via Nodemailer/SMTP (Brevo free tier or any
- * SMTP provider — see the plan's auth decision). If no SMTP env vars are
- * set and we're not in production, logs the code to the console instead of
- * failing, so local dev doesn't need real SMTP creds to exercise the flow.
+ * SMTP provider — see the plan's auth decision). If SMTP_USER/SMTP_PASS
+ * aren't set and we're not in production, logs the code to the console
+ * instead of failing, so local dev doesn't need real SMTP creds to exercise
+ * the flow. Checking the credentials (not just SMTP_HOST) matters because
+ * .env.example ships a real default host — only the credentials are blank
+ * until you actually set up a provider.
  */
 export async function sendOtpEmail(email: string, code: string): Promise<void> {
-  if (process.env.NODE_ENV !== "production" && !process.env.SMTP_HOST) {
+  if (process.env.NODE_ENV !== "production" && (!process.env.SMTP_USER || !process.env.SMTP_PASS)) {
     console.log(`[dev-mail] OTP for ${email}: ${code}`);
     return;
   }
