@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addXp, clamp, payout, scoreTarget, tier, xpNeed } from "./index";
+import { addXp, clamp, payout, scoreTarget, tier, voucherStatus, xpNeed } from "./index";
 
 describe("clamp", () => {
   it("clamps within bounds", () => {
@@ -72,5 +72,23 @@ describe("scoreTarget", () => {
     expect(scoreTarget("quiz", 5)).toBe(600);
     expect(scoreTarget("quiz", 1)).toBe(120);
     expect(scoreTarget("quiz", 0)).toBe(120); // floors at 1 question
+  });
+});
+
+describe("voucherStatus", () => {
+  const now = new Date("2026-01-15T00:00:00Z");
+  const future = new Date("2026-01-20T00:00:00Z");
+  const past = new Date("2026-01-10T00:00:00Z");
+
+  it("is active before expiry and unredeemed", () => {
+    expect(voucherStatus({ redeemedAt: null, expiresAt: future }, now)).toBe("active");
+  });
+
+  it("is expired once past expiresAt", () => {
+    expect(voucherStatus({ redeemedAt: null, expiresAt: past }, now)).toBe("expired");
+  });
+
+  it("is redeemed even if also past its expiry date", () => {
+    expect(voucherStatus({ redeemedAt: past, expiresAt: past }, now)).toBe("redeemed");
   });
 });

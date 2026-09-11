@@ -2,7 +2,7 @@ import { jwtVerify } from "jose";
 import { NextResponse, type NextRequest } from "next/server";
 
 const COOKIE_NAME = "pl_session";
-const PROTECTED = ["/feed", "/play", "/onboarding"];
+const PROTECTED = ["/feed", "/play", "/onboarding", "/wallet", "/rewards"];
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
@@ -25,5 +25,5 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/feed/:path*", "/play/:path*", "/onboarding/:path*"],
+  matcher: ["/feed/:path*", "/play/:path*", "/onboarding/:path*", "/wallet/:path*", "/rewards/:path*"],
 };

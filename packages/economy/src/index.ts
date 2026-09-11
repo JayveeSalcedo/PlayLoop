@@ -111,3 +111,19 @@ export function scoreTarget(type: GameType, questionCount?: number): number {
       return Math.max(1, questionCount ?? 1) * 120;
   }
 }
+
+/**
+ * Days a redeemed voucher stays valid before it's treated as expired.
+ * Checked at read/redeem time by voucherStatus() below — no background job,
+ * same pattern as otp_codes' expiresAt.
+ */
+export const VOUCHER_EXPIRY_DAYS = 7;
+
+export type VoucherStatus = "active" | "redeemed" | "expired";
+
+/** Derives a voucher's display status from its timestamps. Redeemed wins even if also past expiry. */
+export function voucherStatus(v: { redeemedAt: Date | null; expiresAt: Date }, now: Date = new Date()): VoucherStatus {
+  if (v.redeemedAt) return "redeemed";
+  if (now > v.expiresAt) return "expired";
+  return "active";
+}

@@ -1,12 +1,13 @@
 /**
- * Seeds the four starter games, ported from the prototype's sample data
- * (reference/playloop-prototype.html, lines 1040-1048). Run with `pnpm db:seed`.
+ * Seeds the four starter games and four starter rewards, ported from the
+ * prototype's sample data (reference/playloop-prototype.html, lines
+ * 1040-1048 and 1358-1364). Run with `pnpm db:seed`.
  */
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { config } from "dotenv";
 import { getDb } from "./client";
-import { games } from "./schema";
+import { games, rewards } from "./schema";
 
 // Load the monorepo root .env regardless of CWD (see apps/web/next.config.ts for the same pattern).
 config({ path: path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../.env") });
@@ -85,7 +86,56 @@ async function main() {
     ])
     .onConflictDoNothing({ target: games.slug });
 
+  await db
+    .insert(rewards)
+    .values([
+      {
+        slug: "free-flat-white",
+        brandName: "Beanhouse",
+        name: "Free flat white",
+        description: "Redeem at any Beanhouse store.",
+        category: "Food and drink",
+        costPoints: 500,
+        theme: "ember",
+        icon: "cup",
+        poolTotal: 1000,
+        poolRemaining: 1000,
+      },
+      {
+        slug: "any-pastry",
+        brandName: "Beanhouse",
+        name: "Any pastry",
+        description: "Your pick from the case.",
+        category: "Food and drink",
+        costPoints: 350,
+        theme: "sun",
+        icon: "star",
+      },
+      {
+        slug: "arcade-pass",
+        brandName: "Glow Arcade",
+        name: "60-minute arcade pass",
+        description: "Unlimited play for an hour.",
+        category: "Fun",
+        costPoints: 900,
+        theme: "neon",
+        icon: "bolt",
+      },
+      {
+        slug: "nomad-books-voucher",
+        brandName: "Nomad Books",
+        name: "AED 25 voucher",
+        description: "Toward any purchase in store.",
+        category: "Shopping",
+        costPoints: 1100,
+        theme: "mint",
+        icon: "book",
+      },
+    ])
+    .onConflictDoNothing({ target: rewards.slug });
+
   console.log("Seeded games: bean-catcher, desert-genius, neon-pairs, tap-frenzy");
+  console.log("Seeded rewards: free-flat-white, any-pastry, arcade-pass, nomad-books-voucher");
   process.exit(0);
 }
 

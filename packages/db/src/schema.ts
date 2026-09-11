@@ -1,10 +1,10 @@
 /**
- * Phase-1 core-loop schema: auth (email OTP) -> play -> earn -> feed.
- * Deliberately scoped to what the trimmed Phase 1 needs — see
- * "Core data model" in the plan for the fuller model (challenges, rewards,
- * vouchers, brands, campaigns, ...) to be added as those phases start.
+ * Core schema: auth (email OTP) -> play -> earn -> spend (rewards/vouchers).
+ * Deliberately scoped to what's been built so far — see "Core data model"
+ * in the plan for the fuller model (challenges, brands, campaigns, ...) to
+ * be added as those phases start.
  */
-import { boolean, integer, jsonb, pgEnum, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { boolean, index, integer, jsonb, pgEnum, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 
 export const gameTypeEnum = pgEnum("game_type", ["quiz", "catch", "memory", "reflex"]);
 export const difficultyEnum = pgEnum("difficulty", ["Easy", "Medium", "Hard"]);
@@ -14,6 +14,7 @@ export const playSessionStatusEnum = pgEnum("play_session_status", [
   "rejected",
   "abandoned",
 ]);
+export const rewardCategoryEnum = pgEnum("reward_category", ["Food and drink", "Fun", "Shopping"]);
 
 export const profiles = pgTable("profiles", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -115,3 +116,57 @@ export const ledgerEntries = pgTable("ledger_entries", {
   refId: uuid("ref_id"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+/**
+ * Redeemable catalog items. No `brands` table yet (that's the brand-console
+ * phase) — brandName is a plain field. Pool-funded rewards (a finite,
+ * brand-sponsored stock, e.g. "1,000 free coffees") carry poolTotal/
+ * poolRemaining; both null means an uncapped reward. theme/icon reuse
+ * @playloop/ui's THEMES/icon() keys, same convention as games.theme.
+ */
+export const rewards = pgTable("rewards", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  slug: text("slug").notNull().unique(),
+  brandName: text("brand_name").notNull(),
+  name: text("name").notNull(),
+  description: text("description").notNull().default(""),
+  category: rewardCategoryEnum("category").notNull(),
+  costPoints: integer("cost_points").notNull(),
+  theme: text("theme").notNull().default("neon"),
+  icon: text("icon").notNull().default("gift"),
+  poolTotal: integer("pool_total"),
+  poolRemaining: integer("pool_remaining"),
+  active: boolean("active").notNull().default(true),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/**
+ * A redeemed reward. Unlike play_sessions (client-reported score), there's
+ * no analogous trust gap here — costPoints is always read from the rewards
+ * row server-side, never client-supplied. The only hazard is concurrency
+ * (two redemptions racing a pool's last unit, or a redemption racing a play
+ * credit), handled with conditional/SQL-side updates in the redeemReward
+ * action, not by validating client input.
+ *
+ * No status column and no Inngest job to expire vouchers — same pattern as
+ * otp_codes: expiresAt is just checked at read/redeem time. redeemedAt stays
+ * null until the future staff scanner sets it.
+ */
+export const vouchers = pgTable(
+  "vouchers",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    profileId: uuid("profile_id")
+      .notNull()
+      .references(() => profiles.id),
+    rewardId: uuid("reward_id")
+      .notNull()
+      .references(() => rewards.id),
+    code: text("code").notNull().unique(),
+    costPoints: integer("cost_points").notNull(), // snapshot at redemption time
+    redeemedAt: timestamp("redeemed_at", { withTimezone: true }),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index("vouchers_profile_id_idx").on(table.profileId)],
+);

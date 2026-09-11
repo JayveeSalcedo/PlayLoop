@@ -74,8 +74,8 @@ Balance = `SUM(ledger_entries)` (cached column updated in same transaction). Red
 ## Build phases (maps to MVP from earlier analysis)
 Trimmed to the **core loop first**: prove auth → play → earn → see it in the feed works end-to-end before adding growth/monetization surface area.
 
-1. **Foundation + core loop:** monorepo, Supabase project, email-OTP auth, UI tokens, port Quiz + Catch into `packages/games`; onboarding, feed, game intro/play/result, ledger + wallet (no rate limiting/background jobs yet — add only if abuse or scheduling needs actually show up).
-2. **Rewards + vouchers:** reward catalog, redemption flow, QR vouchers (still no real payment — a seeded/admin-set reward pool stands in for brand funding).
+1. ✅ **Foundation + core loop:** monorepo, Supabase project, email-OTP auth, UI tokens, port Quiz + Catch into `packages/games`; onboarding, feed, game intro/play/result, ledger. Also pulled forward from later: all 4 game templates (Memory/Reflex ported too), and play sessions are server-issued + server-validated (timing/score bounds), not just server-scored.
+2. ✅ **Rewards + vouchers + Wallet:** reward catalog, redemption flow with real scannable QR vouchers (still no real payment — a seeded reward pool stands in for brand funding), Wallet (balance, level, voucher list, history), and a shared bottom tabbar.
 3. **Challenges (the growth loop):** challenge links + OG cards + web challenge landing, referral bonus.
 4. **Creator studio (Quiz):** wizard, test mode (reuses engine), publish → moderation queue.
 5. **Store staff scanner + brand console MVP:** campaign builder, Realtime KPI dashboard; campaign "funding" is an admin-confirmed checkbox, not live Stripe.
