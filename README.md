@@ -2,7 +2,9 @@
 
 A game network where players play 30-second games for real rewards, creators build games from templates, and brands fund the prizes.
 
-This repo is the production build, growing out of the single-file prototype at `reference/playloop-prototype.html`. See `docs/tech-stack-plan.md` for the full tech-stack plan and phased build order.
+This repo is the production build, growing out of the single-file prototype at `reference/playloop-prototype.html`. See:
+- `docs/tech-stack-plan.md` — the tech-stack plan and phased build order.
+- `docs/feature-brief.md` — the feature/flow spec (from the project brief), reconciled with the PWA-first, email+OTP decisions below. `docs/play-loop-brief-source.docx` is the original file.
 
 **Phase 1 status (this commit): the core loop works end to end** — email login → onboarding → feed → play (Catch or Quiz) → points/XP awarded server-side. Challenges, rewards/vouchers, the creator studio, and the brand console are later phases.
 
