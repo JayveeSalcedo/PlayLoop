@@ -1,7 +1,7 @@
 import { tier, voucherStatus, xpNeed } from "@playloop/economy";
 import { getDb, schema } from "@playloop/db";
 import { count, desc, eq } from "drizzle-orm";
-import { requireSession } from "@/lib/session";
+import { requireProfile } from "@/lib/profile";
 import { voucherQrSvg } from "@/lib/qr";
 
 /**
@@ -16,19 +16,14 @@ import { voucherQrSvg } from "@/lib/qr";
  */
 
 export default async function WalletPage() {
-  const session = await requireSession();
+  const { profile } = await requireProfile();
   const db = getDb();
 
-  const [profile, playedRow, voucherRows, ledgerRows] = await Promise.all([
-    db
-      .select()
-      .from(schema.profiles)
-      .where(eq(schema.profiles.id, session.sub))
-      .then((r) => r[0]!),
+  const [playedRow, voucherRows, ledgerRows] = await Promise.all([
     db
       .select({ n: count() })
       .from(schema.playSessions)
-      .where(eq(schema.playSessions.profileId, session.sub))
+      .where(eq(schema.playSessions.profileId, profile.id))
       .then((r) => r[0]!.n),
     db
       .select({
@@ -40,12 +35,12 @@ export default async function WalletPage() {
       })
       .from(schema.vouchers)
       .innerJoin(schema.rewards, eq(schema.vouchers.rewardId, schema.rewards.id))
-      .where(eq(schema.vouchers.profileId, session.sub))
+      .where(eq(schema.vouchers.profileId, profile.id))
       .orderBy(desc(schema.vouchers.createdAt)),
     db
       .select()
       .from(schema.ledgerEntries)
-      .where(eq(schema.ledgerEntries.profileId, session.sub))
+      .where(eq(schema.ledgerEntries.profileId, profile.id))
       .orderBy(desc(schema.ledgerEntries.createdAt))
       .limit(20),
   ]);

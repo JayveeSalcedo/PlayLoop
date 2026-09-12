@@ -3,20 +3,17 @@ import Link from "next/link";
 import { getDb, schema } from "@playloop/db";
 import { tier, xpNeed } from "@playloop/economy";
 import { artSVG, avatar, type GameArtType, type ThemeName } from "@playloop/ui";
-import { requireSession } from "@/lib/session";
+import { requireProfile } from "@/lib/profile";
 
 export default async function FeedPage() {
-  const session = await requireSession();
+  const { profile } = await requireProfile();
   const db = getDb();
 
-  const [profile, gameList] = await Promise.all([
-    db
-      .select()
-      .from(schema.profiles)
-      .where(eq(schema.profiles.id, session.sub))
-      .then((r) => r[0]!),
-    db.select().from(schema.games).where(eq(schema.games.published, true)).orderBy(desc(schema.games.createdAt)),
-  ]);
+  const gameList = await db
+    .select()
+    .from(schema.games)
+    .where(eq(schema.games.published, true))
+    .orderBy(desc(schema.games.createdAt));
 
   const need = xpNeed(profile.level);
 
