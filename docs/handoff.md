@@ -89,6 +89,18 @@ Working tree is clean; nothing in progress.
   attaches nobody — see the README's setup step 5 for the `INSERT`. A counter
   can only take its own brand's vouchers, so a Beanhouse account testing a Glow
   Arcade code will correctly be refused; that's the rule, not a bug.
+- **⚠️ Known weakness: brand matching is a free-text comparison.** The staff
+  scanner decides whether a voucher belongs at a counter by comparing
+  `rewards.brandName` to `stores.brand_name` as strings (trimmed and
+  lowercased, so casing and padding are safe — but "Beanhouse" and "Bean House"
+  are different brands as far as the code is concerned). That holds while both
+  sides come from `seed.ts`, and breaks the first time a brand name is typed
+  into a form. **The fix is a real `brands` table with an id on both sides, and
+  it belongs in phase 5b**, which needs that table for campaigns anyway — don't
+  build it twice. Two related assumptions baked in at the same spot, both fine
+  today and both worth re-checking if the business changes: a voucher is
+  redeemable only at its own brand's stores (no mall-wide or multi-brand
+  promotions), and a store belongs to exactly one brand.
 - **Admin access comes from `ADMIN_EMAILS` in `.env`, not the database.** Put
   your email in that comma-separated list and `/admin` shows the moderation
   queue; leave it empty and *nobody* is an admin, including you. If `/admin`

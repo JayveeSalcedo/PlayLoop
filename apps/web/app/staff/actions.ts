@@ -58,6 +58,11 @@ export async function lookupVoucher(rawCode: string): Promise<LookupResult> {
 
   // A Beanhouse voucher must not be burnable at a Glow Arcade counter. Checked
   // before "expired"/"used" so the message names the real problem.
+  //
+  // This compares brand *names* because there's no brands table yet, so
+  // "Beanhouse" and "Bean House" would read as different brands. Safe while
+  // both sides come from seed.ts; replace with a brand id when phase 5b adds
+  // that table (see docs/tech-stack-plan.md).
   if (row.brandName.trim().toLowerCase() !== store.brandName.trim().toLowerCase()) {
     return { status: "wrong_brand", ...common };
   }
