@@ -33,10 +33,15 @@ Phases 1-4 are done, verified against the real Supabase DB, and committed:
    Quiz. Test mode reuses the real engine with no session and no payout.
    Publishing writes a `pending_review` game plus a `moderation_reviews` row.
 
+5. **Admin moderation** (a slice of phase 6, pulled forward) — `/admin` lists
+   pending games with their actual content, and approves or rejects them.
+   Rejecting requires a reason, which the creator sees on their game page.
+   Admin access is an `ADMIN_EMAILS` allowlist, not a database role.
+
 **Next up: Phase 5, store staff scanner + brand console MVP** — campaign
 builder, Realtime KPI dashboard, with campaign "funding" as an admin-confirmed
-checkbox rather than live Stripe. Phase 6 is the admin panel, which is what
-finally drains the moderation queue Phase 4 started filling. See
+checkbox rather than live Stripe. The rest of phase 6 (fraud review, user
+management, platform analytics) is still outstanding. See
 `docs/tech-stack-plan.md`'s Build phases section for the full remaining
 roadmap (then the deferred infra — Upstash/Inngest/Stripe/i18n/Capacitor —
 once there's real need).
@@ -73,12 +78,12 @@ Working tree is clean; nothing in progress.
   react to "session cookie points at a profile that no longer exists," use
   `requireProfile()` (`apps/web/lib/profile.ts`), not an ad-hoc
   `clearSession()` call from a page component.
-- **There is no admin UI, so the moderation queue can't be drained from the
-  app.** A creator-published game sits at `status = 'pending_review'` forever
-  until someone runs an `UPDATE games SET status = 'published'` by hand. If
-  you publish a test game and then wonder why it's missing from the feed,
-  that's why — it's working as designed, not broken. Phase 6 builds the
-  approve/reject screen.
+- **Admin access comes from `ADMIN_EMAILS` in `.env`, not the database.** Put
+  your email in that comma-separated list and `/admin` shows the moderation
+  queue; leave it empty and *nobody* is an admin, including you. If `/admin`
+  404s, check that env var first — a non-admin deliberately gets a plain 404
+  rather than a "forbidden", so there's no error message to go on. The var is
+  read at request time, but changing `.env` needs a dev-server restart.
 - **Authoring rules live in `packages/games/src/authoring.ts`, not in the
   form.** If you add a field to the creator wizard, add its validation there
   too — the wizard and `publishGame` both call `validateGameDraft`/

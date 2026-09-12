@@ -21,6 +21,8 @@ apps/
                     a Next.js route group, so it doesn't affect the URLs. /play/[slug] and
                     /onboarding stay outside it (fullscreen/setup flows, no tabbar).
     app/(app)/create/   The creator studio: the wizard, test mode, "My games", and per-game pages.
+    app/admin/      The moderation queue (ADMIN_EMAILS-gated). Outside the (app) group on
+                    purpose — it's a staff surface, not a player tab.
     lib/qr.ts, lib/voucherCode.ts   Server-only voucher helpers (kept out of @playloop/ui so the
                     `qrcode` package never ships to the client bundle).
 packages/
@@ -45,6 +47,10 @@ reference/
 3. **Environment.** Copy `.env.example` to `.env` at the repo root and fill in:
    - `DATABASE_URL` — your Postgres connection string.
    - `SESSION_SECRET`, `OTP_PEPPER` — any random strings (`openssl rand -hex 32`).
+   - `ADMIN_EMAILS` — comma-separated emails allowed into `/admin`, the game
+     moderation queue. Leave it empty and nobody is an admin (the safe default);
+     put your own login email in it to review creator-submitted games. There's
+     no in-app way to grant this, by design — you edit `.env` and restart.
    - `SMTP_*` — optional in development. If `SMTP_USER`/`SMTP_PASS` are blank, login codes are logged to the console instead of emailed, so you can test the flow with no email provider set up (the default `SMTP_HOST` alone isn't enough to trigger real sending — see the comment in `apps/web/lib/mailer.ts`). For real sending, Brevo's free tier (300 emails/day) works well.
 
 4. **Push the schema and seed the four starter games and four starter rewards**
@@ -72,7 +78,8 @@ pnpm typecheck    # across all packages/apps
 - **The wizard and the server share one rulebook.** `packages/games/src/authoring.ts` holds every authoring rule (title length, 2-8 quiz questions with four answers each, max-points range/step, valid item/target/theme). The wizard imports it to gate its Next button and place inline errors; `publishGame` imports the same functions as the authoritative check. A rule only has to be written once, and the form can't drift out of sync with what the server will accept.
 - **Nothing is written until you publish.** The wizard's draft lives entirely in client state — no autosave, no draft rows, no `status: 'draft'`. The first DB write is the publish itself. Test mode (`TestPlay.tsx`) runs the real engine through the same `runGameFromConfig` the player page uses, but with no play session and no `submitPlay`, so a creator can play their own game repeatedly without earning anything; the projected payout shown afterward is computed locally from the same `@playloop/economy` rules the server would apply.
 - **`games.published` (boolean) became `games.status` (enum).** Three states were needed — `pending_review`, `published`, `rejected` — and a boolean can't carry them. The feed filters on `status = 'published'`; a creator-published game starts at `pending_review`, which means it is out of the feed, but its creator can still open `/play/<slug>` to preview it (everyone else gets a 404). `startPlay` refuses any non-published game, so previewing can't be turned into point-farming on an unreviewed game — the disabled Play button is the courtesy, the server check is the rule.
-- **`moderation_reviews` is the audit log, `games.status` is the current state.** Publishing inserts one `pending` row per submission, in the same transaction as the game. Nothing drains that queue yet (the admin panel is phase 6), so approving a game today means an `UPDATE` by hand — deliberately, rather than faking an auto-approval that would make the trust boundary look real when it isn't.
+- **`moderation_reviews` is the audit log, `games.status` is the current state.** Publishing inserts one `pending` row per submission, in the same transaction as the game; `/admin` closes that row out with an outcome, the reviewer's profile id and a timestamp when a decision is made.
+- **Admin is an allowlist in the environment, not a role in the database.** `ADMIN_EMAILS` gates `/admin` (`apps/web/lib/admin.ts`). Admins are staff rather than a kind of user, and skipping a role column also skipped a hand-written migration while `drizzle-kit push` stays broken; Phase 5 introduces real role storage when brands and store staff exist to test it against. Two deliberate details: an empty `ADMIN_EMAILS` means *nobody* is an admin (the one way this could fail open, so it's an explicit early return rather than an empty-array `includes`), and a non-admin gets `notFound()` rather than a redirect, so a logged-in user can't discover the route exists. Approve/reject both gate on the game still being `pending_review` inside the `WHERE` clause, so two admins working the queue at once can't both write a decision.
 - **Memory images are data URLs inside `games.config`**, shrunk client-side to a 220px square JPEG before they're sent (`create/shrink.ts`, ported from the prototype). There's no Supabase Storage bucket yet and six ~10KB images per game doesn't justify one. Because `memory.ts` interpolates those strings into an `<img src>` in an HTML string, `normalizeConfig` only accepts values matching a strict `data:image/(jpeg|png|webp);base64,…` pattern — a looser check would make the image slot an XSS vector. Per-image and whole-config size caps keep a row bounded.
 - **Creator earnings are derived, not stored.** The AED figure on a creator's game page is `playCount * 0.02` computed at read time; there's no `creator_earnings` table until real payouts exist, same reasoning as voucher expiry being checked on read.
 - **Anti-spam without new infrastructure:** a creator may have at most 3 games awaiting review, checked with one `count` query before the insert. Upstash is still deferred; this is the cheapest honest backpressure until there's a real abuse signal.

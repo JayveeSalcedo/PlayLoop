@@ -1,6 +1,6 @@
 import { getDb, schema } from "@playloop/db";
 import { artSVG, type GameArtType, type ItemKind, type ThemeName } from "@playloop/ui";
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireProfile } from "@/lib/profile";
@@ -43,6 +43,18 @@ export default async function CreatorGamePage({
   const config = (game.config ?? {}) as { item?: ItemKind };
   const copy = STATUS_COPY[game.status] ?? STATUS_COPY.pending_review!;
 
+  // Only fetch the moderator's note when there's a rejection to explain.
+  const rejection =
+    game.status === "rejected"
+      ? await db
+          .select({ notes: schema.moderationReviews.notes })
+          .from(schema.moderationReviews)
+          .where(and(eq(schema.moderationReviews.gameId, game.id), eq(schema.moderationReviews.outcome, "rejected")))
+          .orderBy(desc(schema.moderationReviews.decidedAt))
+          .limit(1)
+          .then((r) => r[0]?.notes ?? null)
+      : null;
+
   return (
     <main className="mx-auto max-w-md p-6">
       {published ? <p className="mb-3 font-extrabold text-mint-foreground">Published — it&apos;s in the queue.</p> : null}
@@ -62,6 +74,12 @@ export default async function CreatorGamePage({
       <div className="mt-4 rounded-2xl bg-card p-4 [border:var(--border-thick)]">
         <p className="font-extrabold">{copy.title}</p>
         <p className="mt-1 text-sm font-bold text-soft">{copy.body}</p>
+        {rejection ? (
+          <div className="mt-3 rounded-xl bg-paper p-3 [border:var(--border-thick)]">
+            <p className="text-xs font-extrabold text-soft">What the reviewer said</p>
+            <p className="mt-1 text-sm font-bold">{rejection}</p>
+          </div>
+        ) : null}
       </div>
 
       <div className="mt-4 grid grid-cols-2 gap-3">
