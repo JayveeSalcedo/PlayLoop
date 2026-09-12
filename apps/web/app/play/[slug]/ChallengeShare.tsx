@@ -62,7 +62,7 @@ export function ChallengeShare({ sessionId }: { sessionId: string }) {
   if (stage === "error") {
     return (
       <button onClick={start} className="btn block">
-        Couldn't create a link — try again
+        Couldn&apos;t create a link — try again
       </button>
     );
   }

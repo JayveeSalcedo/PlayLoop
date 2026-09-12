@@ -93,7 +93,7 @@ export function CampaignForm({ games, rewards }: { games: GameOption[]; rewards:
       <label className="mt-5 block text-sm font-extrabold" htmlFor="budget">
         Budget (AED)
       </label>
-      <p className="mb-2 text-xs font-bold text-soft">What you're committing to this campaign.</p>
+      <p className="mb-2 text-xs font-bold text-soft">What you&apos;re committing to this campaign.</p>
       <input
         id="budget"
         type="number"

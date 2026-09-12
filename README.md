@@ -97,7 +97,8 @@ reference/
 pnpm test        # packages/economy (points/XP/leveling/payout, voucher + campaign status, money
                  # formatting), packages/games (session timing/score rules, creator authoring rules),
                  # apps/web (the admin allowlist, voucher-code normalisation)
-pnpm typecheck    # across all packages/apps
+pnpm typecheck   # across all packages/apps
+pnpm lint        # apps/web, via ESLint + Next's recommended rules
 ```
 
 ## Notes on this phase

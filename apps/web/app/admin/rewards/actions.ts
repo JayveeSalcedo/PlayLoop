@@ -1,7 +1,7 @@
 "use server";
 
 import { getDb, schema } from "@playloop/db";
-import { and, eq, gte, sql } from "drizzle-orm";
+import { and, eq, isNotNull, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/admin";
 import { recordAdminAction } from "@/lib/adminLog";
@@ -156,10 +156,12 @@ export async function topUpPool(rewardId: string, units: number): Promise<{ pool
       poolTotal: sql`${schema.rewards.poolTotal} + ${n}`,
       poolRemaining: sql`${schema.rewards.poolRemaining} + ${n}`,
     })
-    .where(and(eq(schema.rewards.id, rewardId), gte(schema.rewards.poolTotal, 0)))
+    // isNotNull, not `>= 0`: an uncapped reward has NULL here, and `NULL >= 0`
+    // is NULL rather than false, so the old form happened to work for the wrong
+    // reason and read like a bounds check.
+    .where(and(eq(schema.rewards.id, rewardId), isNotNull(schema.rewards.poolTotal)))
     .returning({ poolRemaining: schema.rewards.poolRemaining, name: schema.rewards.name });
 
-  // The WHERE only matches a capped pool; an uncapped reward has null there.
   if (!row) throw new Error("That reward has no pool to top up — it's uncapped.");
 
   // Inventory a brand pays for, so "who added these" needs an answer.

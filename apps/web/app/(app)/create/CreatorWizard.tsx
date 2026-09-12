@@ -188,7 +188,7 @@ export function CreatorWizard() {
         <section>
           <h2 className="text-xl font-extrabold">Ready to go live</h2>
           <p className="mt-1 mb-4 text-sm font-bold text-soft">
-            Publishing sends <b>{draft.title.trim()}</b> to review. Once it's approved it appears in every player's
+            Publishing sends <b>{draft.title.trim()}</b> to review. Once it&apos;s approved it appears in every player&apos;s
             feed. Until then only you can see it.
           </p>
           {error ? <p className="mb-3 text-sm font-bold text-gum">{error}</p> : null}

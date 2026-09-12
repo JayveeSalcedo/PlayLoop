@@ -16,6 +16,15 @@ export function TestPlay({ draft, onClose }: { draft: GameDraft; onClose: () => 
   const [round, setRound] = useState(0);
   const hostRef = useRef<HTMLDivElement>(null);
 
+  // The parent passes onClose as an inline arrow, so its identity changes every
+  // render. Depending on it directly would abort and restart the running game
+  // each time the wizard re-renders; a ref keeps the quit button wired to the
+  // latest callback without making the engine's lifetime depend on it.
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
+
   useEffect(() => {
     const host = hostRef.current;
     if (!host || score !== null) return;
@@ -24,11 +33,11 @@ export function TestPlay({ draft, onClose }: { draft: GameDraft; onClose: () => 
       { difficulty: draft.difficulty, theme: draft.theme as ThemeName, config: draft.config },
       host,
       ({ score: s }) => setScore(s),
-      onClose,
+      () => onCloseRef.current(),
     );
     return () => handle.abort();
-    // `round` restarts the engine on "Play again"; draft is frozen while testing.
-  }, [round, score]);
+    // `round` is what restarts the engine on "Play again".
+  }, [round, score, draft.type, draft.difficulty, draft.theme, draft.config]);
 
   if (score === null) {
     return <div ref={hostRef} className="ghost" style={{ position: "fixed", inset: 0 }} />;
