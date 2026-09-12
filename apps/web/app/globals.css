@@ -35,3 +35,23 @@ body {
 .btn.block {
   width: 100%;
 }
+.btn[disabled] {
+  opacity: 0.75;
+  cursor: default;
+}
+
+/* Spinner.tsx: a short dash chases around the infinity path forever. */
+.spinner-infinity path {
+  stroke-dasharray: 0.28 1;
+  animation: spinner-chase 1.3s linear infinite;
+}
+@keyframes spinner-chase {
+  to {
+    stroke-dashoffset: -1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .spinner-infinity path {
+    animation-duration: 4s;
+  }
+}

@@ -13,6 +13,7 @@ import {
 } from "@playloop/games";
 import { artSVG, icon, type GameArtType, type ItemKind, type ThemeName } from "@playloop/ui";
 import { useRef, useState } from "react";
+import { Spinner } from "@/app/_components/Spinner";
 import { startPlay, submitPlay, type PlayResult } from "./actions";
 
 export interface GameRow {
@@ -99,10 +100,22 @@ export function GamePlayer({ game }: { game: GameRow }) {
     });
   }
 
-  if (stage === "playing" || stage === "submitting") {
+  if (stage === "playing") {
     // Inline position/inset (not a Tailwind class) so it can't lose a cascade
     // tie against .ghost's own `position: relative` from game-host.css.
     return <div ref={hostRef} className="ghost" style={{ position: "fixed", inset: 0 }} />;
+  }
+
+  if (stage === "submitting") {
+    // The engine's cleanup() clears timers/observers but not the DOM it drew,
+    // so without this the last game frame would just sit there frozen during
+    // the round-trip to save the score — swap to a spinner instead.
+    return (
+      <div className="ghost flex flex-col items-center justify-center gap-4" style={{ position: "fixed", inset: 0 }}>
+        <Spinner size={64} className="text-lemon" />
+        <p className="text-sm font-bold">Saving your score…</p>
+      </div>
+    );
   }
 
   if (stage === "result" && result) {
@@ -150,14 +163,17 @@ export function GamePlayer({ game }: { game: GameRow }) {
       </p>
       <p className="mt-3 text-soft">{game.description}</p>
       {error ? <p className="mt-3 text-sm font-bold text-gum">{error}</p> : null}
-      <button
-        onClick={start}
-        disabled={stage === "starting"}
-        className="btn go lg block mt-6"
-        dangerouslySetInnerHTML={{
-          __html: stage === "starting" ? "Starting…" : `${icon("play", "fill")} Play now`,
-        }}
-      />
+      <button onClick={start} disabled={stage === "starting"} className="btn go lg block mt-6">
+        {stage === "starting" ? (
+          <>
+            <Spinner size={22} /> Starting…
+          </>
+        ) : (
+          <>
+            <span dangerouslySetInnerHTML={{ __html: icon("play", "fill") }} /> Play now
+          </>
+        )}
+      </button>
     </main>
   );
 }

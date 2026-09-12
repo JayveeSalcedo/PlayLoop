@@ -2,6 +2,7 @@
 
 import { icon, THEMES, type IconName, type ThemeName } from "@playloop/ui";
 import { useMemo, useState } from "react";
+import { Spinner } from "@/app/_components/Spinner";
 import { redeemReward, type RedeemResult } from "./actions";
 
 export interface RewardRow {
@@ -168,7 +169,13 @@ export function RewardsBoard({ pointsBalance, rewards }: { pointsBalance: number
                 {error ? <p className="mt-3 text-sm font-bold text-gum">{error}</p> : null}
                 {balance >= selected.costPoints ? (
                   <button onClick={confirmRedeem} disabled={stage === "redeeming"} className="btn go lg block mt-4">
-                    {stage === "redeeming" ? "Redeeming…" : `Redeem for ${selected.costPoints.toLocaleString("en-US")} pts`}
+                    {stage === "redeeming" ? (
+                      <>
+                        <Spinner size={22} /> Redeeming…
+                      </>
+                    ) : (
+                      `Redeem for ${selected.costPoints.toLocaleString("en-US")} pts`
+                    )}
                   </button>
                 ) : (
                   <a href="/feed" className="btn go lg block mt-4">
