@@ -1,17 +1,8 @@
 "use client";
 
-import {
-  catchGame,
-  memoryGame,
-  quizGame,
-  reflexGame,
-  runGame,
-  type CatchConfig,
-  type MemoryConfig,
-  type QuizConfig,
-  type ReflexConfig,
-} from "@playloop/games";
+import { runGameFromConfig } from "@playloop/games";
 import { artSVG, icon, type GameArtType, type ItemKind, type ThemeName } from "@playloop/ui";
+import Link from "next/link";
 import { useRef, useState } from "react";
 import { Spinner } from "@/app/_components/Spinner";
 import { startChallengedPlay, startPlay, submitPlay, type PlayResult } from "./actions";
@@ -27,6 +18,7 @@ export interface GameRow {
   difficulty: "Easy" | "Medium" | "Hard";
   maxPoints: number;
   config: unknown;
+  status: "pending_review" | "published" | "rejected";
 }
 
 type Stage = "intro" | "starting" | "playing" | "result" | "submitting";
@@ -37,12 +29,7 @@ export function GamePlayer({ game, challengeCode }: { game: GameRow; challengeCo
   const [lastSessionId, setLastSessionId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const hostRef = useRef<HTMLDivElement>(null);
-  const config = (game.config ?? {}) as {
-    item?: ItemKind;
-    questions?: QuizQuestionRow[];
-    images?: (string | null)[];
-    target?: ReflexConfig["target"];
-  };
+  const config = (game.config ?? {}) as Record<string, unknown>;
 
   async function start() {
     setError(null);
@@ -74,32 +61,13 @@ export function GamePlayer({ game, challengeCode }: { game: GameRow; challengeCo
       };
       const onQuit = () => setStage("intro");
 
-      switch (game.type) {
-        case "catch": {
-          const catchConfig: CatchConfig = {
-            difficulty: game.difficulty,
-            theme: game.theme as ThemeName,
-            item: config.item ?? "bean",
-          };
-          runGame(catchGame, catchConfig, host, onEnd, onQuit);
-          break;
-        }
-        case "quiz": {
-          const quizConfig: QuizConfig = { difficulty: game.difficulty, questions: config.questions ?? [] };
-          runGame(quizGame, quizConfig, host, onEnd, onQuit);
-          break;
-        }
-        case "memory": {
-          const memoryConfig: MemoryConfig = { difficulty: game.difficulty, images: config.images };
-          runGame(memoryGame, memoryConfig, host, onEnd, onQuit);
-          break;
-        }
-        case "reflex": {
-          const reflexConfig: ReflexConfig = { difficulty: game.difficulty, target: config.target ?? "mint" };
-          runGame(reflexGame, reflexConfig, host, onEnd, onQuit);
-          break;
-        }
-      }
+      runGameFromConfig(
+        game.type,
+        { difficulty: game.difficulty, theme: game.theme as ThemeName, config },
+        host,
+        onEnd,
+        onQuit,
+      );
     });
   }
 
@@ -169,12 +137,16 @@ export function GamePlayer({ game, challengeCode }: { game: GameRow; challengeCo
     );
   }
 
+  // Only the creator can reach an unpublished game (the page 404s for everyone
+  // else), so this banner is always addressed to them.
+  const awaitingReview = game.status !== "published";
+
   return (
     <main className="mx-auto max-w-sm p-6">
       <div
         className="overflow-hidden rounded-3xl [border:var(--border-thick)]"
         dangerouslySetInnerHTML={{
-          __html: artSVG(game.type as GameArtType, game.theme as ThemeName, config.item ?? "bean"),
+          __html: artSVG(game.type as GameArtType, game.theme as ThemeName, (config.item as ItemKind) ?? "bean"),
         }}
       />
       <h1 className="mt-4 text-3xl font-extrabold tracking-tight">{game.title}</h1>
@@ -182,8 +154,27 @@ export function GamePlayer({ game, challengeCode }: { game: GameRow; challengeCo
         {game.difficulty} · win up to {game.maxPoints} pts
       </p>
       <p className="mt-3 text-soft">{game.description}</p>
+      {awaitingReview ? (
+        <div className="mt-4 rounded-2xl bg-card p-4 [border:var(--border-thick)]">
+          <p className="font-extrabold">
+            {game.status === "rejected" ? "Not approved" : "Pending review"}
+          </p>
+          <p className="mt-1 text-sm font-bold text-soft">
+            {game.status === "rejected"
+              ? "This game wasn't approved for the feed, so it can't be played for points."
+              : "Only you can see this game until it's approved. It isn't in the feed and doesn't pay out points yet."}
+          </p>
+          <Link href="/create/games" className="btn sm mt-3">
+            Back to my games
+          </Link>
+        </div>
+      ) : null}
       {error ? <p className="mt-3 text-sm font-bold text-gum">{error}</p> : null}
-      <button onClick={start} disabled={stage === "starting"} className="btn go lg block mt-6">
+      <button
+        onClick={start}
+        disabled={stage === "starting" || awaitingReview}
+        className="btn go lg block mt-6"
+      >
         {stage === "starting" ? (
           <>
             <Spinner size={22} /> Starting…
@@ -196,10 +187,4 @@ export function GamePlayer({ game, challengeCode }: { game: GameRow; challengeCo
       </button>
     </main>
   );
-}
-
-interface QuizQuestionRow {
-  q: string;
-  a: string[];
-  c: number;
 }

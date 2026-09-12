@@ -29,7 +29,7 @@ async function main() {
         maxPoints: 250,
         config: { item: "bean" },
         brandOriginal: true,
-        published: true,
+        status: "published",
       },
       {
         slug: "desert-genius",
@@ -57,7 +57,7 @@ async function main() {
           ],
         },
         brandOriginal: false,
-        published: true,
+        status: "published",
       },
       {
         slug: "neon-pairs",
@@ -69,7 +69,7 @@ async function main() {
         maxPoints: 180,
         config: {},
         brandOriginal: false,
-        published: true,
+        status: "published",
       },
       {
         slug: "tap-frenzy",
@@ -81,7 +81,7 @@ async function main() {
         maxPoints: 300,
         config: { target: "mint" },
         brandOriginal: false,
-        published: true,
+        status: "published",
       },
     ])
     .onConflictDoNothing({ target: games.slug });

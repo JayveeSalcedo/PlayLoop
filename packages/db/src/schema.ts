@@ -27,6 +27,8 @@ export const playSessionStatusEnum = pgEnum("play_session_status", [
 ]);
 export const rewardCategoryEnum = pgEnum("reward_category", ["Food and drink", "Fun", "Shopping"]);
 export const challengeStatusEnum = pgEnum("challenge_status", ["pending", "completed"]);
+export const gameStatusEnum = pgEnum("game_status", ["pending_review", "published", "rejected"]);
+export const moderationOutcomeEnum = pgEnum("moderation_outcome", ["pending", "approved", "rejected"]);
 
 export const profiles = pgTable("profiles", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -68,6 +70,13 @@ export const otpCodes = pgTable("otp_codes", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+/**
+ * A playable game. Seeded brand originals (creatorId null, brandOriginal true)
+ * and creator-published games share this table; status is what gates the feed.
+ * A creator-published game starts at 'pending_review' — visible to its creator
+ * but not in anyone's feed and not playable for points — until the Phase 6
+ * admin queue approves it. See moderationReviews.
+ */
 export const games = pgTable("games", {
   id: uuid("id").defaultRandom().primaryKey(),
   slug: text("slug").notNull().unique(),
@@ -81,10 +90,34 @@ export const games = pgTable("games", {
   config: jsonb("config").$type<Record<string, unknown>>().notNull().default({}),
   creatorId: uuid("creator_id").references(() => profiles.id),
   brandOriginal: boolean("brand_original").notNull().default(false),
-  published: boolean("published").notNull().default(true),
+  status: gameStatusEnum("status").notNull().default("pending_review"),
+  /** Creator opt-in: lists the game for brand sponsorship in the (Phase 5) brand console. */
+  sponsorReady: boolean("sponsor_ready").notNull().default(false),
   playCount: integer("play_count").notNull().default(0),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+/**
+ * Audit log of publish submissions — one row per time a creator submits a game
+ * for review. games.status is the game's current state; this is the history of
+ * how it got there, and the queue the Phase 6 admin panel drains.
+ * reviewerId/decidedAt stay null while outcome is 'pending'.
+ */
+export const moderationReviews = pgTable(
+  "moderation_reviews",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    gameId: uuid("game_id")
+      .notNull()
+      .references(() => games.id),
+    outcome: moderationOutcomeEnum("outcome").notNull().default("pending"),
+    reviewerId: uuid("reviewer_id").references(() => profiles.id),
+    notes: text("notes"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    decidedAt: timestamp("decided_at", { withTimezone: true }),
+  },
+  (table) => [index("moderation_reviews_game_id_idx").on(table.gameId)],
+);
 
 /**
  * A play attempt. The server issues a row here (status 'started', via

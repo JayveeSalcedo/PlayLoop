@@ -12,7 +12,7 @@ export default async function FeedPage() {
   const gameList = await db
     .select()
     .from(schema.games)
-    .where(eq(schema.games.published, true))
+    .where(eq(schema.games.status, "published"))
     .orderBy(desc(schema.games.createdAt));
 
   const need = xpNeed(profile.level);

@@ -6,9 +6,10 @@ import { usePathname } from "next/navigation";
 
 const TABS: { href: string; label: string; icon: IconName }[] = [
   { href: "/feed", label: "Home", icon: "home" },
-  { href: "/wallet", label: "Wallet", icon: "wallet" },
   { href: "/rewards", label: "Rewards", icon: "gift" },
+  { href: "/create", label: "Create", icon: "plus" },
   { href: "/challenges", label: "Challenges", icon: "users" },
+  { href: "/wallet", label: "Wallet", icon: "wallet" },
 ];
 
 export function TabBar() {
@@ -24,7 +25,7 @@ export function TabBar() {
           <Link
             key={t.href}
             href={t.href}
-            className={`flex flex-col items-center gap-1 px-4 py-1 text-xs font-bold ${on ? "text-ink" : "text-faint"}`}
+            className={`flex flex-col items-center gap-1 px-2 py-1 text-[11px] font-bold ${on ? "text-ink" : "text-faint"}`}
           >
             <span dangerouslySetInnerHTML={{ __html: icon(t.icon) }} className="text-xl" />
             {t.label}

@@ -1,6 +1,6 @@
 # Handoff — start here
 
-Written 2026-09-12, right after Phase 3 (Challenges) landed in commit `237a4e2`.
+Written 2026-09-12, right after Phase 4 (Creator studio) landed.
 If you're a new Claude session picking this project up cold, read this first —
 it'll save you from re-discovering things the hard way.
 
@@ -18,7 +18,7 @@ production TypeScript monorepo. Full context:
 
 ## Current status
 
-Phases 1-3 are done, verified against the real Supabase DB, and committed:
+Phases 1-4 are done, verified against the real Supabase DB, and committed:
 1. **Foundation + core loop** — email-OTP auth, onboarding, feed, all 4 game
    templates (Catch/Quiz/Memory/Reflex), server-issued + server-validated play
    sessions.
@@ -28,11 +28,18 @@ Phases 1-3 are done, verified against the real Supabase DB, and committed:
    sign-up-first flow for new visitors, win/loss bonus, one-time referral
    bonus. See the commit message on `237a4e2` for the full design rationale.
 
-**Next up: Phase 4, Creator studio (Quiz)** — wizard, test mode (reuses
-`packages/games`' engine), publish → moderation queue. See
+4. **Creator studio** — a 4-step wizard at `/create` (Template → Customise →
+   Test → Publish) behind a "+" tab, covering all four templates, not just
+   Quiz. Test mode reuses the real engine with no session and no payout.
+   Publishing writes a `pending_review` game plus a `moderation_reviews` row.
+
+**Next up: Phase 5, store staff scanner + brand console MVP** — campaign
+builder, Realtime KPI dashboard, with campaign "funding" as an admin-confirmed
+checkbox rather than live Stripe. Phase 6 is the admin panel, which is what
+finally drains the moderation queue Phase 4 started filling. See
 `docs/tech-stack-plan.md`'s Build phases section for the full remaining
-roadmap (staff scanner + brand console, admin, then the deferred
-infra — Upstash/Inngest/Stripe/i18n/Capacitor — once there's real need).
+roadmap (then the deferred infra — Upstash/Inngest/Stripe/i18n/Capacitor —
+once there's real need).
 
 Working tree is clean; nothing in progress.
 
@@ -66,6 +73,19 @@ Working tree is clean; nothing in progress.
   react to "session cookie points at a profile that no longer exists," use
   `requireProfile()` (`apps/web/lib/profile.ts`), not an ad-hoc
   `clearSession()` call from a page component.
+- **There is no admin UI, so the moderation queue can't be drained from the
+  app.** A creator-published game sits at `status = 'pending_review'` forever
+  until someone runs an `UPDATE games SET status = 'published'` by hand. If
+  you publish a test game and then wonder why it's missing from the feed,
+  that's why — it's working as designed, not broken. Phase 6 builds the
+  approve/reject screen.
+- **Authoring rules live in `packages/games/src/authoring.ts`, not in the
+  form.** If you add a field to the creator wizard, add its validation there
+  too — the wizard and `publishGame` both call `validateGameDraft`/
+  `normalizeConfig`, and a rule added only to the component is a rule the
+  server won't enforce. `normalizeConfig` is also what strips unknown keys
+  out of client-supplied config, so a new config key that isn't listed there
+  will be silently dropped on publish.
 - **`noUncheckedIndexedAccess: true`** is on in the shared tsconfig. Any array
   index or destructure is `T | undefined` — handle it explicitly
   (`rows[0]?.n ?? 0`, not `rows[0].n`).

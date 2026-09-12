@@ -37,11 +37,14 @@ export async function startPlay(gameId: string): Promise<{ sessionId: string }> 
   const db = getDb();
 
   const game = await db
-    .select({ id: schema.games.id })
+    .select({ id: schema.games.id, status: schema.games.status })
     .from(schema.games)
     .where(eq(schema.games.id, gameId))
     .then((r) => r[0]);
   if (!game) throw new Error("Game not found");
+  // A creator can open their own unpublished game's page, so this is the check
+  // that stops them earning points on a game nobody has reviewed yet.
+  if (game.status !== "published") throw new Error("That game isn't approved for play yet.");
 
   const row = await db.transaction((tx) => insertStartedSession(tx, session.sub, game.id));
   return { sessionId: row.id };
@@ -66,6 +69,15 @@ export async function startChallengedPlay(gameId: string, challengeCode: string)
   if (challenge.status !== "pending") throw new Error("That challenge has already been answered.");
   if (challenge.gameId !== gameId) throw new Error("That challenge is for a different game.");
   if (challenge.senderId === session.sub) throw new Error("You can't play your own challenge.");
+
+  // A game can be pulled from the feed after a challenge was sent; don't let an
+  // old link keep paying out on it.
+  const game = await db
+    .select({ status: schema.games.status })
+    .from(schema.games)
+    .where(eq(schema.games.id, gameId))
+    .then((r) => r[0]);
+  if (game?.status !== "published") throw new Error("That game isn't available to play right now.");
 
   const row = await db.transaction((tx) => insertStartedSession(tx, session.sub, gameId, challenge.id));
   return { sessionId: row.id };
