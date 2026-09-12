@@ -16,6 +16,8 @@ export interface RedeemResult {
   icon: string;
   costPoints: number;
   pointsBalance: number;
+  /** Units left in this reward's pool after the redemption; null for an uncapped reward. */
+  poolRemaining: number | null;
   expiresAt: string; // ISO
 }
 
@@ -48,6 +50,7 @@ export async function redeemReward(rewardId: string): Promise<RedeemResult> {
       .then((r) => r[0]);
     if (!reward || !reward.active) throw new Error("This reward isn't available.");
 
+    let poolRemaining: number | null = reward.poolRemaining;
     if (reward.poolTotal != null) {
       const [updatedPool] = await tx
         .update(schema.rewards)
@@ -55,6 +58,9 @@ export async function redeemReward(rewardId: string): Promise<RedeemResult> {
         .where(and(eq(schema.rewards.id, reward.id), gt(schema.rewards.poolRemaining, 0)))
         .returning();
       if (!updatedPool) throw new Error("This reward just sold out.");
+      // Post-decrement value from the write itself, not the row read above —
+      // a concurrent redemption may have taken a unit in between.
+      poolRemaining = updatedPool.poolRemaining;
     }
 
     const [updatedProfile] = await tx
@@ -80,7 +86,7 @@ export async function redeemReward(rewardId: string): Promise<RedeemResult> {
       refId: voucher!.id,
     });
 
-    return { reward, code, expiresAt, pointsBalance: updatedProfile.pointsBalance };
+    return { reward, code, expiresAt, pointsBalance: updatedProfile.pointsBalance, poolRemaining };
   });
 
   const qrSvg = await voucherQrSvg(written.code);
@@ -93,6 +99,7 @@ export async function redeemReward(rewardId: string): Promise<RedeemResult> {
     icon: written.reward.icon,
     costPoints: written.reward.costPoints,
     pointsBalance: written.pointsBalance,
+    poolRemaining: written.poolRemaining,
     expiresAt: written.expiresAt.toISOString(),
   };
 }

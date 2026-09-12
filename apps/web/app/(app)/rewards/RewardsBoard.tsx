@@ -26,6 +26,8 @@ type Stage = "browsing" | "confirming" | "redeeming" | "voucher";
 export function RewardsBoard({ pointsBalance, rewards }: { pointsBalance: number; rewards: RewardRow[] }) {
   const [cat, setCat] = useState<Category>("All");
   const [balance, setBalance] = useState(pointsBalance);
+  /** Pool counts that have moved since this page was rendered, by reward id. */
+  const [pools, setPools] = useState<Record<string, number>>({});
   const [selected, setSelected] = useState<RewardRow | null>(null);
   const [stage, setStage] = useState<Stage>("browsing");
   const [voucher, setVoucher] = useState<RedeemResult | null>(null);
@@ -33,7 +35,18 @@ export function RewardsBoard({ pointsBalance, rewards }: { pointsBalance: number
 
   const visible = useMemo(() => (cat === "All" ? rewards : rewards.filter((r) => r.category === cat)), [cat, rewards]);
 
+  /** Units left for `r`, preferring a count this session has seen move. */
+  function remainingFor(r: RewardRow) {
+    return pools[r.id] ?? r.poolRemaining;
+  }
+
+  function isSoldOut(r: RewardRow) {
+    const remaining = remainingFor(r);
+    return r.poolTotal != null && remaining != null && remaining <= 0;
+  }
+
   function openReward(r: RewardRow) {
+    if (isSoldOut(r)) return;
     setSelected(r);
     setError(null);
     setStage("confirming");
@@ -52,6 +65,7 @@ export function RewardsBoard({ pointsBalance, rewards }: { pointsBalance: number
       const result = await redeemReward(selected.id);
       setVoucher(result);
       setBalance(result.pointsBalance);
+      if (result.poolRemaining != null) setPools((p) => ({ ...p, [selected.id]: result.poolRemaining! }));
       setStage("voucher");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Couldn't redeem that reward — try again.");
@@ -78,7 +92,9 @@ export function RewardsBoard({ pointsBalance, rewards }: { pointsBalance: number
 
       <div className="mt-4 grid grid-cols-2 gap-3">
         {visible.map((r) => {
-          const affordable = balance >= r.costPoints;
+          const remaining = remainingFor(r);
+          const soldOut = isSoldOut(r);
+          const affordable = balance >= r.costPoints && !soldOut;
           return (
             <button
               key={r.id}
@@ -99,12 +115,16 @@ export function RewardsBoard({ pointsBalance, rewards }: { pointsBalance: number
                 <b className="text-sm leading-tight">{r.name}</b>
                 <span className="flex items-center gap-1 text-sm font-extrabold">{r.costPoints.toLocaleString("en-US")} pts</span>
                 {r.poolTotal != null ? (
-                  <span className="text-xs font-bold text-soft">{r.poolRemaining} of {r.poolTotal} left</span>
+                  <span className="text-xs font-bold text-soft">{remaining} of {r.poolTotal} left</span>
                 ) : null}
                 <span
                   className={`mt-auto rounded-lg border-2 border-ink px-2 py-1 text-center text-xs font-extrabold ${affordable ? "bg-mint" : "bg-paper text-soft"}`}
                 >
-                  {affordable ? "Redeem" : `Need ${(r.costPoints - balance).toLocaleString("en-US")} more`}
+                  {soldOut
+                    ? "Sold out"
+                    : affordable
+                      ? "Redeem"
+                      : `Need ${(r.costPoints - balance).toLocaleString("en-US")} more`}
                 </span>
               </div>
             </button>
