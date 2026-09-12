@@ -5,6 +5,7 @@ import { getDb, schema } from "@playloop/db";
 import { eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { createSession } from "@/lib/session";
+import { landingFor } from "@/lib/surfaces";
 import { verifyOtp } from "@/lib/otp";
 
 export async function verifyCode(formData: FormData) {
@@ -59,5 +60,7 @@ export async function verifyCode(formData: FormData) {
   if (!profile.onboardedAt) {
     redirect(challenge ? `/onboarding?challenge=${encodeURIComponent(challenge)}` : "/onboarding");
   }
-  redirect(challenge ? `/c/${encodeURIComponent(challenge)}` : "/feed");
+  // A challenge link always wins — that's what they clicked to get here.
+  if (challenge) redirect(`/c/${encodeURIComponent(challenge)}`);
+  redirect(await landingFor(profile));
 }

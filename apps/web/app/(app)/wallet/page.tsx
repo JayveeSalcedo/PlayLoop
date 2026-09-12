@@ -2,6 +2,7 @@ import { tier, voucherStatus, xpNeed } from "@playloop/economy";
 import { getDb, schema } from "@playloop/db";
 import { count, desc, eq } from "drizzle-orm";
 import { SignOut } from "@/app/_components/SignOut";
+import { SurfaceLinks } from "@/app/_components/SurfaceLinks";
 import { requireProfile } from "@/lib/profile";
 import { voucherQrSvg } from "@/lib/qr";
 
@@ -131,6 +132,8 @@ export default async function WalletPage() {
           ))}
         </div>
       )}
+
+      <SurfaceLinks profile={profile} />
 
       <div className="mt-8 flex justify-center">
         <SignOut className="btn sm" />

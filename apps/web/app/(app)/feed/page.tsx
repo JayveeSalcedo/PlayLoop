@@ -3,6 +3,7 @@ import Link from "next/link";
 import { getDb, schema } from "@playloop/db";
 import { tier, xpNeed } from "@playloop/economy";
 import { artSVG, avatar, type GameArtType, type ThemeName } from "@playloop/ui";
+import { SurfaceLinks } from "@/app/_components/SurfaceLinks";
 import { requireProfile } from "@/lib/profile";
 
 export default async function FeedPage() {
@@ -60,6 +61,8 @@ export default async function FeedPage() {
           );
         })}
       </div>
+      <SurfaceLinks profile={profile} />
+
       {gameList.length === 0 ? (
         <p className="mt-6 text-sm text-soft">
           No games yet — run <code>pnpm db:seed</code> to add the starter games.
