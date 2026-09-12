@@ -3,6 +3,8 @@ import postgres from "postgres";
 import * as schema from "./schema";
 
 export type Db = ReturnType<typeof drizzle<typeof schema>>;
+/** The `tx` parameter type inside `db.transaction(async (tx) => ...)` — for helpers shared between a top-level Db and a transaction. */
+export type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
 
 let cached: Db | null = null;
 

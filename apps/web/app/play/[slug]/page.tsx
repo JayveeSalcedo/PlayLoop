@@ -4,9 +4,16 @@ import { notFound } from "next/navigation";
 import { requireSession } from "@/lib/session";
 import { GamePlayer } from "./GamePlayer";
 
-export default async function PlayPage({ params }: { params: Promise<{ slug: string }> }) {
+export default async function PlayPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ slug: string }>;
+  searchParams: Promise<{ challenge?: string }>;
+}) {
   await requireSession();
   const { slug } = await params;
+  const { challenge } = await searchParams;
 
   const db = getDb();
   const game = await db
@@ -29,6 +36,7 @@ export default async function PlayPage({ params }: { params: Promise<{ slug: str
         maxPoints: game.maxPoints,
         config: game.config,
       }}
+      challengeCode={challenge}
     />
   );
 }

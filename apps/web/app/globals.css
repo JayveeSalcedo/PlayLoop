@@ -35,6 +35,11 @@ body {
 .btn.block {
   width: 100%;
 }
+.btn.sm {
+  padding: 8px 12px;
+  font-size: 13.5px;
+  border-radius: 11px;
+}
 .btn[disabled] {
   opacity: 0.75;
   cursor: default;

@@ -4,11 +4,17 @@ import { completeOnboarding } from "./actions";
 const AVATAR_COUNT = 6;
 const INTERESTS = ["Quizzes", "Arcade", "Puzzles", "Food and coffee", "Sport", "Culture", "Music"];
 
-export default function OnboardingPage() {
+export default async function OnboardingPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ challenge?: string }>;
+}) {
+  const { challenge } = await searchParams;
   return (
     <main className="mx-auto max-w-sm p-6">
       <h1 className="text-3xl font-extrabold tracking-tight">Make your player</h1>
       <form action={completeOnboarding} className="mt-6 flex flex-col gap-6">
+        {challenge ? <input type="hidden" name="challenge" value={challenge} /> : null}
         <div className="flex flex-col gap-2">
           <label className="text-sm font-extrabold" htmlFor="name">
             Gamer name

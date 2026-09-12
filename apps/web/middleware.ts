@@ -2,7 +2,11 @@ import { jwtVerify } from "jose";
 import { NextResponse, type NextRequest } from "next/server";
 
 const COOKIE_NAME = "pl_session";
-const PROTECTED = ["/feed", "/play", "/onboarding", "/wallet", "/rewards"];
+// Note: /c/[code] (the challenge landing page) is deliberately NOT protected
+// here — it branches internally (getSession(), not requireSession()) so a
+// logged-out visitor reaches the page and gets redirected to /login with the
+// challenge code preserved, rather than middleware dropping it beforehand.
+const PROTECTED = ["/feed", "/play", "/onboarding", "/wallet", "/rewards", "/challenges"];
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
@@ -25,5 +29,5 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/feed/:path*", "/play/:path*", "/onboarding/:path*", "/wallet/:path*", "/rewards/:path*"],
+  matcher: ["/feed/:path*", "/play/:path*", "/onboarding/:path*", "/wallet/:path*", "/rewards/:path*", "/challenges/:path*"],
 };

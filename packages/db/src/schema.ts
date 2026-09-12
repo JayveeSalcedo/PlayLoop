@@ -4,7 +4,18 @@
  * in the plan for the fuller model (challenges, brands, campaigns, ...) to
  * be added as those phases start.
  */
-import { boolean, index, integer, jsonb, pgEnum, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import {
+  type AnyPgColumn,
+  boolean,
+  index,
+  integer,
+  jsonb,
+  pgEnum,
+  pgTable,
+  text,
+  timestamp,
+  uuid,
+} from "drizzle-orm/pg-core";
 
 export const gameTypeEnum = pgEnum("game_type", ["quiz", "catch", "memory", "reflex"]);
 export const difficultyEnum = pgEnum("difficulty", ["Easy", "Medium", "Hard"]);
@@ -15,6 +26,7 @@ export const playSessionStatusEnum = pgEnum("play_session_status", [
   "abandoned",
 ]);
 export const rewardCategoryEnum = pgEnum("reward_category", ["Food and drink", "Fun", "Shopping"]);
+export const challengeStatusEnum = pgEnum("challenge_status", ["pending", "completed"]);
 
 export const profiles = pgTable("profiles", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -31,6 +43,14 @@ export const profiles = pgTable("profiles", {
    */
   pointsBalance: integer("points_balance").notNull().default(0),
   onboardedAt: timestamp("onboarded_at", { withTimezone: true }),
+  /**
+   * Set once, at profile-creation time in login/verify/actions.ts, if this
+   * profile's first-ever signup happened via a /c/<code> challenge link —
+   * never updated afterward (a profile can only ever have one referrer).
+   * Read later by submitPlay to decide whether this profile's first
+   * *completed* play should credit the referrer's REFERRAL_JOIN_BONUS.
+   */
+  referredByChallengeId: uuid("referred_by_challenge_id").references((): AnyPgColumn => challenges.id),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -83,6 +103,10 @@ export const games = pgTable("games", {
  * Still deferred: signed per-event telemetry / server-side replay, and
  * Upstash rate limiting. A single live session per player plus the
  * min/max-duration check already bounds how fast points can be earned.
+ *
+ * challengeId is set when this session fulfills a challenge (via
+ * startChallengedPlay) — nullable 1:1, since a session either fulfills one
+ * challenge or none; no join table needed.
  */
 export const playSessions = pgTable("play_sessions", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -97,6 +121,7 @@ export const playSessions = pgTable("play_sessions", {
   payoutPoints: integer("payout_points"),
   xpAwarded: integer("xp_awarded"),
   rejectReason: text("reject_reason"),
+  challengeId: uuid("challenge_id").references((): AnyPgColumn => challenges.id),
   startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
   completedAt: timestamp("completed_at", { withTimezone: true }),
 });
@@ -169,4 +194,46 @@ export const vouchers = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [index("vouchers_profile_id_idx").on(table.profileId)],
+);
+
+/**
+ * A shareable challenge link (/c/<code>). No recipient is bound at
+ * creation — a challenge is an open link, not an addressed invite to a
+ * picked friend (there's no friends/contacts system). Whoever opens it
+ * and completes a play becomes the recipient, recorded here on
+ * completion. Further opens by other people still show the card
+ * (read-only once completed) but don't create a second attempt — one
+ * link resolves once, first-completer-wins the recipient slot.
+ *
+ * senderScore/gameId are snapshotted here rather than re-derived from
+ * senderPlaySessionId on every read, so the "score to beat" never drifts
+ * if the game's config changes later (same reasoning as vouchers.costPoints).
+ * winnerId is null for a tie — no bonus paid to either side on a tie.
+ */
+export const challenges = pgTable(
+  "challenges",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    code: text("code").notNull().unique(),
+    senderId: uuid("sender_id")
+      .notNull()
+      .references(() => profiles.id),
+    gameId: uuid("game_id")
+      .notNull()
+      .references(() => games.id),
+    senderPlaySessionId: uuid("sender_play_session_id")
+      .notNull()
+      .references(() => playSessions.id),
+    senderScore: integer("sender_score").notNull(),
+    recipientId: uuid("recipient_id").references(() => profiles.id),
+    recipientPlaySessionId: uuid("recipient_play_session_id").references(() => playSessions.id),
+    status: challengeStatusEnum("status").notNull().default("pending"),
+    winnerId: uuid("winner_id").references(() => profiles.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+  },
+  (table) => [
+    index("challenges_sender_id_idx").on(table.senderId),
+    index("challenges_recipient_id_idx").on(table.recipientId),
+  ],
 );

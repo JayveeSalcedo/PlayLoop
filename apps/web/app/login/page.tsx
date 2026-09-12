@@ -3,14 +3,15 @@ import { requestCode } from "./actions";
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; challenge?: string }>;
 }) {
-  const { error } = await searchParams;
+  const { error, challenge } = await searchParams;
   return (
     <main className="mx-auto flex min-h-dvh max-w-sm flex-col justify-center p-6">
       <h1 className="text-4xl font-extrabold tracking-tight">playloop</h1>
       <p className="mt-1 text-soft">Play. Create. Earn.</p>
       <form action={requestCode} className="mt-8 flex flex-col gap-3">
+        {challenge ? <input type="hidden" name="challenge" value={challenge} /> : null}
         <label className="text-sm font-extrabold" htmlFor="email">
           Email
         </label>

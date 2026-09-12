@@ -127,3 +127,11 @@ export function voucherStatus(v: { redeemedAt: Date | null; expiresAt: Date }, n
   if (now > v.expiresAt) return "expired";
   return "active";
 }
+
+export type ChallengeOutcome = "sender" | "recipient" | "tie";
+
+/** Determines a challenge's winner from both sides' scores. A tie favors neither — no bonus paid to either side. */
+export function challengeOutcome(senderScore: number, recipientScore: number): ChallengeOutcome {
+  if (senderScore === recipientScore) return "tie";
+  return senderScore > recipientScore ? "sender" : "recipient";
+}

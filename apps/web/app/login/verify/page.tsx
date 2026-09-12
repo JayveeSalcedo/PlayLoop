@@ -3,9 +3,9 @@ import { verifyCode } from "./actions";
 export default async function VerifyPage({
   searchParams,
 }: {
-  searchParams: Promise<{ email?: string; error?: string }>;
+  searchParams: Promise<{ email?: string; error?: string; challenge?: string }>;
 }) {
-  const { email = "", error } = await searchParams;
+  const { email = "", error, challenge } = await searchParams;
   return (
     <main className="mx-auto flex min-h-dvh max-w-sm flex-col justify-center p-6">
       <h1 className="text-3xl font-extrabold tracking-tight">Check your email</h1>
@@ -14,6 +14,7 @@ export default async function VerifyPage({
       </p>
       <form action={verifyCode} className="mt-8 flex flex-col gap-3">
         <input type="hidden" name="email" value={email} />
+        {challenge ? <input type="hidden" name="challenge" value={challenge} /> : null}
         <label className="text-sm font-extrabold" htmlFor="code">
           Code
         </label>

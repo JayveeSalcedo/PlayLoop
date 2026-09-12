@@ -12,11 +12,14 @@ export async function verifyCode(formData: FormData) {
     .trim()
     .toLowerCase();
   const code = String(formData.get("code") || "").trim();
+  const challenge = String(formData.get("challenge") || "").trim() || undefined;
 
   const ok = await verifyOtp(email, code);
   if (!ok) {
     redirect(
-      `/login/verify?email=${encodeURIComponent(email)}&error=${encodeURIComponent("Incorrect or expired code")}`,
+      `/login/verify?email=${encodeURIComponent(email)}&error=${encodeURIComponent("Incorrect or expired code")}${
+        challenge ? `&challenge=${encodeURIComponent(challenge)}` : ""
+      }`,
     );
   }
 
@@ -24,8 +27,18 @@ export async function verifyCode(formData: FormData) {
   let profile = await db.select().from(schema.profiles).where(eq(schema.profiles.email, email)).then((r) => r[0]);
 
   if (!profile) {
+    // If this brand-new signup came from a challenge link, look it up so we
+    // can record referredByChallengeId — set once, here, and never touched
+    // again. submitPlay later reads it to decide the referral bonus.
+    const referredByChallenge = challenge
+      ? await db.select({ id: schema.challenges.id }).from(schema.challenges).where(eq(schema.challenges.code, challenge)).then((r) => r[0])
+      : undefined;
+
     profile = await db.transaction(async (tx) => {
-      const [created] = await tx.insert(schema.profiles).values({ email }).returning();
+      const [created] = await tx
+        .insert(schema.profiles)
+        .values({ email, referredByChallengeId: referredByChallenge?.id })
+        .returning();
       // Welcome gift, ported from the prototype's onboarding bonus (playloop-prototype.html:1211).
       await tx.insert(schema.ledgerEntries).values({
         profileId: created!.id,
@@ -42,5 +55,9 @@ export async function verifyCode(formData: FormData) {
   }
 
   await createSession({ sub: profile.id, email: profile.email });
-  redirect(profile.onboardedAt ? "/feed" : "/onboarding");
+
+  if (!profile.onboardedAt) {
+    redirect(challenge ? `/onboarding?challenge=${encodeURIComponent(challenge)}` : "/onboarding");
+  }
+  redirect(challenge ? `/c/${encodeURIComponent(challenge)}` : "/feed");
 }

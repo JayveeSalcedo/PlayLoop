@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addXp, clamp, payout, scoreTarget, tier, voucherStatus, xpNeed } from "./index";
+import { addXp, challengeOutcome, clamp, payout, scoreTarget, tier, voucherStatus, xpNeed } from "./index";
 
 describe("clamp", () => {
   it("clamps within bounds", () => {
@@ -90,5 +90,19 @@ describe("voucherStatus", () => {
 
   it("is redeemed even if also past its expiry date", () => {
     expect(voucherStatus({ redeemedAt: past, expiresAt: past }, now)).toBe("redeemed");
+  });
+});
+
+describe("challengeOutcome", () => {
+  it("sender wins with a higher score", () => {
+    expect(challengeOutcome(500, 300)).toBe("sender");
+  });
+
+  it("recipient wins with a higher score", () => {
+    expect(challengeOutcome(300, 500)).toBe("recipient");
+  });
+
+  it("is a tie on equal scores", () => {
+    expect(challengeOutcome(400, 400)).toBe("tie");
   });
 });

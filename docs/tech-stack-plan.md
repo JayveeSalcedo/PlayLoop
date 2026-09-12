@@ -76,7 +76,7 @@ Trimmed to the **core loop first**: prove auth → play → earn → see it in t
 
 1. ✅ **Foundation + core loop:** monorepo, Supabase project, email-OTP auth, UI tokens, port Quiz + Catch into `packages/games`; onboarding, feed, game intro/play/result, ledger. Also pulled forward from later: all 4 game templates (Memory/Reflex ported too), and play sessions are server-issued + server-validated (timing/score bounds), not just server-scored.
 2. ✅ **Rewards + vouchers + Wallet:** reward catalog, redemption flow with real scannable QR vouchers (still no real payment — a seeded reward pool stands in for brand funding), Wallet (balance, level, voucher list, history), and a shared bottom tabbar.
-3. **Challenges (the growth loop):** challenge links + OG cards + web challenge landing, referral bonus.
+3. ✅ **Challenges (the growth loop):** shareable `/c/<code>` challenge links born from a completed play, a web challenge landing page (sign-up-first for new visitors, challenge context threaded through login/verify/onboarding), win/loss bonus resolved atomically with the recipient's payout, and a one-time referral bonus on a referred profile's first completed play. (OG cards deferred — no image-generation infra yet; the landing page itself carries the "beat this score" framing.)
 4. **Creator studio (Quiz):** wizard, test mode (reuses engine), publish → moderation queue.
 5. **Store staff scanner + brand console MVP:** campaign builder, Realtime KPI dashboard; campaign "funding" is an admin-confirmed checkbox, not live Stripe.
 6. **Admin:** moderation, rewards/pools, fraud review.

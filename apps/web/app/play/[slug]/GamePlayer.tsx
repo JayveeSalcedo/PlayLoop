@@ -14,7 +14,8 @@ import {
 import { artSVG, icon, type GameArtType, type ItemKind, type ThemeName } from "@playloop/ui";
 import { useRef, useState } from "react";
 import { Spinner } from "@/app/_components/Spinner";
-import { startPlay, submitPlay, type PlayResult } from "./actions";
+import { startChallengedPlay, startPlay, submitPlay, type PlayResult } from "./actions";
+import { ChallengeShare } from "./ChallengeShare";
 
 export interface GameRow {
   id: string;
@@ -30,9 +31,10 @@ export interface GameRow {
 
 type Stage = "intro" | "starting" | "playing" | "result" | "submitting";
 
-export function GamePlayer({ game }: { game: GameRow }) {
+export function GamePlayer({ game, challengeCode }: { game: GameRow; challengeCode?: string }) {
   const [stage, setStage] = useState<Stage>("intro");
   const [result, setResult] = useState<PlayResult | null>(null);
+  const [lastSessionId, setLastSessionId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const hostRef = useRef<HTMLDivElement>(null);
   const config = (game.config ?? {}) as {
@@ -47,9 +49,9 @@ export function GamePlayer({ game }: { game: GameRow }) {
     setStage("starting");
     let sessionId: string;
     try {
-      ({ sessionId } = await startPlay(game.id));
-    } catch {
-      setError("Couldn't start that game — check your connection and try again.");
+      ({ sessionId } = challengeCode ? await startChallengedPlay(game.id, challengeCode) : await startPlay(game.id));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Couldn't start that game — check your connection and try again.");
       setStage("intro");
       return;
     }
@@ -63,6 +65,7 @@ export function GamePlayer({ game }: { game: GameRow }) {
         try {
           const r = await submitPlay(sessionId, score);
           setResult(r);
+          setLastSessionId(sessionId);
           setStage("result");
         } catch (e) {
           setError(e instanceof Error ? e.message : "Couldn't save that play — try again.");
@@ -119,10 +122,22 @@ export function GamePlayer({ game }: { game: GameRow }) {
   }
 
   if (stage === "result" && result) {
+    const cr = result.challengeResult;
     return (
       <main className="mx-auto max-w-sm p-6 text-center">
         <p className="font-bold text-soft">{game.title} complete</p>
         <div className="my-2 text-7xl font-extrabold tracking-tight text-ink">{result.score}</div>
+        {cr ? (
+          <div className={`rounded-2xl p-3 [border:var(--border-thick)] ${cr.outcome === "tie" ? "bg-card" : cr.bonusAwarded > 0 ? "bg-mint" : "bg-card"}`}>
+            <p className="font-extrabold">
+              {cr.outcome === "tie"
+                ? `It's a tie — they also scored ${cr.opponentScore.toLocaleString("en-US")}`
+                : cr.bonusAwarded > 0
+                  ? `You beat their ${cr.opponentScore.toLocaleString("en-US")}! +${cr.bonusAwarded} bonus`
+                  : `They still lead with ${cr.opponentScore.toLocaleString("en-US")}`}
+            </p>
+          </div>
+        ) : null}
         <div className="mt-4 rounded-2xl bg-lemon p-4 [border:var(--border-thick)]">
           <p className="text-4xl font-extrabold">+{result.payoutPoints}</p>
           <p className="text-sm font-bold">points earned</p>
@@ -131,7 +146,12 @@ export function GamePlayer({ game }: { game: GameRow }) {
         {result.levelsGained > 0 ? (
           <p className="mt-2 font-extrabold text-violet">Level up! Now level {result.level}</p>
         ) : null}
-        <div className="mt-6 flex gap-3">
+        {lastSessionId ? (
+          <div className="mt-6 flex">
+            <ChallengeShare sessionId={lastSessionId} />
+          </div>
+        ) : null}
+        <div className="mt-3 flex gap-3">
           <a href="/feed" className="btn flex-1">
             Home
           </a>

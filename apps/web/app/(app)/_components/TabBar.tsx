@@ -8,6 +8,7 @@ const TABS: { href: string; label: string; icon: IconName }[] = [
   { href: "/feed", label: "Home", icon: "home" },
   { href: "/wallet", label: "Wallet", icon: "wallet" },
   { href: "/rewards", label: "Rewards", icon: "gift" },
+  { href: "/challenges", label: "Challenges", icon: "users" },
 ];
 
 export function TabBar() {
