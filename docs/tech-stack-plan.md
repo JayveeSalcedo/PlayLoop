@@ -62,7 +62,7 @@ playloop/
 ```
 
 ## Core data model (Postgres)
-`profiles` (name, avatar, interests, level, xp, role flags) · `games` (type, config JSON, theme, difficulty, max_points, creator_id, brand_original, sponsor_ready, status) · `play_sessions` (issued token, started_at, ended_at, score, validated) · `ledger_entries` (immutable, +/− points, reason, ref) · `challenges` + `challenge_recipients` (code, score, status, referral) · `rewards` (brand, cost, category, stock/pool_id) · `vouchers` (code, status, expires_at, redeemed_store_id) · `brands`, `brand_members`, `stores`, `store_staff` · `campaigns` (brand, game, pool, cities, dates, budget) · `play_events` (analytics) · `creator_earnings`, `payouts` · `moderation_reviews`.
+`profiles` (name, avatar, interests, level, xp, role flags) · `games` (type, config JSON, theme, difficulty, max_points, creator_id, brand_original, sponsor_ready, status) · `play_sessions` (issued token, started_at, ended_at, score, validated) · `ledger_entries` (immutable, +/− points, reason, ref) · `challenges` + `challenge_recipients` (code, score, status, referral) · `rewards` (brand, cost, category, stock/pool_id) · `vouchers` (code, expires_at, redeemed_at) + `voucher_redemptions` (voucher, store, staff, reversed_at — an audit row rather than a `redeemed_store_id` column, so a staff undo can hand the voucher back without erasing the record) · `brands`, `brand_members`, `stores`, `store_staff` · `campaigns` (brand, game, pool, cities, dates, budget) · `play_events` (analytics) · `creator_earnings`, `payouts` · `moderation_reviews`.
 
 Balance = `SUM(ledger_entries)` (cached column updated in same transaction). Redemption = one Postgres function: check balance → debit → decrement pool → create voucher.
 
