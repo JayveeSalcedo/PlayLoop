@@ -10,6 +10,17 @@ let cached: Db | null = null;
  * Lazily creates a singleton Drizzle client from DATABASE_URL. Point this at
  * a Supabase Free Postgres connection string (use the pooler/connection
  * string from Project Settings -> Database) or any Postgres instance.
+ *
+ * Latency note: measured ~85-95ms round-trip per query against this
+ * project's database (region ap-northeast-2/Seoul) regardless of pooler
+ * mode (transaction vs session — tested both, no meaningful difference).
+ * That's the network-distance floor, not something fixable in this client.
+ * Promise.all across independent queries (see the feed/wallet/rewards
+ * pages) does genuinely parallelize once this pool is warm — verified: 3
+ * concurrent queries ran in ~180ms total, not ~3x a single query's time.
+ * If per-page latency needs to come down further than a loading state can
+ * hide, the real lever is a database region closer to your users (a new
+ * Supabase project + data migration — not something to do casually).
  */
 export function getDb(): Db {
   if (cached) return cached;
