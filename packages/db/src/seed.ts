@@ -7,7 +7,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { config } from "dotenv";
 import { getDb } from "./client";
-import { games, rewards } from "./schema";
+import { games, rewards, stores } from "./schema";
 
 // Load the monorepo root .env regardless of CWD (see apps/web/next.config.ts for the same pattern).
 config({ path: path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../.env") });
@@ -134,8 +134,22 @@ async function main() {
     ])
     .onConflictDoNothing({ target: rewards.slug });
 
+  // Counters where a voucher can be handed over. brandName matches the
+  // rewards above, which is what the staff scanner checks a voucher against.
+  // Attaching a person to one of these is a manual INSERT — see the README —
+  // because store staff need a real logged-in profile first.
+  await db
+    .insert(stores)
+    .values([
+      { slug: "beanhouse-marina", brandName: "Beanhouse", name: "Marina", city: "Dubai" },
+      { slug: "beanhouse-downtown", brandName: "Beanhouse", name: "Downtown", city: "Dubai" },
+      { slug: "glow-arcade-yas", brandName: "Glow Arcade", name: "Yas Bay", city: "Abu Dhabi" },
+    ])
+    .onConflictDoNothing({ target: stores.slug });
+
   console.log("Seeded games: bean-catcher, desert-genius, neon-pairs, tap-frenzy");
   console.log("Seeded rewards: free-flat-white, any-pastry, arcade-pass, nomad-books-voucher");
+  console.log("Seeded stores: beanhouse-marina, beanhouse-downtown, glow-arcade-yas");
   process.exit(0);
 }
 

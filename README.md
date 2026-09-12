@@ -6,7 +6,7 @@ This repo is the production build, growing out of the single-file prototype at `
 - `docs/tech-stack-plan.md` — the tech-stack plan and phased build order.
 - `docs/feature-brief.md` — the feature/flow spec (from the project brief), reconciled with the PWA-first, email+OTP decisions below. `docs/play-loop-brief-source.docx` is the original file.
 
-**Status (this commit): players can now make the games too** — email login → onboarding → feed → play (Catch, Quiz, Memory or Reflex, server-issued and server-validated) → points/XP → spend points in Rewards on a real, scannable-QR voucher → see it all in Wallet, challenge a friend to a shareable `/c/<code>` link that doubles as a referral join, and build your own game in the creator studio at `/create` (pick a template, customise it, test-play it, publish it into the moderation queue). The brand console and the admin/moderation panel are later phases (see `docs/tech-stack-plan.md`).
+**Status (this commit): players can now make the games too** — email login → onboarding → feed → play (Catch, Quiz, Memory or Reflex, server-issued and server-validated) → points/XP → spend points in Rewards on a real, scannable-QR voucher → see it all in Wallet, challenge a friend to a shareable `/c/<code>` link that doubles as a referral join, and build your own game in the creator studio at `/create` (pick a template, customise it, test-play it, publish it into the moderation queue). Two staff surfaces sit behind that: `/admin` approves or rejects submitted games, and `/staff` is the store counter — type a voucher code, see whether it's valid, and mark it used. The brand console is the next phase (see `docs/tech-stack-plan.md`).
 
 ## Stack
 
@@ -23,6 +23,8 @@ apps/
     app/(app)/create/   The creator studio: the wizard, test mode, "My games", and per-game pages.
     app/admin/      The moderation queue (ADMIN_EMAILS-gated). Outside the (app) group on
                     purpose — it's a staff surface, not a player tab.
+    app/staff/      The store voucher scanner, for whoever is on the counter. Gated by a
+                    store_staff row rather than an env var. Also outside (app).
     lib/qr.ts, lib/voucherCode.ts   Server-only voucher helpers (kept out of @playloop/ui so the
                     `qrcode` package never ships to the client bundle).
 packages/
@@ -60,7 +62,20 @@ reference/
    ```
    **Known issue:** `drizzle-kit push` (0.28–0.31, both tried) currently crashes mid-introspection against this Supabase project with `TypeError: Cannot read properties of undefined (reading 'replace')` — a bug in its check-constraint introspection query, unrelated to our schema (verified: `public` has zero check constraints). If you hit this, apply the pending schema change by hand instead: compare `packages/db/src/schema.ts` against the live DB and write the equivalent `ALTER`/`CREATE TYPE` statements, run them via a one-off script using `getDb()`/`postgres` directly (see git history for `packages/db/src/_migrate_tmp.ts`-style examples), and verify column-by-column afterward. `db:generate` (which only diffs local files, no DB introspection) may still work if you'd rather adopt migration files going forward.
 
-5. **Run it**
+5. **Optional: put yourself on a store counter.** `db:seed` creates three stores
+   (`beanhouse-marina`, `beanhouse-downtown`, `glow-arcade-yas`). To use `/staff`,
+   log in once so you have a profile, then attach it to a store — there's no
+   in-app way to do this on purpose, same as admin:
+   ```sql
+   INSERT INTO store_staff (store_id, profile_id)
+   SELECT s.id, p.id FROM stores s, profiles p
+   WHERE s.slug = 'beanhouse-marina' AND p.email = 'you@example.com';
+   ```
+   A profile can be staff at one store only (`profile_id` is unique), so the
+   scanner never has to ask which counter you're on. Note a Beanhouse counter
+   can only take Beanhouse vouchers.
+
+6. **Run it**
    ```
    pnpm dev
    ```
@@ -76,6 +91,12 @@ pnpm typecheck    # across all packages/apps
 
 ## Notes on this phase
 
+- **The reward loop now closes at the counter.** `/staff` takes a typed voucher code, says exactly what it is, and marks it used. The QR the Wallet renders encodes the bare code (`voucherQrSvg(v.code)` — no URL, no signature), so a typed code and a scanned one are the same input; camera capture (`@zxing/browser`) becomes a thin layer over proven logic rather than a prerequisite for it. Staff type the code for now, which is also what makes every validation path testable.
+- **Staff membership is a database row, not an env allowlist.** Unlike `ADMIN_EMAILS`, store staff are a brand's employees rather than us, so `store_staff` is a real table — and `profile_id` is unique on it, meaning one person works at one store. That's what lets the scanner know which counter it's acting for with no store picker and no ambiguity. Attaching someone is a manual `INSERT` (see below), because a staff member needs a real logged-in profile first.
+- **`voucher_redemptions` exists so an undo doesn't erase history.** The obvious design is `redeemed_store_id`/`redeemed_by` columns on `vouchers`, but a staff undo has to null `vouchers.redeemedAt` to hand the voucher back, and those columns would go with it. A row in `voucher_redemptions` survives the reversal (`reversed_at` is stamped, nothing is deleted), so "redeemed at Marina at 14:02, undone two minutes later" stays answerable — and the brand console's store-visit counts are just this table with `reversed_at IS NULL`. `vouchers.redeemedAt` stays the single flag `voucherStatus()` reads, so nothing about the Wallet or `@playloop/economy` changed.
+- **A voucher is scoped to its brand.** `rewards.brandName` is checked against the staff member's `stores.brand_name`, so a Glow Arcade voucher can't be burned at a Beanhouse counter. Easy to miss while there's one brand in the seed data, and expensive to discover once there are two real ones.
+- **The undo window is computed DB-side** (`now() - redeemed_at < interval '10 minutes'` inside the `WHERE`), never `Date.now()` against a timestamp read from the database — the same clock-skew trap that cost a debugging session in phase 3.
+- **Known limit, deliberately not solved:** voucher codes are `XX-YYYY-NN`, roughly a 170-million space, so they're guessable at scale. That's acceptable while the only thing that can look one up is a staff-gated action — the threat is an authenticated employee enumerating codes, not the public. Revisit (Upstash rate limiting, or signing the QR payload) when there are real store staff who aren't us.
 - **The wizard and the server share one rulebook.** `packages/games/src/authoring.ts` holds every authoring rule (title length, 2-8 quiz questions with four answers each, max-points range/step, valid item/target/theme). The wizard imports it to gate its Next button and place inline errors; `publishGame` imports the same functions as the authoritative check. A rule only has to be written once, and the form can't drift out of sync with what the server will accept.
 - **Nothing is written until you publish.** The wizard's draft lives entirely in client state — no autosave, no draft rows, no `status: 'draft'`. The first DB write is the publish itself. Test mode (`TestPlay.tsx`) runs the real engine through the same `runGameFromConfig` the player page uses, but with no play session and no `submitPlay`, so a creator can play their own game repeatedly without earning anything; the projected payout shown afterward is computed locally from the same `@playloop/economy` rules the server would apply.
 - **`games.published` (boolean) became `games.status` (enum).** Three states were needed — `pending_review`, `published`, `rejected` — and a boolean can't carry them. The feed filters on `status = 'published'`; a creator-published game starts at `pending_review`, which means it is out of the feed, but its creator can still open `/play/<slug>` to preview it (everyone else gets a 404). `startPlay` refuses any non-published game, so previewing can't be turned into point-farming on an unreviewed game — the disabled Play button is the courtesy, the server check is the rule.

@@ -207,8 +207,11 @@ export const rewards = pgTable("rewards", {
  * action, not by validating client input.
  *
  * No status column and no Inngest job to expire vouchers — same pattern as
- * otp_codes: expiresAt is just checked at read/redeem time. redeemedAt stays
- * null until the future staff scanner sets it.
+ * otp_codes: expiresAt is just checked at read/redeem time. redeemedAt is set
+ * by the staff scanner (apps/web/app/staff) and is the single source of "is
+ * this used" that @playloop/economy's voucherStatus() reads; who took it, and
+ * where, lives in voucher_redemptions rather than in columns here, so that an
+ * undo can null this back out without erasing the record.
  */
 export const vouchers = pgTable(
   "vouchers",
@@ -268,5 +271,77 @@ export const challenges = pgTable(
   (table) => [
     index("challenges_sender_id_idx").on(table.senderId),
     index("challenges_recipient_id_idx").on(table.recipientId),
+  ],
+);
+
+/**
+ * A physical location where a voucher can be handed over. brandName is plain
+ * text matching rewards.brandName — there's still no `brands` table (that's
+ * the brand-console phase), and this keeps the two sides joinable by the same
+ * convention rewards already uses.
+ */
+export const stores = pgTable("stores", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  slug: text("slug").notNull().unique(),
+  brandName: text("brand_name").notNull(),
+  name: text("name").notNull(),
+  city: text("city").notNull(),
+  active: boolean("active").notNull().default(true),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/**
+ * Which store a profile works at. profileId is unique: one person, one store.
+ * That's what lets the scanner know which store it's acting for without asking
+ * — there's no store picker, because there's no ambiguity. Someone working two
+ * stores is a real change to make later, not a shape to guess at now.
+ *
+ * There's no env allowlist here (unlike ADMIN_EMAILS): store staff are a
+ * customer's employees, not us, so membership belongs in data.
+ */
+export const storeStaff = pgTable("store_staff", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  storeId: uuid("store_id")
+    .notNull()
+    .references(() => stores.id),
+  profileId: uuid("profile_id")
+    .notNull()
+    .unique()
+    .references(() => profiles.id),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/**
+ * The audit trail for a voucher being accepted at a counter — who took it,
+ * where, when, and whether it was later reversed.
+ *
+ * This exists instead of redeemed_store_id/redeemed_by columns on vouchers
+ * because a staff undo has to null vouchers.redeemedAt to make the voucher
+ * usable again, and columns there would be erased along with it. A row here
+ * survives the reversal (reversedAt is stamped, the row is never deleted), so
+ * "this was redeemed at Marina at 14:02 and undone two minutes later" stays
+ * answerable. It's also what the brand console's store-visit numbers will
+ * count: reversed rows are excluded by `reversed_at IS NULL`.
+ */
+export const voucherRedemptions = pgTable(
+  "voucher_redemptions",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    voucherId: uuid("voucher_id")
+      .notNull()
+      .references(() => vouchers.id),
+    storeId: uuid("store_id")
+      .notNull()
+      .references(() => stores.id),
+    staffProfileId: uuid("staff_profile_id")
+      .notNull()
+      .references(() => profiles.id),
+    redeemedAt: timestamp("redeemed_at", { withTimezone: true }).notNull().defaultNow(),
+    reversedAt: timestamp("reversed_at", { withTimezone: true }),
+    reversedByProfileId: uuid("reversed_by_profile_id").references(() => profiles.id),
+  },
+  (table) => [
+    index("voucher_redemptions_store_id_idx").on(table.storeId),
+    index("voucher_redemptions_voucher_id_idx").on(table.voucherId),
   ],
 );

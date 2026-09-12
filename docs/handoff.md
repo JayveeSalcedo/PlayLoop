@@ -38,10 +38,16 @@ Phases 1-4 are done, verified against the real Supabase DB, and committed:
    Rejecting requires a reason, which the creator sees on their game page.
    Admin access is an `ADMIN_EMAILS` allowlist, not a database role.
 
-**Next up: Phase 5, store staff scanner + brand console MVP** — campaign
-builder, Realtime KPI dashboard, with campaign "funding" as an admin-confirmed
-checkbox rather than live Stripe. The rest of phase 6 (fraud review, user
-management, platform analytics) is still outstanding. See
+6. **Store staff scanner (phase 5a)** — `/staff` takes a typed voucher code,
+   distinguishes unknown / expired / already-used / wrong-brand / valid, marks
+   it redeemed, and allows an undo within 10 minutes. Staff are `store_staff`
+   rows, not an env allowlist.
+
+**Next up: Phase 5b, the brand console** — campaign builder, forecast and live
+KPI dashboard, with campaign "funding" as an admin-confirmed checkbox rather
+than live Stripe. It needs brands/campaigns tables, a chart library (none in the
+repo yet) and per-city data (no geo column exists anywhere). The rest of phase 6
+(fraud review, user management, platform analytics) is still outstanding. See
 `docs/tech-stack-plan.md`'s Build phases section for the full remaining
 roadmap (then the deferred infra — Upstash/Inngest/Stripe/i18n/Capacitor —
 once there's real need).
@@ -78,6 +84,11 @@ Working tree is clean; nothing in progress.
   react to "session cookie points at a profile that no longer exists," use
   `requireProfile()` (`apps/web/lib/profile.ts`), not an ad-hoc
   `clearSession()` call from a page component.
+- **`/staff` needs a `store_staff` row, and one profile can only be staff at
+  one store** (`profile_id` is unique). `pnpm db:seed` creates three stores but
+  attaches nobody — see the README's setup step 5 for the `INSERT`. A counter
+  can only take its own brand's vouchers, so a Beanhouse account testing a Glow
+  Arcade code will correctly be refused; that's the rule, not a bug.
 - **Admin access comes from `ADMIN_EMAILS` in `.env`, not the database.** Put
   your email in that comma-separated list and `/admin` shows the moderation
   queue; leave it empty and *nobody* is an admin, including you. If `/admin`
