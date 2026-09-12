@@ -1,5 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { addXp, challengeOutcome, clamp, payout, scoreTarget, tier, voucherStatus, xpNeed } from "./index";
+import {
+  addXp,
+  campaignStatus,
+  challengeOutcome,
+  clamp,
+  costPer,
+  formatAed,
+  payout,
+  scoreTarget,
+  tier,
+  voucherStatus,
+  xpNeed,
+} from "./index";
 
 describe("clamp", () => {
   it("clamps within bounds", () => {
@@ -104,5 +116,81 @@ describe("challengeOutcome", () => {
 
   it("is a tie on equal scores", () => {
     expect(challengeOutcome(400, 400)).toBe("tie");
+  });
+});
+
+describe("campaignStatus", () => {
+  const funded = new Date("2026-01-01T00:00:00Z");
+  const on = (day: string) => new Date(`${day}T12:00:00Z`);
+  const window = { startsOn: "2026-03-10", endsOn: "2026-03-20" };
+  const live = { ...window, fundedAt: funded, cancelledAt: null };
+
+  it("is live inside its window once funded", () => {
+    expect(campaignStatus(live, on("2026-03-15"))).toBe("live");
+  });
+
+  it("treats both bounds as inclusive", () => {
+    expect(campaignStatus(live, on("2026-03-10"))).toBe("live");
+    expect(campaignStatus(live, on("2026-03-20"))).toBe("live");
+  });
+
+  it("is scheduled before the window and complete after it", () => {
+    expect(campaignStatus(live, on("2026-03-09"))).toBe("scheduled");
+    expect(campaignStatus(live, on("2026-03-21"))).toBe("complete");
+  });
+
+  it("is a draft until funded, whatever the dates say", () => {
+    const unfunded = { ...window, fundedAt: null, cancelledAt: null };
+    // The important one: an unfunded campaign whose window has opened must not
+    // read as live, or a brand sees a dashboard for something it hasn't paid for.
+    expect(campaignStatus(unfunded, on("2026-03-15"))).toBe("draft");
+    expect(campaignStatus(unfunded, on("2026-03-01"))).toBe("draft");
+    expect(campaignStatus(unfunded, on("2026-04-01"))).toBe("draft");
+  });
+
+  it("is cancelled regardless of funding or dates", () => {
+    const cancelled = { ...window, fundedAt: funded, cancelledAt: new Date("2026-03-12T00:00:00Z") };
+    expect(campaignStatus(cancelled, on("2026-03-15"))).toBe("cancelled");
+    expect(campaignStatus({ ...cancelled, fundedAt: null }, on("2026-03-15"))).toBe("cancelled");
+  });
+
+  it("handles a single-day campaign", () => {
+    const oneDay = { startsOn: "2026-03-10", endsOn: "2026-03-10", fundedAt: funded, cancelledAt: null };
+    expect(campaignStatus(oneDay, on("2026-03-10"))).toBe("live");
+    expect(campaignStatus(oneDay, on("2026-03-11"))).toBe("complete");
+  });
+});
+
+describe("formatAed", () => {
+  it("formats whole and fractional amounts", () => {
+    expect(formatAed(0)).toBe("AED 0.00");
+    expect(formatAed(500_000)).toBe("AED 5,000.00");
+    expect(formatAed(1)).toBe("AED 0.01");
+    expect(formatAed(12_345)).toBe("AED 123.45");
+  });
+
+  it("pads the minor units", () => {
+    expect(formatAed(105)).toBe("AED 1.05");
+    expect(formatAed(100)).toBe("AED 1.00");
+  });
+
+  it("keeps a negative sign in front", () => {
+    expect(formatAed(-2_550)).toBe("-AED 25.50");
+  });
+});
+
+describe("costPer", () => {
+  it("divides the budget across a count", () => {
+    expect(costPer(500_000, 100)).toBe(5_000);
+  });
+
+  it("rounds to whole fils", () => {
+    expect(costPer(1000, 3)).toBe(333);
+  });
+
+  it("is null rather than zero when there's nothing to divide by", () => {
+    // "AED 0.00 per play" would read as free; no plays means no cost per play.
+    expect(costPer(500_000, 0)).toBeNull();
+    expect(costPer(500_000, -1)).toBeNull();
   });
 });

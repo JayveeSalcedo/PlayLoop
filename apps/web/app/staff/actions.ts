@@ -43,11 +43,13 @@ export async function lookupVoucher(rawCode: string): Promise<LookupResult> {
       redeemedAt: schema.vouchers.redeemedAt,
       expiresAt: schema.vouchers.expiresAt,
       rewardName: schema.rewards.name,
-      brandName: schema.rewards.brandName,
+      brandId: schema.rewards.brandId,
+      brandName: schema.brands.name,
       playerName: schema.profiles.name,
     })
     .from(schema.vouchers)
     .innerJoin(schema.rewards, eq(schema.vouchers.rewardId, schema.rewards.id))
+    .innerJoin(schema.brands, eq(schema.rewards.brandId, schema.brands.id))
     .innerJoin(schema.profiles, eq(schema.vouchers.profileId, schema.profiles.id))
     .where(eq(schema.vouchers.code, code))
     .then((r) => r[0]);
@@ -58,12 +60,7 @@ export async function lookupVoucher(rawCode: string): Promise<LookupResult> {
 
   // A Beanhouse voucher must not be burnable at a Glow Arcade counter. Checked
   // before "expired"/"used" so the message names the real problem.
-  //
-  // This compares brand *names* because there's no brands table yet, so
-  // "Beanhouse" and "Bean House" would read as different brands. Safe while
-  // both sides come from seed.ts; replace with a brand id when phase 5b adds
-  // that table (see docs/tech-stack-plan.md).
-  if (row.brandName.trim().toLowerCase() !== store.brandName.trim().toLowerCase()) {
+  if (row.brandId !== store.brandId) {
     return { status: "wrong_brand", ...common };
   }
 
@@ -117,15 +114,17 @@ export async function redeemVoucher(rawCode: string): Promise<{ rewardName: stri
     .select({
       id: schema.vouchers.id,
       rewardName: schema.rewards.name,
-      brandName: schema.rewards.brandName,
+      brandId: schema.rewards.brandId,
+      brandName: schema.brands.name,
     })
     .from(schema.vouchers)
     .innerJoin(schema.rewards, eq(schema.vouchers.rewardId, schema.rewards.id))
+    .innerJoin(schema.brands, eq(schema.rewards.brandId, schema.brands.id))
     .where(eq(schema.vouchers.code, code))
     .then((r) => r[0]);
 
   if (!voucher) throw new Error("No voucher with that code.");
-  if (voucher.brandName.trim().toLowerCase() !== store.brandName.trim().toLowerCase()) {
+  if (voucher.brandId !== store.brandId) {
     throw new Error(`That's a ${voucher.brandName} voucher — it can't be used at ${store.brandName}.`);
   }
 

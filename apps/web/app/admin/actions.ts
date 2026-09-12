@@ -1,7 +1,7 @@
 "use server";
 
 import { getDb, schema } from "@playloop/db";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, isNull, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/admin";
 
@@ -51,6 +51,37 @@ async function decide(
   revalidatePath("/admin");
   revalidatePath("/feed");
   return { title: result.title };
+}
+
+/**
+ * Confirms a brand's payment arrived, which is what makes a campaign real —
+ * campaignStatus() reports "draft" until fundedAt is set, whatever its dates
+ * say. This is the admin-confirmed checkbox that stands in for Stripe; there is
+ * no payment integration, deliberately (see the plan).
+ *
+ * Conditional on still being unfunded, so two admins can't both "confirm" it.
+ */
+export async function markCampaignFunded(campaignId: string): Promise<{ ok: true }> {
+  const { profile: _admin } = await requireAdmin();
+  const db = getDb();
+
+  const [funded] = await db
+    .update(schema.campaigns)
+    .set({ fundedAt: sql`now()` })
+    .where(
+      and(
+        eq(schema.campaigns.id, campaignId),
+        isNull(schema.campaigns.fundedAt),
+        isNull(schema.campaigns.cancelledAt),
+      ),
+    )
+    .returning({ id: schema.campaigns.id });
+
+  if (!funded) throw new Error("That campaign is already funded, or it's been cancelled.");
+
+  revalidatePath("/admin");
+  revalidatePath("/brand");
+  return { ok: true };
 }
 
 export async function approveGame(gameId: string): Promise<{ title: string }> {

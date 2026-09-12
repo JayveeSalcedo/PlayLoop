@@ -31,10 +31,11 @@ export default async function WalletPage() {
         redeemedAt: schema.vouchers.redeemedAt,
         expiresAt: schema.vouchers.expiresAt,
         rewardName: schema.rewards.name,
-        brandName: schema.rewards.brandName,
+        brandName: schema.brands.name,
       })
       .from(schema.vouchers)
       .innerJoin(schema.rewards, eq(schema.vouchers.rewardId, schema.rewards.id))
+      .innerJoin(schema.brands, eq(schema.rewards.brandId, schema.brands.id))
       .where(eq(schema.vouchers.profileId, profile.id))
       .orderBy(desc(schema.vouchers.createdAt)),
     db

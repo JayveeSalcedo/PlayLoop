@@ -3,7 +3,34 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Spinner } from "@/app/_components/Spinner";
-import { approveGame, rejectGame } from "./actions";
+import { approveGame, markCampaignFunded, rejectGame } from "./actions";
+
+export function FundButton({ campaignId }: { campaignId: string }) {
+  const router = useRouter();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function run() {
+    setBusy(true);
+    setError(null);
+    try {
+      await markCampaignFunded(campaignId);
+      router.refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Couldn't mark that funded.");
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="mt-3">
+      <button className="btn go sm" onClick={run} disabled={busy}>
+        {busy ? <Spinner size={18} /> : "Mark as funded"}
+      </button>
+      {error ? <p className="mt-1 text-xs font-bold text-gum">{error}</p> : null}
+    </div>
+  );
+}
 
 type Mode = "idle" | "rejecting" | "working";
 

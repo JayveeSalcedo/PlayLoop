@@ -44,8 +44,19 @@ export async function redeemReward(rewardId: string): Promise<RedeemResult> {
 
   const written = await db.transaction(async (tx) => {
     const reward = await tx
-      .select()
+      .select({
+        id: schema.rewards.id,
+        name: schema.rewards.name,
+        theme: schema.rewards.theme,
+        icon: schema.rewards.icon,
+        costPoints: schema.rewards.costPoints,
+        poolTotal: schema.rewards.poolTotal,
+        poolRemaining: schema.rewards.poolRemaining,
+        active: schema.rewards.active,
+        brandName: schema.brands.name,
+      })
       .from(schema.rewards)
+      .innerJoin(schema.brands, eq(schema.rewards.brandId, schema.brands.id))
       .where(eq(schema.rewards.id, rewardId))
       .then((r) => r[0]);
     if (!reward || !reward.active) throw new Error("This reward isn't available.");

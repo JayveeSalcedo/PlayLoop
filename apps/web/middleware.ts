@@ -6,7 +6,7 @@ const COOKIE_NAME = "pl_session";
 // here — it branches internally (getSession(), not requireSession()) so a
 // logged-out visitor reaches the page and gets redirected to /login with the
 // challenge code preserved, rather than middleware dropping it beforehand.
-const PROTECTED = ["/feed", "/play", "/onboarding", "/wallet", "/rewards", "/challenges", "/create", "/admin", "/staff"];
+const PROTECTED = ["/feed", "/play", "/onboarding", "/wallet", "/rewards", "/challenges", "/create", "/admin", "/staff", "/brand"];
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
@@ -39,5 +39,6 @@ export const config = {
     "/create/:path*",
     "/admin/:path*",
     "/staff/:path*",
+    "/brand/:path*",
   ],
 };

@@ -8,6 +8,7 @@ export interface StaffStore {
   id: string;
   name: string;
   city: string;
+  brandId: string;
   brandName: string;
 }
 
@@ -39,11 +40,13 @@ export async function requireStaff(): Promise<StaffContext> {
       id: schema.stores.id,
       name: schema.stores.name,
       city: schema.stores.city,
-      brandName: schema.stores.brandName,
+      brandId: schema.stores.brandId,
+      brandName: schema.brands.name,
       active: schema.stores.active,
     })
     .from(schema.storeStaff)
     .innerJoin(schema.stores, eq(schema.storeStaff.storeId, schema.stores.id))
+    .innerJoin(schema.brands, eq(schema.stores.brandId, schema.brands.id))
     .where(eq(schema.storeStaff.profileId, profile.id))
     .then((r) => r[0]);
 

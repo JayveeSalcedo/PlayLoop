@@ -135,3 +135,66 @@ export function challengeOutcome(senderScore: number, recipientScore: number): C
   if (senderScore === recipientScore) return "tie";
   return senderScore > recipientScore ? "sender" : "recipient";
 }
+
+export type CampaignStatus = "draft" | "scheduled" | "live" | "complete" | "cancelled";
+
+export interface CampaignTiming {
+  /** Set when an admin confirms the brand's payment arrived. Null = not funded. */
+  fundedAt: Date | null;
+  cancelledAt: Date | null;
+  /** Inclusive date-only bounds, as stored ('YYYY-MM-DD'). */
+  startsOn: string;
+  endsOn: string;
+}
+
+/** 'YYYY-MM-DD' for a Date, in the same calendar terms the date columns use. */
+function isoDay(d: Date): string {
+  return d.toISOString().slice(0, 10);
+}
+
+/**
+ * Derives a campaign's state from its timestamps and date window, so nothing
+ * has to run on a schedule to notice a campaign started or finished — the same
+ * reasoning that keeps voucher expiry job-free.
+ *
+ * Order matters: cancelling beats everything, and an unfunded campaign is a
+ * draft no matter what its dates say. A campaign whose window has opened but
+ * which nobody funded must never read as "live", or a brand would see a
+ * dashboard for something it hasn't paid for.
+ *
+ * Both bounds are inclusive: a one-day campaign with startsOn == endsOn is live
+ * for that whole day.
+ */
+export function campaignStatus(c: CampaignTiming, now: Date = new Date()): CampaignStatus {
+  if (c.cancelledAt) return "cancelled";
+  if (!c.fundedAt) return "draft";
+  const today = isoDay(now);
+  if (today < c.startsOn) return "scheduled";
+  if (today > c.endsOn) return "complete";
+  return "live";
+}
+
+/**
+ * Formats money held as integer fils (AED x 100).
+ *
+ * Money is stored in minor units so it can't drift by a rounding error, which
+ * means every display goes through here rather than doing its own division.
+ */
+export function formatAed(fils: number): string {
+  const sign = fils < 0 ? "-" : "";
+  const abs = Math.abs(Math.round(fils));
+  const dirhams = Math.floor(abs / 100);
+  const minor = abs % 100;
+  return `${sign}AED ${dirhams.toLocaleString("en-US")}.${String(minor).padStart(2, "0")}`;
+}
+
+/**
+ * Budget divided by a count, in fils, for "cost per play" style figures.
+ * Returns null for a zero denominator — a campaign with no plays yet has no
+ * cost per play, and showing "AED 0.00" there would read as free rather than
+ * unknown.
+ */
+export function costPer(budgetFils: number, count: number): number | null {
+  if (!Number.isFinite(count) || count <= 0) return null;
+  return Math.round(budgetFils / count);
+}

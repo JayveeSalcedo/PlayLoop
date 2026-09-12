@@ -43,11 +43,16 @@ Phases 1-4 are done, verified against the real Supabase DB, and committed:
    it redeemed, and allows an undo within 10 minutes. Staff are `store_staff`
    rows, not an env allowlist.
 
-**Next up: Phase 5b, the brand console** — campaign builder, forecast and live
-KPI dashboard, with campaign "funding" as an admin-confirmed checkbox rather
-than live Stripe. It needs brands/campaigns tables, a chart library (none in the
-repo yet) and per-city data (no geo column exists anywhere). The rest of phase 6
-(fraud review, user management, platform analytics) is still outstanding. See
+7. **Brand console (phase 5b)** — `/brand` lets a brand member create a
+   campaign (fund a reward pool on a game for a date range) and see a dashboard
+   of plays, minutes, new players, store visits, pool burn and cost-per-play,
+   all derived from real sessions and redemptions. An admin confirms funding
+   from `/admin`; a campaign counts nothing until they do. Also introduced the
+   `brands` table and retired the brand-name string matching.
+
+**Next up: the rest of Phase 6** — fraud review (rejected `play_sessions` rows
+are already kept for exactly this), reward/pool management, and platform
+analytics. Then phase 7's deferred infrastructure. See
 `docs/tech-stack-plan.md`'s Build phases section for the full remaining
 roadmap (then the deferred infra — Upstash/Inngest/Stripe/i18n/Capacitor —
 once there's real need).
@@ -89,18 +94,17 @@ Working tree is clean; nothing in progress.
   attaches nobody — see the README's setup step 5 for the `INSERT`. A counter
   can only take its own brand's vouchers, so a Beanhouse account testing a Glow
   Arcade code will correctly be refused; that's the rule, not a bug.
-- **⚠️ Known weakness: brand matching is a free-text comparison.** The staff
-  scanner decides whether a voucher belongs at a counter by comparing
-  `rewards.brandName` to `stores.brand_name` as strings (trimmed and
-  lowercased, so casing and padding are safe — but "Beanhouse" and "Bean House"
-  are different brands as far as the code is concerned). That holds while both
-  sides come from `seed.ts`, and breaks the first time a brand name is typed
-  into a form. **The fix is a real `brands` table with an id on both sides, and
-  it belongs in phase 5b**, which needs that table for campaigns anyway — don't
-  build it twice. Two related assumptions baked in at the same spot, both fine
-  today and both worth re-checking if the business changes: a voucher is
-  redeemable only at its own brand's stores (no mall-wide or multi-brand
-  promotions), and a store belongs to exactly one brand.
+- **Brands are rows now, and `brand_name` no longer exists.** Phase 5b replaced
+  the free-text brand columns on `rewards` and `stores` with `brand_id` into a
+  `brands` table, so the scanner's wrong-brand check is an id comparison and
+  "Beanhouse" vs "Bean House" can't happen. Anything reading a brand name joins
+  `brands`. Two assumptions still baked in, both fine today: a voucher is
+  redeemable only at its own brand's stores (no multi-brand promotions), and a
+  store belongs to exactly one brand.
+- **Money lives in `campaigns.budget_fils` as an integer** (AED × 100) and is
+  the only money in the schema — everything else called "cost" is points. Format
+  it with `formatAed()` from `@playloop/economy` rather than dividing by 100
+  ad hoc, and never introduce a float for currency.
 - **Admin access comes from `ADMIN_EMAILS` in `.env`, not the database.** Put
   your email in that comma-separated list and `/admin` shows the moderation
   queue; leave it empty and *nobody* is an admin, including you. If `/admin`

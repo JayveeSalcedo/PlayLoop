@@ -6,7 +6,7 @@ This repo is the production build, growing out of the single-file prototype at `
 - `docs/tech-stack-plan.md` — the tech-stack plan and phased build order.
 - `docs/feature-brief.md` — the feature/flow spec (from the project brief), reconciled with the PWA-first, email+OTP decisions below. `docs/play-loop-brief-source.docx` is the original file.
 
-**Status (this commit): players can now make the games too** — email login → onboarding → feed → play (Catch, Quiz, Memory or Reflex, server-issued and server-validated) → points/XP → spend points in Rewards on a real, scannable-QR voucher → see it all in Wallet, challenge a friend to a shareable `/c/<code>` link that doubles as a referral join, and build your own game in the creator studio at `/create` (pick a template, customise it, test-play it, publish it into the moderation queue). Two staff surfaces sit behind that: `/admin` approves or rejects submitted games, and `/staff` is the store counter — type a voucher code, see whether it's valid, and mark it used. The brand console is the next phase (see `docs/tech-stack-plan.md`).
+**Status (this commit): all four sides of the loop are wired up — players, creators, store staff and brands** — email login → onboarding → feed → play (Catch, Quiz, Memory or Reflex, server-issued and server-validated) → points/XP → spend points in Rewards on a real, scannable-QR voucher → see it all in Wallet, challenge a friend to a shareable `/c/<code>` link that doubles as a referral join, and build your own game in the creator studio at `/create` (pick a template, customise it, test-play it, publish it into the moderation queue). Three more surfaces sit behind that: `/admin` approves or rejects submitted games and confirms campaign funding, `/staff` is the store counter — type a voucher code, see whether it's valid, and mark it used — and `/brand` is the sponsor's console, where a brand funds a reward pool on a game and watches the plays, store visits and cost-per-play it actually bought.
 
 ## Stack
 
@@ -25,13 +25,15 @@ apps/
                     purpose — it's a staff surface, not a player tab.
     app/staff/      The store voucher scanner, for whoever is on the counter. Gated by a
                     store_staff row rather than an env var. Also outside (app).
+    app/brand/      The brand console: campaign builder and KPI dashboard. Gated by a
+                    brand_members row. Also outside (app).
     lib/qr.ts, lib/voucherCode.ts   Server-only voucher helpers (kept out of @playloop/ui so the
                     `qrcode` package never ships to the client bundle).
 packages/
   games/          Framework-agnostic game engine + all 4 templates (Catch/Quiz/Memory/Reflex), ported from the prototype. Also the play-session timing/score rules (rules.ts) used to validate a submission server-side, the authoring rules (authoring.ts) shared by the creator wizard and the publish action, and run.ts, the single mount path both the player and the studio's test mode go through.
-  economy/        Points/XP/leveling/voucher rules — single source of truth, unit tested.
+  economy/        Points/XP/leveling/voucher/campaign rules and money formatting — single source of truth, unit tested.
   ui/             Design tokens (Tailwind v4 theme) + procedural art/icon helpers, ported from the prototype.
-  db/             Drizzle schema, client, and a seed script for the starter games and rewards.
+  db/             Drizzle schema, client, and a seed script for the starter brands, games, rewards and stores.
   config/         Shared tsconfig.
 reference/
   playloop-prototype.html   The original clickable pitch prototype (kept for reference/diffing).
@@ -55,7 +57,7 @@ reference/
      no in-app way to grant this, by design — you edit `.env` and restart.
    - `SMTP_*` — optional in development. If `SMTP_USER`/`SMTP_PASS` are blank, login codes are logged to the console instead of emailed, so you can test the flow with no email provider set up (the default `SMTP_HOST` alone isn't enough to trigger real sending — see the comment in `apps/web/lib/mailer.ts`). For real sending, Brevo's free tier (300 emails/day) works well.
 
-4. **Push the schema and seed the four starter games and four starter rewards**
+4. **Push the schema and seed the starter brands, games, rewards and stores**
    ```
    pnpm db:push
    pnpm db:seed
@@ -75,6 +77,13 @@ reference/
    scanner never has to ask which counter you're on. Note a Beanhouse counter
    can only take Beanhouse vouchers.
 
+   To use `/brand`, attach a profile to a brand the same way:
+   ```sql
+   INSERT INTO brand_members (brand_id, profile_id)
+   SELECT b.id, p.id FROM brands b, profiles p
+   WHERE b.slug = 'beanhouse' AND p.email = 'you@example.com';
+   ```
+
 6. **Run it**
    ```
    pnpm dev
@@ -84,13 +93,20 @@ reference/
 ## Testing
 
 ```
-pnpm test        # packages/economy (points/XP/leveling/payout/voucher status), packages/games
-                 # (session timing/score rules, creator authoring rules), apps/web (the admin allowlist)
+pnpm test        # packages/economy (points/XP/leveling/payout, voucher + campaign status, money
+                 # formatting), packages/games (session timing/score rules, creator authoring rules),
+                 # apps/web (the admin allowlist, voucher-code normalisation)
 pnpm typecheck    # across all packages/apps
 ```
 
 ## Notes on this phase
 
+- **Brands became real rows, and `brand_name` is gone.** `rewards` and `stores` now carry a `brand_id` into a `brands` table, backfilled from the old text and then dropped — keeping both invites drift. That also retires the staff scanner's string comparison, which treated "Beanhouse" and "Bean House" as different brands; the wrong-brand check is an id comparison now. Anything showing a brand name joins `brands`.
+- **`campaigns.budget_fils` is the only money in the schema**, held as integer minor units (AED × 100). Everything else the codebase calls "cost" is points. Currency never touches a float, and display goes through `formatAed()` rather than ad-hoc division, so a budget can't drift by a rounding error.
+- **A campaign has no status column.** `campaignStatus()` in `@playloop/economy` derives `draft | scheduled | live | complete | cancelled` from `fundedAt`/`cancelledAt` and the date window, the same way `voucherStatus()` works — so nothing has to run on a schedule to notice a campaign started or finished. The order matters and is unit-tested: cancelling beats everything, and an unfunded campaign is a draft whatever its dates say.
+- **An unfunded campaign shows no numbers at all.** The queries would happily return them — plays on that game in that window exist whether or not anyone paid — but presenting them would read as campaign results, and "cost per play: AED 5,000" against a budget nobody has paid is a number that means nothing. Funding is an admin action on `/admin`; there's no Stripe, deliberately.
+- **Every dashboard figure is real SQL, nothing is estimated.** Plays, minutes, new players, store visits and pool burn all come from `play_sessions` and `voucher_redemptions` scoped to the campaign's game, reward and inclusive date window. "New players" means profiles whose *first ever* completed play landed on this game inside the window — not profiles created, which isn't attributable to a campaign. Cost-per-play and cost-per-visit render as "—" rather than "AED 0.00" when the denominator is zero, since no plays means no cost per play, not a free one. This is the repo's first `groupBy`/`sum` code; the counts run in one `Promise.all` because parallel queries genuinely overlap the ~90ms Seoul round-trip.
+- **City targeting was dropped from the brief on purpose.** `stores.city` is the only geo column anywhere — nothing on profiles, plays or games — so a city selector couldn't change who sees or plays a game, only look as though it did. It needs player-side geo before it means anything.
 - **The reward loop now closes at the counter.** `/staff` takes a typed voucher code, says exactly what it is, and marks it used. The QR the Wallet renders encodes the bare code (`voucherQrSvg(v.code)` — no URL, no signature), so a typed code and a scanned one are the same input; camera capture (`@zxing/browser`) becomes a thin layer over proven logic rather than a prerequisite for it. Staff type the code for now, which is also what makes every validation path testable.
 - **Staff membership is a database row, not an env allowlist.** Unlike `ADMIN_EMAILS`, store staff are a brand's employees rather than us, so `store_staff` is a real table — and `profile_id` is unique on it, meaning one person works at one store. That's what lets the scanner know which counter it's acting for with no store picker and no ambiguity. Attaching someone is a manual `INSERT` (see below), because a staff member needs a real logged-in profile first.
 - **`voucher_redemptions` exists so an undo doesn't erase history.** The obvious design is `redeemed_store_id`/`redeemed_by` columns on `vouchers`, but a staff undo has to null `vouchers.redeemedAt` to hand the voucher back, and those columns would go with it. A row in `voucher_redemptions` survives the reversal (`reversed_at` is stamped, nothing is deleted), so "redeemed at Marina at 14:02, undone two minutes later" stays answerable — and the brand console's store-visit counts are just this table with `reversed_at IS NULL`. `vouchers.redeemedAt` stays the single flag `voucherStatus()` reads, so nothing about the Wallet or `@playloop/economy` changed.

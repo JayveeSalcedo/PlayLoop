@@ -7,7 +7,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { config } from "dotenv";
 import { getDb } from "./client";
-import { games, rewards, stores } from "./schema";
+import { brands, games, rewards, stores } from "./schema";
 
 // Load the monorepo root .env regardless of CWD (see apps/web/next.config.ts for the same pattern).
 config({ path: path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../.env") });
@@ -86,12 +86,31 @@ async function main() {
     ])
     .onConflictDoNothing({ target: games.slug });
 
+  // Brands first — rewards and stores both reference one by id.
+  await db
+    .insert(brands)
+    .values([
+      { slug: "beanhouse", name: "Beanhouse", description: "Speciality coffee, eight stores across the UAE.", theme: "ember" },
+      { slug: "glow-arcade", name: "Glow Arcade", description: "Neon-lit arcades and party spaces.", theme: "neon" },
+      { slug: "nomad-books", name: "Nomad Books", description: "Independent bookshop and reading room.", theme: "mint" },
+    ])
+    .onConflictDoNothing({ target: brands.slug });
+
+  const brandIds = new Map(
+    (await db.select({ slug: brands.slug, id: brands.id }).from(brands)).map((b) => [b.slug, b.id]),
+  );
+  const brandId = (slug: string) => {
+    const id = brandIds.get(slug);
+    if (!id) throw new Error(`Brand ${slug} missing — seed brands before rewards/stores.`);
+    return id;
+  };
+
   await db
     .insert(rewards)
     .values([
       {
         slug: "free-flat-white",
-        brandName: "Beanhouse",
+        brandId: brandId("beanhouse"),
         name: "Free flat white",
         description: "Redeem at any Beanhouse store.",
         category: "Food and drink",
@@ -103,7 +122,7 @@ async function main() {
       },
       {
         slug: "any-pastry",
-        brandName: "Beanhouse",
+        brandId: brandId("beanhouse"),
         name: "Any pastry",
         description: "Your pick from the case.",
         category: "Food and drink",
@@ -113,7 +132,7 @@ async function main() {
       },
       {
         slug: "arcade-pass",
-        brandName: "Glow Arcade",
+        brandId: brandId("glow-arcade"),
         name: "60-minute arcade pass",
         description: "Unlimited play for an hour.",
         category: "Fun",
@@ -123,7 +142,7 @@ async function main() {
       },
       {
         slug: "nomad-books-voucher",
-        brandName: "Nomad Books",
+        brandId: brandId("nomad-books"),
         name: "AED 25 voucher",
         description: "Toward any purchase in store.",
         category: "Shopping",
@@ -134,19 +153,20 @@ async function main() {
     ])
     .onConflictDoNothing({ target: rewards.slug });
 
-  // Counters where a voucher can be handed over. brandName matches the
-  // rewards above, which is what the staff scanner checks a voucher against.
-  // Attaching a person to one of these is a manual INSERT — see the README —
+  // Counters where a voucher can be handed over. The staff scanner checks a
+  // voucher's brand against its store's brand, so these share the brand ids
+  // above. Attaching a person to a store is a manual INSERT — see the README —
   // because store staff need a real logged-in profile first.
   await db
     .insert(stores)
     .values([
-      { slug: "beanhouse-marina", brandName: "Beanhouse", name: "Marina", city: "Dubai" },
-      { slug: "beanhouse-downtown", brandName: "Beanhouse", name: "Downtown", city: "Dubai" },
-      { slug: "glow-arcade-yas", brandName: "Glow Arcade", name: "Yas Bay", city: "Abu Dhabi" },
+      { slug: "beanhouse-marina", brandId: brandId("beanhouse"), name: "Marina", city: "Dubai" },
+      { slug: "beanhouse-downtown", brandId: brandId("beanhouse"), name: "Downtown", city: "Dubai" },
+      { slug: "glow-arcade-yas", brandId: brandId("glow-arcade"), name: "Yas Bay", city: "Abu Dhabi" },
     ])
     .onConflictDoNothing({ target: stores.slug });
 
+  console.log("Seeded brands: beanhouse, glow-arcade, nomad-books");
   console.log("Seeded games: bean-catcher, desert-genius, neon-pairs, tap-frenzy");
   console.log("Seeded rewards: free-flat-white, any-pastry, arcade-pass, nomad-books-voucher");
   console.log("Seeded stores: beanhouse-marina, beanhouse-downtown, glow-arcade-yas");

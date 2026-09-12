@@ -1,14 +1,34 @@
 import { getDb, schema } from "@playloop/db";
 import type { QuizQuestion } from "@playloop/games";
 import { artSVG, type GameArtType, type ItemKind, type ThemeName } from "@playloop/ui";
-import { asc, eq } from "drizzle-orm";
+import { formatAed } from "@playloop/economy";
+import { and, asc, eq, isNull } from "drizzle-orm";
 import Link from "next/link";
 import { requireAdmin } from "@/lib/admin";
-import { ReviewCard } from "./ReviewCard";
+import { FundButton, ReviewCard } from "./ReviewCard";
 
 export default async function AdminPage() {
   await requireAdmin();
   const db = getDb();
+
+  // Campaigns waiting on us to confirm the brand actually paid. This is the
+  // whole of "funding" — there's no Stripe integration by design.
+  const unfunded = await db
+    .select({
+      id: schema.campaigns.id,
+      budgetFils: schema.campaigns.budgetFils,
+      startsOn: schema.campaigns.startsOn,
+      endsOn: schema.campaigns.endsOn,
+      brandName: schema.brands.name,
+      gameTitle: schema.games.title,
+      rewardName: schema.rewards.name,
+    })
+    .from(schema.campaigns)
+    .innerJoin(schema.brands, eq(schema.campaigns.brandId, schema.brands.id))
+    .innerJoin(schema.games, eq(schema.campaigns.gameId, schema.games.id))
+    .innerJoin(schema.rewards, eq(schema.campaigns.rewardId, schema.rewards.id))
+    .where(and(isNull(schema.campaigns.fundedAt), isNull(schema.campaigns.cancelledAt)))
+    .orderBy(asc(schema.campaigns.createdAt));
 
   // Oldest first — a review queue should be answered in the order people waited.
   const pending = await db
@@ -32,6 +52,28 @@ export default async function AdminPage() {
 
   return (
     <main className="mx-auto max-w-2xl p-6">
+      {unfunded.length > 0 ? (
+        <section className="mb-8">
+          <h2 className="text-xl font-extrabold">Campaigns awaiting funding</h2>
+          <p className="mt-1 mb-3 text-sm font-bold text-soft">
+            Confirm the money arrived. Nothing counts for the brand until you do.
+          </p>
+          <div className="flex flex-col gap-3">
+            {unfunded.map((c) => (
+              <div key={c.id} className="rounded-2xl bg-card p-4 [border:var(--border-thick)]">
+                <p className="font-extrabold">
+                  {c.brandName} · {formatAed(c.budgetFils)}
+                </p>
+                <p className="mt-1 text-xs font-bold text-soft">
+                  {c.gameTitle} · {c.rewardName} · {c.startsOn} to {c.endsOn}
+                </p>
+                <FundButton campaignId={c.id} />
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
       <h1 className="text-3xl font-extrabold tracking-tight">Moderation</h1>
       <p className="mt-1 text-sm font-bold text-soft">
         {pending.length === 0

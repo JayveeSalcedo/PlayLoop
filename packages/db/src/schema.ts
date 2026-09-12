@@ -7,6 +7,7 @@
 import {
   type AnyPgColumn,
   boolean,
+  date,
   index,
   integer,
   jsonb,
@@ -176,16 +177,86 @@ export const ledgerEntries = pgTable("ledger_entries", {
 });
 
 /**
- * Redeemable catalog items. No `brands` table yet (that's the brand-console
- * phase) — brandName is a plain field. Pool-funded rewards (a finite,
- * brand-sponsored stock, e.g. "1,000 free coffees") carry poolTotal/
- * poolRemaining; both null means an uncapped reward. theme/icon reuse
- * @playloop/ui's THEMES/icon() keys, same convention as games.theme.
+ * A sponsor: whoever funds the reward pools and runs campaigns. Rewards and
+ * stores both point here, so "is this voucher redeemable at this counter" is an
+ * id comparison rather than a name-string match.
+ */
+export const brands = pgTable("brands", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  slug: text("slug").notNull().unique(),
+  name: text("name").notNull(),
+  description: text("description").notNull().default(""),
+  theme: text("theme").notNull().default("neon"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/**
+ * Who can act for a brand in the console. profileId is unique — one person,
+ * one brand — so there's no brand picker, the same shape and reasoning as
+ * storeStaff. Membership is a row rather than an env allowlist because brand
+ * members are a customer's people, not ours.
+ */
+export const brandMembers = pgTable("brand_members", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  brandId: uuid("brand_id")
+    .notNull()
+    .references(() => brands.id),
+  profileId: uuid("profile_id")
+    .notNull()
+    .unique()
+    .references(() => profiles.id),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/**
+ * A brand funding a reward pool on one game for a date range.
+ *
+ * budgetFils is money in minor units (AED x 100) as an integer — never a float,
+ * since a budget that drifts by a rounding error is worse than no budget. It's
+ * the only money in the schema; everything else called "cost" is points.
+ *
+ * There's no status column: the state is derived at read time from
+ * fundedAt/cancelledAt/startsOn/endsOn by campaignStatus() in @playloop/economy,
+ * the same way voucherStatus() derives a voucher's state from its timestamps.
+ * That's what keeps a campaign from needing a background job to notice it has
+ * finished. fundedAt is set by an admin confirming payment arrived — there's no
+ * Stripe integration, deliberately (see the plan).
+ */
+export const campaigns = pgTable(
+  "campaigns",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    brandId: uuid("brand_id")
+      .notNull()
+      .references(() => brands.id),
+    gameId: uuid("game_id")
+      .notNull()
+      .references(() => games.id),
+    rewardId: uuid("reward_id")
+      .notNull()
+      .references(() => rewards.id),
+    budgetFils: integer("budget_fils").notNull(),
+    startsOn: date("starts_on").notNull(),
+    endsOn: date("ends_on").notNull(),
+    fundedAt: timestamp("funded_at", { withTimezone: true }),
+    cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index("campaigns_brand_id_idx").on(table.brandId)],
+);
+
+/**
+ * Redeemable catalog items. Pool-funded rewards (a finite, brand-sponsored
+ * stock, e.g. "1,000 free coffees") carry poolTotal/poolRemaining; both null
+ * means an uncapped reward. theme/icon reuse @playloop/ui's THEMES/icon() keys,
+ * same convention as games.theme.
  */
 export const rewards = pgTable("rewards", {
   id: uuid("id").defaultRandom().primaryKey(),
   slug: text("slug").notNull().unique(),
-  brandName: text("brand_name").notNull(),
+  brandId: uuid("brand_id")
+    .notNull()
+    .references(() => brands.id),
   name: text("name").notNull(),
   description: text("description").notNull().default(""),
   category: rewardCategoryEnum("category").notNull(),
@@ -275,15 +346,17 @@ export const challenges = pgTable(
 );
 
 /**
- * A physical location where a voucher can be handed over. brandName is plain
- * text matching rewards.brandName — there's still no `brands` table (that's
- * the brand-console phase), and this keeps the two sides joinable by the same
- * convention rewards already uses.
+ * A physical location where a voucher can be handed over. brandId is what the
+ * staff scanner checks a voucher against — it was a brand-name string match
+ * until the brands table landed, which meant "Beanhouse" and "Bean House"
+ * read as different brands.
  */
 export const stores = pgTable("stores", {
   id: uuid("id").defaultRandom().primaryKey(),
   slug: text("slug").notNull().unique(),
-  brandName: text("brand_name").notNull(),
+  brandId: uuid("brand_id")
+    .notNull()
+    .references(() => brands.id),
   name: text("name").notNull(),
   city: text("city").notNull(),
   active: boolean("active").notNull().default(true),
