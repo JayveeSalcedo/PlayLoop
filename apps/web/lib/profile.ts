@@ -21,6 +21,26 @@ export type Profile = typeof schema.profiles.$inferSelect;
  * login/verify/actions.ts, a Server Action, so it's harmless to leave in
  * place until then.
  */
+/**
+ * Like requireProfile(), but also refuses a suspended account.
+ *
+ * Deliberately *not* folded into requireProfile(): suspension blocks earning
+ * and spending, not reading. A suspended player can still open their wallet
+ * and see the vouchers they already paid points for — those were bought before
+ * whatever triggered the suspension, and hiding them would be taking something
+ * away rather than stopping something.
+ *
+ * Call this from actions that move value: startPlay, startChallengedPlay,
+ * redeemReward.
+ */
+export async function requireActiveProfile(): Promise<{ session: SessionPayload; profile: Profile }> {
+  const result = await requireProfile();
+  if (result.profile.suspendedAt) {
+    throw new Error("This account is suspended. Get in touch if you think that's a mistake.");
+  }
+  return result;
+}
+
 export async function requireProfile(): Promise<{ session: SessionPayload; profile: Profile }> {
   const session = await requireSession();
   const db = getDb();

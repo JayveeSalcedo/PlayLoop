@@ -3,7 +3,7 @@
 import { VOUCHER_EXPIRY_DAYS } from "@playloop/economy";
 import { getDb, schema } from "@playloop/db";
 import { and, eq, gt, gte, sql } from "drizzle-orm";
-import { requireSession } from "@/lib/session";
+import { requireActiveProfile } from "@/lib/profile";
 import { voucherQrSvg } from "@/lib/qr";
 import { generateVoucherCode } from "@/lib/voucherCode";
 
@@ -39,7 +39,7 @@ export interface RedeemResult {
  * must undo too, not persist for a redemption that didn't happen.
  */
 export async function redeemReward(rewardId: string): Promise<RedeemResult> {
-  const session = await requireSession();
+  const { session } = await requireActiveProfile();
   const db = getDb();
 
   const written = await db.transaction(async (tx) => {

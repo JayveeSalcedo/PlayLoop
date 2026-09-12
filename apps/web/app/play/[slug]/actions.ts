@@ -5,6 +5,7 @@ import { playRules, validatePlay, type PlayableType } from "@playloop/games";
 import { getDb, schema } from "@playloop/db";
 import { and, count, eq, sql } from "drizzle-orm";
 import type { Tx } from "@playloop/db";
+import { requireActiveProfile } from "@/lib/profile";
 import { requireSession } from "@/lib/session";
 
 /** Shared by startPlay/startChallengedPlay: abandon this profile's other still-open sessions, then insert a new one. */
@@ -33,14 +34,18 @@ async function insertStartedSession(
  * elapsed time against. Call this right before mounting the game engine.
  */
 export async function startPlay(gameId: string): Promise<{ sessionId: string }> {
-  const session = await requireSession();
   const db = getDb();
 
-  const game = await db
-    .select({ id: schema.games.id, status: schema.games.status })
-    .from(schema.games)
-    .where(eq(schema.games.id, gameId))
-    .then((r) => r[0]);
+  // Both round-trips at once — they don't depend on each other, and against a
+  // ~90ms Seoul round-trip that's the difference between 90ms and 180ms.
+  const [{ session }, game] = await Promise.all([
+    requireActiveProfile(),
+    db
+      .select({ id: schema.games.id, status: schema.games.status })
+      .from(schema.games)
+      .where(eq(schema.games.id, gameId))
+      .then((r) => r[0]),
+  ]);
   if (!game) throw new Error("Game not found");
   // A creator can open their own unpublished game's page, so this is the check
   // that stops them earning points on a game nobody has reviewed yet.
@@ -57,7 +62,7 @@ export async function startPlay(gameId: string): Promise<{ sessionId: string }> 
  * nothing's been written yet at this point, so a plain throw is fine.
  */
 export async function startChallengedPlay(gameId: string, challengeCode: string): Promise<{ sessionId: string }> {
-  const session = await requireSession();
+  const { session } = await requireActiveProfile();
   const db = getDb();
 
   const challenge = await db
@@ -179,9 +184,13 @@ export async function submitPlay(sessionId: string, rawScore: number): Promise<P
     const verdict = validatePlay({ elapsedSeconds: claimed.elapsedSeconds, score }, rules);
 
     if (!verdict.ok) {
+      // Keep the claimed score. It's what makes the rejection legible to a
+      // reviewer later — "claimed 9,400 where this template tops out at 750"
+      // rather than a bare "score_implausible". payoutPoints/xpAwarded stay
+      // null, which is what records that nothing was earned.
       await tx
         .update(schema.playSessions)
-        .set({ status: "rejected", rejectReason: verdict.reason })
+        .set({ status: "rejected", rejectReason: verdict.reason, score })
         .where(eq(schema.playSessions.id, sessionId));
       return { ok: false as const, error: "That play couldn't be verified, so no points were awarded. Please try again." };
     }
@@ -196,6 +205,12 @@ export async function submitPlay(sessionId: string, rawScore: number): Promise<P
       .where(eq(schema.profiles.id, session.sub))
       .then((r) => r[0]);
     if (!profile) return { ok: false as const, error: "Profile not found." };
+    // Closes the window where someone is suspended mid-play: startPlay already
+    // refuses a suspended account, but a session issued a minute earlier would
+    // otherwise still pay out. Free to check here — the row is already loaded.
+    if (profile.suspendedAt) {
+      return { ok: false as const, error: "This account is suspended, so that play earned nothing." };
+    }
     const xpResult = addXp({ xp: profile.xp, level: profile.level }, xpGain);
 
     await tx

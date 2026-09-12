@@ -1,6 +1,6 @@
 # Handoff — start here
 
-Written 2026-09-12, right after Phase 4 (Creator studio) landed.
+Written 2026-09-12, right after Phase 6 (fraud review + reward management) landed.
 If you're a new Claude session picking this project up cold, read this first —
 it'll save you from re-discovering things the hard way.
 
@@ -18,7 +18,7 @@ production TypeScript monorepo. Full context:
 
 ## Current status
 
-Phases 1-4 are done, verified against the real Supabase DB, and committed:
+Phases 1-6 are done, verified against the real Supabase DB, and committed:
 1. **Foundation + core loop** — email-OTP auth, onboarding, feed, all 4 game
    templates (Catch/Quiz/Memory/Reflex), server-issued + server-validated play
    sessions.
@@ -50,9 +50,16 @@ Phases 1-4 are done, verified against the real Supabase DB, and committed:
    from `/admin`; a campaign counts nothing until they do. Also introduced the
    `brands` table and retired the brand-name string matching.
 
-**Next up: the rest of Phase 6** — fraud review (rejected `play_sessions` rows
-are already kept for exactly this), reward/pool management, and platform
-analytics. Then phase 7's deferred infrastructure. See
+8. **Fraud review and reward management (phase 6)** — `/admin/fraud` groups
+   accounts by rejected plays, referrals and voucher volume, shows each
+   rejection's claimed score against the template ceiling, and can suspend an
+   account (blocks earning and spending, not reading). `/admin/rewards` is full
+   catalogue CRUD plus pool top-ups.
+
+**Next up: platform analytics** (DAU, retention, K-factor, redemption rate —
+all computable from existing timestamps, but deliberately deferred until there's
+real traffic, since every chart is a flat line at current volume), then phase
+7's deferred infrastructure. See
 `docs/tech-stack-plan.md`'s Build phases section for the full remaining
 roadmap (then the deferred infra — Upstash/Inngest/Stripe/i18n/Capacitor —
 once there's real need).
@@ -101,6 +108,11 @@ Working tree is clean; nothing in progress.
   `brands`. Two assumptions still baked in, both fine today: a voucher is
   redeemable only at its own brand's stores (no multi-brand promotions), and a
   store belongs to exactly one brand.
+- **There is no IP address, device fingerprint, user agent or login log
+  anywhere in the schema.** `otp_codes` holds an email and an attempt count and
+  nothing else. So "the same person on several accounts" is not detectable, and
+  the fraud queue is behavioural signals only. Don't build a feature that
+  assumes otherwise without adding the data first.
 - **Money lives in `campaigns.budget_fils` as an integer** (AED × 100) and is
   the only money in the schema — everything else called "cost" is points. Format
   it with `formatAed()` from `@playloop/economy` rather than dividing by 100

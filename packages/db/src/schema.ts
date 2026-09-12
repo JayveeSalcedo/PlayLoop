@@ -54,6 +54,18 @@ export const profiles = pgTable("profiles", {
    * *completed* play should credit the referrer's REFERRAL_JOIN_BONUS.
    */
   referredByChallengeId: uuid("referred_by_challenge_id").references((): AnyPgColumn => challenges.id),
+  /**
+   * Set by an admin from the fraud queue; null means active. A timestamp
+   * rather than a boolean so it records *when*, matching fundedAt/cancelledAt/
+   * reversedAt elsewhere here.
+   *
+   * Enforced by requireActiveProfile() in apps/web/lib/profile.ts, which gates
+   * the actions that move value (starting a play, redeeming a reward) — not
+   * requireProfile() itself, so a suspended player can still read their own
+   * wallet and the vouchers they already paid for.
+   */
+  suspendedAt: timestamp("suspended_at", { withTimezone: true }),
+  suspendedReason: text("suspended_reason"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -142,23 +154,39 @@ export const moderationReviews = pgTable(
  * startChallengedPlay) — nullable 1:1, since a session either fulfills one
  * challenge or none; no join table needed.
  */
-export const playSessions = pgTable("play_sessions", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  profileId: uuid("profile_id")
-    .notNull()
-    .references(() => profiles.id),
-  gameId: uuid("game_id")
-    .notNull()
-    .references(() => games.id),
-  status: playSessionStatusEnum("status").notNull().default("started"),
-  score: integer("score"),
-  payoutPoints: integer("payout_points"),
-  xpAwarded: integer("xp_awarded"),
-  rejectReason: text("reject_reason"),
-  challengeId: uuid("challenge_id").references((): AnyPgColumn => challenges.id),
-  startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
-  completedAt: timestamp("completed_at", { withTimezone: true }),
-});
+export const playSessions = pgTable(
+  "play_sessions",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    profileId: uuid("profile_id")
+      .notNull()
+      .references(() => profiles.id),
+    gameId: uuid("game_id")
+      .notNull()
+      .references(() => games.id),
+    status: playSessionStatusEnum("status").notNull().default("started"),
+    /**
+     * What the client claimed, recorded on 'completed' AND 'rejected' rows —
+     * a rejected score is the most useful thing a fraud reviewer can see
+     * ("claimed 9,400 where the ceiling is 750"), and throwing it away made
+     * the reject reason unreadable on its own. It is payoutPoints/xpAwarded
+     * staying null that encodes "this earned nothing", not score.
+     */
+    score: integer("score"),
+    payoutPoints: integer("payout_points"),
+    xpAwarded: integer("xp_awarded"),
+    rejectReason: text("reject_reason"),
+    challengeId: uuid("challenge_id").references((): AnyPgColumn => challenges.id),
+    startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+  },
+  // The fraud queue filters by profile, and by status over a date window; this
+  // is also the largest table by row count.
+  (table) => [
+    index("play_sessions_profile_id_idx").on(table.profileId),
+    index("play_sessions_status_started_at_idx").on(table.status, table.startedAt),
+  ],
+);
 
 /**
  * Immutable append-only ledger. A profile's balance is always
