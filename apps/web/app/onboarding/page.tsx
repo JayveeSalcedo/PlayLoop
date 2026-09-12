@@ -20,6 +20,9 @@ export default function OnboardingPage() {
             maxLength={14}
             autoComplete="off"
             className="rounded-2xl bg-card p-3 font-semibold [border:var(--border-thick)]"
+            // See the comment on the email input in app/login/page.tsx — some
+            // browser extensions inject attributes onto inputs pre-hydration.
+            suppressHydrationWarning
           />
         </div>
 
@@ -58,7 +61,7 @@ export default function OnboardingPage() {
           </div>
         </div>
 
-        <button type="submit" className="btn go lg block">
+        <button type="submit" className="btn go lg block" suppressHydrationWarning>
           Continue
         </button>
       </form>

@@ -27,9 +27,12 @@ export default async function VerifyPage({
           autoFocus
           placeholder="123456"
           className="rounded-2xl bg-card p-3 text-center text-2xl font-extrabold tracking-[0.3em] [border:var(--border-thick)]"
+          // See the comment on the email input in app/login/page.tsx — some
+          // browser extensions inject attributes onto inputs pre-hydration.
+          suppressHydrationWarning
         />
         {error ? <p className="text-sm font-bold text-gum">{error}</p> : null}
-        <button type="submit" className="btn go lg block">
+        <button type="submit" className="btn go lg block" suppressHydrationWarning>
           Continue
         </button>
       </form>

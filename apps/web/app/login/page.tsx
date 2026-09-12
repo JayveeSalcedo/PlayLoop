@@ -21,9 +21,15 @@ export default async function LoginPage({
           required
           placeholder="you@example.com"
           className="rounded-2xl bg-card p-3 font-semibold [border:var(--border-thick)]"
+          // Some browser extensions (autofill/password managers) inject a
+          // `fdprocessedid` attribute onto inputs before React hydrates,
+          // which otherwise trips a hydration-mismatch warning that has
+          // nothing to do with our markup. See:
+          // https://nextjs.org/docs/messages/react-hydration-error
+          suppressHydrationWarning
         />
         {error ? <p className="text-sm font-bold text-gum">{error}</p> : null}
-        <button type="submit" className="btn go lg block">
+        <button type="submit" className="btn go lg block" suppressHydrationWarning>
           Send me a code
         </button>
       </form>
