@@ -1,6 +1,7 @@
 import { tier, voucherStatus, xpNeed } from "@playloop/economy";
 import { getDb, schema } from "@playloop/db";
 import { count, desc, eq } from "drizzle-orm";
+import { SignOut } from "@/app/_components/SignOut";
 import { requireProfile } from "@/lib/profile";
 import { voucherQrSvg } from "@/lib/qr";
 
@@ -130,6 +131,10 @@ export default async function WalletPage() {
           ))}
         </div>
       )}
+
+      <div className="mt-8 flex justify-center">
+        <SignOut className="btn sm" />
+      </div>
     </main>
   );
 }

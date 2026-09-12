@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { SignOut } from "@/app/_components/SignOut";
 import { requireAdmin } from "@/lib/admin";
 
 const TABS = [
@@ -20,7 +21,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   return (
     <>
       <nav className="border-b-2 border-ink/10 bg-card">
-        <div className="mx-auto flex max-w-2xl gap-2 p-3">
+        <div className="mx-auto flex max-w-2xl items-center gap-2 p-3">
           {TABS.map((t) => (
             <Link
               key={t.href}
@@ -30,6 +31,9 @@ export default async function AdminLayout({ children }: { children: React.ReactN
               {t.label}
             </Link>
           ))}
+          <div className="ml-auto">
+            <SignOut className="btn sm" />
+          </div>
         </div>
       </nav>
       {children}

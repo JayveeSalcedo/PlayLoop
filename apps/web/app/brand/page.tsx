@@ -2,6 +2,7 @@ import { getDb, schema } from "@playloop/db";
 import { campaignStatus, formatAed } from "@playloop/economy";
 import { desc, eq } from "drizzle-orm";
 import Link from "next/link";
+import { SignOut } from "@/app/_components/SignOut";
 import { requireBrandMember } from "@/lib/brand";
 
 const STATUS_STYLE: Record<string, string> = {
@@ -35,8 +36,13 @@ export default async function BrandPage() {
 
   return (
     <main className="mx-auto max-w-2xl p-6">
-      <p className="text-xs font-extrabold text-soft">Brand console</p>
-      <h1 className="text-3xl font-extrabold tracking-tight">{brand.name}</h1>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-xs font-extrabold text-soft">Brand console</p>
+          <h1 className="text-3xl font-extrabold tracking-tight">{brand.name}</h1>
+        </div>
+        <SignOut className="btn sm" />
+      </div>
       {brand.description ? <p className="mt-1 text-sm font-bold text-soft">{brand.description}</p> : null}
 
       <Link href="/brand/new" className="btn go mt-6 inline-flex">

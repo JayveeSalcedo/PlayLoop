@@ -1,5 +1,6 @@
 import { getDb, schema } from "@playloop/db";
 import { and, desc, eq, isNull, sql } from "drizzle-orm";
+import { SignOut } from "@/app/_components/SignOut";
 import { requireStaff } from "@/lib/staff";
 import { UNDO_WINDOW_MINUTES } from "./constants";
 import { ScannerPanel, UndoButton } from "./ScannerPanel";
@@ -37,10 +38,15 @@ export default async function StaffPage() {
 
   return (
     <main className="mx-auto max-w-md p-6">
-      <p className="text-xs font-extrabold text-soft">
-        {store.brandName} · {store.city}
-      </p>
-      <h1 className="text-3xl font-extrabold tracking-tight">{store.name}</h1>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-xs font-extrabold text-soft">
+            {store.brandName} · {store.city}
+          </p>
+          <h1 className="text-3xl font-extrabold tracking-tight">{store.name}</h1>
+        </div>
+        <SignOut className="btn sm" />
+      </div>
 
       <ScannerPanel />
 
