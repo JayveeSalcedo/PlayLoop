@@ -108,11 +108,21 @@ Working tree is clean; nothing in progress.
   `brands`. Two assumptions still baked in, both fine today: a voucher is
   redeemable only at its own brand's stores (no multi-brand promotions), and a
   store belongs to exactly one brand.
+- **Every admin action writes an `admin_actions` row**, shown at
+  `/admin/activity`. If you add an action under `/admin`, call
+  `recordAdminAction()` from `apps/web/lib/adminLog.ts` in it — inside the
+  transaction if there is one. Otherwise the change happens with no record of
+  who made it, which is the exact hole this table was added to close.
 - **There is no IP address, device fingerprint, user agent or login log
   anywhere in the schema.** `otp_codes` holds an email and an attempt count and
   nothing else. So "the same person on several accounts" is not detectable, and
   the fraud queue is behavioural signals only. Don't build a feature that
-  assumes otherwise without adding the data first.
+  assumes otherwise without adding the data first. **Deliberately not solved:**
+  a login-event log (IP + user agent per OTP verification) is the obvious next
+  step and would catch most multi-accounting, but an IP is personal data — it
+  needs a retention window and a privacy notice decided first, and this project
+  targets the UAE with data hosted outside it. That's a product call, not a
+  technical one.
 - **Money lives in `campaigns.budget_fils` as an integer** (AED × 100) and is
   the only money in the schema — everything else called "cost" is points. Format
   it with `formatAed()` from `@playloop/economy` rather than dividing by 100

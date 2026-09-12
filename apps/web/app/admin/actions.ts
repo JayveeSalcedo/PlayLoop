@@ -1,9 +1,11 @@
 "use server";
 
 import { getDb, schema } from "@playloop/db";
+import { formatAed } from "@playloop/economy";
 import { and, eq, isNull, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/admin";
+import { recordAdminAction } from "@/lib/adminLog";
 
 const NOTES_MAX = 500;
 
@@ -43,6 +45,15 @@ async function decide(
         and(eq(schema.moderationReviews.gameId, gameId), eq(schema.moderationReviews.outcome, "pending")),
       );
 
+    await recordAdminAction(tx, {
+      actorProfileId: profile.id,
+      action: outcome === "approved" ? "game.approve" : "game.reject",
+      targetType: "game",
+      targetId: gameId,
+      summary: `${outcome === "approved" ? "Approved" : "Rejected"} "${game.title}"`,
+      details: notes ? { notes } : {},
+    });
+
     return { ok: true as const, title: game.title };
   });
 
@@ -62,22 +73,41 @@ async function decide(
  * Conditional on still being unfunded, so two admins can't both "confirm" it.
  */
 export async function markCampaignFunded(campaignId: string): Promise<{ ok: true }> {
-  const { profile: _admin } = await requireAdmin();
+  const { profile: admin } = await requireAdmin();
   const db = getDb();
 
-  const [funded] = await db
-    .update(schema.campaigns)
-    .set({ fundedAt: sql`now()` })
-    .where(
-      and(
-        eq(schema.campaigns.id, campaignId),
-        isNull(schema.campaigns.fundedAt),
-        isNull(schema.campaigns.cancelledAt),
-      ),
-    )
-    .returning({ id: schema.campaigns.id });
+  const outcome = await db.transaction(async (tx) => {
+    const [funded] = await tx
+      .update(schema.campaigns)
+      .set({ fundedAt: sql`now()` })
+      .where(
+        and(
+          eq(schema.campaigns.id, campaignId),
+          isNull(schema.campaigns.fundedAt),
+          isNull(schema.campaigns.cancelledAt),
+        ),
+      )
+      .returning({ id: schema.campaigns.id, budgetFils: schema.campaigns.budgetFils });
 
-  if (!funded) throw new Error("That campaign is already funded, or it's been cancelled.");
+    if (!funded) {
+      return { ok: false as const, error: "That campaign is already funded, or it's been cancelled." };
+    }
+
+    // Money confirmed with no payment processor behind it, so who said so is
+    // the only record that it happened at all.
+    await recordAdminAction(tx, {
+      actorProfileId: admin.id,
+      action: "campaign.fund",
+      targetType: "campaign",
+      targetId: campaignId,
+      summary: `Confirmed funding of ${formatAed(funded.budgetFils)}`,
+      details: { budgetFils: funded.budgetFils },
+    });
+
+    return { ok: true as const };
+  });
+
+  if (!outcome.ok) throw new Error(outcome.error);
 
   revalidatePath("/admin");
   revalidatePath("/brand");

@@ -4,6 +4,7 @@ import { getDb, schema } from "@playloop/db";
 import { and, eq, gte, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/admin";
+import { recordAdminAction } from "@/lib/adminLog";
 import { validateRewardDraft, type RewardDraft } from "@/lib/rewardDraft";
 
 const SLUG_SUFFIX_LENGTH = 5;
@@ -43,7 +44,7 @@ function revalidate() {
 }
 
 export async function createReward(input: RewardDraft): Promise<{ id: string }> {
-  await requireAdmin();
+  const { profile: admin } = await requireAdmin();
   // A new reward's pool starts full, so remaining always equals total here.
   const draft = { ...clean(input), poolRemaining: null };
   const withPool = { ...draft, poolRemaining: draft.poolTotal };
@@ -69,6 +70,16 @@ export async function createReward(input: RewardDraft): Promise<{ id: string }> 
     .returning({ id: schema.rewards.id });
 
   if (!created) throw new Error("Couldn't create that reward — try again.");
+
+  await recordAdminAction(db, {
+    actorProfileId: admin.id,
+    action: "reward.create",
+    targetType: "reward",
+    targetId: created.id,
+    summary: `Created "${draft.name}" at ${draft.costPoints} pts`,
+    details: { costPoints: draft.costPoints, poolTotal: draft.poolTotal },
+  });
+
   revalidate();
   return { id: created.id };
 }
@@ -80,11 +91,16 @@ export async function createReward(input: RewardDraft): Promise<{ id: string }> 
  * players have been claiming from.
  */
 export async function updateReward(rewardId: string, input: RewardDraft): Promise<{ ok: true }> {
-  await requireAdmin();
+  const { profile: admin } = await requireAdmin();
   const db = getDb();
 
   const existing = await db
-    .select({ poolTotal: schema.rewards.poolTotal, poolRemaining: schema.rewards.poolRemaining })
+    .select({
+      poolTotal: schema.rewards.poolTotal,
+      poolRemaining: schema.rewards.poolRemaining,
+      costPoints: schema.rewards.costPoints,
+      name: schema.rewards.name,
+    })
     .from(schema.rewards)
     .where(eq(schema.rewards.id, rewardId))
     .then((r) => r[0]);
@@ -107,6 +123,18 @@ export async function updateReward(rewardId: string, input: RewardDraft): Promis
     })
     .where(eq(schema.rewards.id, rewardId));
 
+  await recordAdminAction(db, {
+    actorProfileId: admin.id,
+    action: "reward.update",
+    targetType: "reward",
+    targetId: rewardId,
+    summary:
+      existing.costPoints === draft.costPoints
+        ? `Edited "${draft.name}"`
+        : `Repriced "${draft.name}" from ${existing.costPoints} to ${draft.costPoints} pts`,
+    details: { from: { name: existing.name, costPoints: existing.costPoints }, to: { name: draft.name, costPoints: draft.costPoints } },
+  });
+
   revalidate();
   return { ok: true };
 }
@@ -117,7 +145,7 @@ export async function updateReward(rewardId: string, input: RewardDraft): Promis
  * the read and the write, and that would silently hand back the unit it took.
  */
 export async function topUpPool(rewardId: string, units: number): Promise<{ poolRemaining: number | null }> {
-  await requireAdmin();
+  const { profile: admin } = await requireAdmin();
   const n = Number(units);
   if (!Number.isInteger(n) || n <= 0 || n > TOPUP_MAX) throw new Error(`Add between 1 and ${TOPUP_MAX} units.`);
 
@@ -129,13 +157,23 @@ export async function topUpPool(rewardId: string, units: number): Promise<{ pool
       poolRemaining: sql`${schema.rewards.poolRemaining} + ${n}`,
     })
     .where(and(eq(schema.rewards.id, rewardId), gte(schema.rewards.poolTotal, 0)))
-    .returning({ poolRemaining: schema.rewards.poolRemaining });
+    .returning({ poolRemaining: schema.rewards.poolRemaining, name: schema.rewards.name });
 
   // The WHERE only matches a capped pool; an uncapped reward has null there.
   if (!row) throw new Error("That reward has no pool to top up — it's uncapped.");
 
+  // Inventory a brand pays for, so "who added these" needs an answer.
+  await recordAdminAction(db, {
+    actorProfileId: admin.id,
+    action: "reward.top_up",
+    targetType: "reward",
+    targetId: rewardId,
+    summary: `Added ${n.toLocaleString("en-US")} units to "${row.name}"`,
+    details: { units: n, poolRemainingAfter: row.poolRemaining },
+  });
+
   revalidate();
-  return row;
+  return { poolRemaining: row.poolRemaining };
 }
 
 /**
@@ -144,16 +182,25 @@ export async function topUpPool(rewardId: string, units: number): Promise<{ pool
  * them back because the catalogue changed would be taking something they own.
  */
 export async function setRewardActive(rewardId: string, active: boolean): Promise<{ ok: true }> {
-  await requireAdmin();
+  const { profile: admin } = await requireAdmin();
   const db = getDb();
 
   const [row] = await db
     .update(schema.rewards)
     .set({ active })
     .where(eq(schema.rewards.id, rewardId))
-    .returning({ id: schema.rewards.id });
+    .returning({ id: schema.rewards.id, name: schema.rewards.name });
 
   if (!row) throw new Error("That reward doesn't exist.");
+
+  await recordAdminAction(db, {
+    actorProfileId: admin.id,
+    action: active ? "reward.activate" : "reward.deactivate",
+    targetType: "reward",
+    targetId: rewardId,
+    summary: `${active ? "Reactivated" : "Deactivated"} "${row.name}"`,
+  });
+
   revalidate();
   return { ok: true };
 }

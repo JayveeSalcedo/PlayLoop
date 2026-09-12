@@ -111,6 +111,42 @@ export const games = pgTable("games", {
 });
 
 /**
+ * Who did what in /admin. Every admin action writes one row here.
+ *
+ * The individual outcomes were already recorded — games.status,
+ * campaigns.fundedAt, profiles.suspendedAt, rewards.poolTotal — but none of
+ * them recorded *who*, so "who funded this campaign" and "who added 500 units
+ * to that pool" had no answer at all. This is that answer.
+ *
+ * Append-only: never updated or deleted, the same rule as ledgerEntries. The
+ * actor is a plain reference rather than a snapshot of their name, since admins
+ * are staff whose profiles aren't going anywhere.
+ *
+ * `details` is deliberately loose — each action records what's meaningful for
+ * it (units added, the rejection note, the previous cost) without needing a
+ * column per action type.
+ */
+export const adminActions = pgTable(
+  "admin_actions",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    actorProfileId: uuid("actor_profile_id")
+      .notNull()
+      .references(() => profiles.id),
+    /** e.g. 'game.approve', 'campaign.fund', 'profile.suspend', 'reward.top_up'. */
+    action: text("action").notNull(),
+    /** e.g. 'game', 'campaign', 'profile', 'reward' — kept as text, not an FK, so a row survives its target. */
+    targetType: text("target_type").notNull(),
+    targetId: uuid("target_id"),
+    /** Human-readable summary, shown in the activity list. */
+    summary: text("summary").notNull().default(""),
+    details: jsonb("details").$type<Record<string, unknown>>().notNull().default({}),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index("admin_actions_created_at_idx").on(table.createdAt)],
+);
+
+/**
  * Audit log of publish submissions — one row per time a creator submits a game
  * for review. games.status is the game's current state; this is the history of
  * how it got there, and the queue the Phase 6 admin panel drains.
