@@ -61,7 +61,7 @@ export default async function WalletPage() {
     <main className="mx-auto max-w-sm p-6">
       <h1 className="text-3xl font-extrabold tracking-tight">Wallet</h1>
 
-      <div className="mt-4 rounded-3xl bg-violet p-5 text-white [border:var(--border-thick)]">
+      <div className="card-hard mt-4 rounded-3xl bg-violet p-5 text-white [border:var(--border-thick)]">
         <p className="text-sm font-bold opacity-90">Balance</p>
         <p className="text-5xl font-extrabold tracking-tight">{profile.pointsBalance.toLocaleString("en-US")}</p>
         <div className="mt-3 h-2.5 overflow-hidden rounded-full border-2 border-white/60 bg-white/20">
@@ -75,7 +75,7 @@ export default async function WalletPage() {
         </p>
       </div>
 
-      <p className="mt-4 rounded-2xl bg-card p-3 text-center text-sm font-bold [border:var(--border-thick)]">
+      <p className="card-hard mt-4 rounded-2xl bg-card p-3 text-center text-sm font-bold [border:var(--border-thick)]">
         {playedRow} game{playedRow === 1 ? "" : "s"} played
       </p>
 
@@ -85,9 +85,9 @@ export default async function WalletPage() {
           No vouchers yet — redeem a reward to get one.
         </p>
       ) : (
-        <div className="mt-2 flex flex-col gap-2">
+        <div className="fade-in mt-2 flex flex-col gap-2">
           {vouchers.map((v, i) => (
-            <div key={i} className="rounded-2xl bg-card p-3 [border:var(--border-thick)]">
+            <div key={i} className="card-hard rounded-2xl bg-card p-3 [border:var(--border-thick)]">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-xs font-bold text-soft">{v.brandName}</p>
@@ -120,7 +120,7 @@ export default async function WalletPage() {
           No points yet. Play a game to start earning.
         </p>
       ) : (
-        <div className="mt-2 overflow-hidden rounded-2xl bg-card [border:var(--border-thick)]">
+        <div className="card-hard fade-in mt-2 overflow-hidden rounded-2xl bg-card [border:var(--border-thick)]">
           {ledgerRows.map((tx) => (
             <div key={tx.id} className="flex items-center justify-between border-b-2 border-ink/10 p-3 text-sm font-semibold last:border-b-0">
               <span>{tx.reason}</span>

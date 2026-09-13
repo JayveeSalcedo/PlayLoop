@@ -37,7 +37,7 @@ export function SuspendPanel({
 
   if (suspended) {
     return (
-      <div className="mt-4 rounded-2xl bg-gum/15 p-4 [border:var(--border-thick)]">
+      <div className="card-hard mt-4 rounded-2xl bg-gum/15 p-4 [border:var(--border-thick)]">
         <p className="font-extrabold">Suspended</p>
         {reason ? <p className="mt-1 text-sm font-bold text-soft">{reason}</p> : null}
         <p className="mt-1 text-xs font-bold text-soft">
@@ -63,7 +63,7 @@ export function SuspendPanel({
   }
 
   return (
-    <div className="mt-4 rounded-2xl bg-card p-4 [border:var(--border-thick)]">
+    <div className="card-hard pop-in mt-4 rounded-2xl bg-card p-4 [border:var(--border-thick)]">
       <label className="block text-sm font-extrabold" htmlFor="suspend-reason">
         Why is this account being suspended?
       </label>

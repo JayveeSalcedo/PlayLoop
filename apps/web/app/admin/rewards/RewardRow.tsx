@@ -44,7 +44,7 @@ export function RewardRow({ reward, brands }: { reward: AdminReward; brands: Bra
   }
 
   return (
-    <div className={`rounded-2xl p-4 [border:var(--border-thick)] ${reward.active ? "bg-card" : "bg-paper"}`}>
+    <div className={`card-hard rounded-2xl p-4 [border:var(--border-thick)] ${reward.active ? "bg-card" : "bg-paper"}`}>
       <div className="flex items-start gap-3">
         <span
           className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-paper [border:var(--border-thick)]"

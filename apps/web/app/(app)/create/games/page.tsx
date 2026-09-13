@@ -32,7 +32,7 @@ export default async function MyGamesPage() {
           </Link>
         </p>
       ) : (
-        <div className="mt-6 flex flex-col gap-3">
+        <div className="fade-in mt-6 flex flex-col gap-3">
           {games.map((g) => {
             const config = (g.config ?? {}) as { item?: ItemKind };
             const badge = STATUS_LABEL[g.status] ?? STATUS_LABEL.pending_review!;
@@ -40,7 +40,7 @@ export default async function MyGamesPage() {
               <Link
                 key={g.id}
                 href={`/create/games/${g.id}`}
-                className="flex items-center gap-3 overflow-hidden rounded-2xl bg-card p-3 [border:var(--border-thick)]"
+                className="card-hard row-hard-hover flex items-center gap-3 overflow-hidden rounded-2xl bg-card p-3 [border:var(--border-thick)]"
               >
                 <div
                   className="h-14 w-20 shrink-0 overflow-hidden rounded-xl [border:var(--border-thick)]"

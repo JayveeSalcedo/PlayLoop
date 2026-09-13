@@ -36,14 +36,14 @@ export default async function FeedPage() {
       </p>
 
       <h2 className="mb-3 text-xl font-extrabold">Games</h2>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="fade-in grid grid-cols-2 gap-3">
         {gameList.map((g) => {
           const config = (g.config ?? {}) as { item?: string };
           return (
             <Link
               key={g.id}
               href={`/play/${g.slug}`}
-              className="overflow-hidden rounded-2xl bg-card [border:var(--border-thick)] [box-shadow:var(--shadow-hard-sm)]"
+              className="card-hard card-hard-hover overflow-hidden rounded-2xl bg-card [border:var(--border-thick)]"
             >
               <div
                 className="aspect-[4/3]"

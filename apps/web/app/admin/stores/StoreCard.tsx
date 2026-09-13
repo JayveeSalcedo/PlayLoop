@@ -41,7 +41,7 @@ export function StoreCard({ store }: { store: AdminStore }) {
   }
 
   return (
-    <div className={`rounded-2xl p-4 [border:var(--border-thick)] ${store.active ? "bg-card" : "bg-paper"}`}>
+    <div className={`card-hard rounded-2xl p-4 [border:var(--border-thick)] ${store.active ? "bg-card" : "bg-paper"}`}>
       <div className="flex items-start gap-3">
         <div className="min-w-0">
           <p className={`font-extrabold ${store.active ? "" : "text-soft line-through"}`}>{store.name}</p>
@@ -98,7 +98,7 @@ export function StoreCard({ store }: { store: AdminStore }) {
           {busy ? <Spinner size={16} /> : "Add staff"}
         </button>
       </div>
-      <p className="mt-1 text-xs font-bold text-soft">They need to have signed up already — this doesn't invite anyone.</p>
+      <p className="mt-1 text-xs font-bold text-soft">They need to have signed up already — this doesn&apos;t invite anyone.</p>
 
       <button
         className="btn sm mt-3"

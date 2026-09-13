@@ -1,6 +1,7 @@
 @import "tailwindcss";
 @import "@playloop/ui/theme.css";
 @import "@playloop/ui/game-host.css";
+@import "./_components/landing/landing.css";
 
 body {
   font-family: var(--font-display);
@@ -44,6 +45,17 @@ body {
   opacity: 0.75;
   cursor: default;
 }
+.btn:not([disabled]) {
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+.btn:not([disabled]):hover {
+  transform: translate(-1px, -1px);
+  box-shadow: 4px 4px 0 var(--color-ink);
+}
+.btn:not([disabled]):active {
+  transform: translate(3px, 3px);
+  box-shadow: 0 0 0 var(--color-ink);
+}
 
 /* Spinner.tsx: a short dash chases around the infinity path forever. */
 .spinner-infinity path {
@@ -55,8 +67,112 @@ body {
     stroke-dashoffset: -1;
   }
 }
+/*
+ * App-wide "hard card" treatment. Everything already uses
+ * [border:var(--border-thick)] consistently, but almost nothing outside
+ * the landing page and feed's game grid has the signature drop-shadow.
+ * Additive — used alongside existing bg-card/border classes already in
+ * markup, not a replacement for them.
+ */
+.card-hard {
+  box-shadow: var(--shadow-hard-sm);
+}
+
+/* Grid-tile-scale interactive cards (feed game tiles, reward tiles,
+   creator template cards). Mirrors .landing-gamecard's hover treatment. */
+.card-hard-hover {
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.card-hard-hover:hover {
+  transform: translate(-2px, -2px);
+  box-shadow: 6px 6px 0 var(--color-ink);
+}
+.card-hard-hover:active {
+  transform: translate(1px, 1px);
+  box-shadow: 2px 2px 0 var(--color-ink);
+}
+
+/* Full-width list-row-scale interactive rows (admin/brand/fraud rows,
+   my-games list, SponsorToggle) — subtler travel than card-hard-hover so a
+   full-width row doesn't feel jumpy. */
+.row-hard-hover {
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+.row-hard-hover:hover {
+  transform: translate(-1px, -1px);
+  box-shadow: 4px 4px 0 var(--color-ink);
+}
+.row-hard-hover:active {
+  transform: translate(1px, 1px);
+  box-shadow: 2px 2px 0 var(--color-ink);
+}
+
+/* Entrance motion for fixed-count lists (<=5 items: step pills, template
+   cards, category filters, onboarding sections, a result screen's own
+   elements). Canonical definition lives here now (previously duplicated
+   in landing.css) so there's one source of truth. */
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+.pop-in {
+  opacity: 0;
+  animation: pop-in 0.4s ease-out both;
+}
+.pop-in-1 {
+  animation-delay: 0.05s;
+}
+.pop-in-2 {
+  animation-delay: 0.1s;
+}
+.pop-in-3 {
+  animation-delay: 0.15s;
+}
+.pop-in-4 {
+  animation-delay: 0.2s;
+}
+.pop-in-5 {
+  animation-delay: 0.25s;
+}
+
+/* Unbounded/data-driven lists (wallet history, admin activity log, any DB
+   query result): fade the whole container in once. No per-row stagger —
+   by row 20 a cascading delay reads as slow, not delightful. */
+@keyframes fade-in {
+  to {
+    opacity: 1;
+  }
+}
+.fade-in {
+  opacity: 0;
+  animation: fade-in 0.3s ease-out both;
+}
+.overlay-fade-in {
+  animation: fade-in 0.15s ease-out both;
+}
+
+/* SponsorToggle's thumb flips via flexbox justify-content today, which
+   can't be transitioned — paired with a small markup change there (track
+   becomes relative, thumb becomes absolute, toggles `left`). */
+.toggle-thumb {
+  position: absolute;
+  transition: left 0.18s ease;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .spinner-infinity path {
     animation-duration: 4s;
+  }
+  .pop-in,
+  .fade-in {
+    animation: none;
+    opacity: 1;
+    transform: none;
   }
 }

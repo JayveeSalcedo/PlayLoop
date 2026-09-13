@@ -31,11 +31,11 @@ export default async function AdminActivityPage() {
       {entries.length === 0 ? (
         <p className="mt-6 font-bold text-soft">Nothing recorded yet.</p>
       ) : (
-        <ul className="mt-6 flex flex-col gap-2">
+        <ul className="fade-in mt-6 flex flex-col gap-2">
           {entries.map((e) => {
             const reason = (e.details as { reason?: string; notes?: string })?.reason ?? (e.details as { notes?: string })?.notes;
             return (
-              <li key={e.id} className="rounded-2xl bg-card p-3 [border:var(--border-thick)]">
+              <li key={e.id} className="card-hard rounded-2xl bg-card p-3 [border:var(--border-thick)]">
                 <div className="flex items-baseline justify-between gap-3">
                   <p className="font-extrabold">{e.summary}</p>
                   <p className="shrink-0 text-xs font-bold text-soft">

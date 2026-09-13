@@ -79,18 +79,18 @@ export function RewardsBoard({ pointsBalance, rewards }: { pointsBalance: number
       <p className="mt-1 text-sm font-bold text-soft">{balance.toLocaleString("en-US")} points to spend</p>
 
       <div className="mt-4 flex flex-wrap gap-2">
-        {CATEGORIES.map((c) => (
+        {CATEGORIES.map((c, i) => (
           <button
             key={c}
             onClick={() => setCat(c)}
-            className={`rounded-full border-2 border-ink px-3 py-1.5 text-sm font-bold ${c === cat ? "bg-ink text-white" : "bg-card"}`}
+            className={`pop-in-${i + 1} rounded-full border-2 border-ink px-3 py-1.5 text-sm font-bold ${c === cat ? "bg-ink text-white" : "bg-card"}`}
           >
             {c}
           </button>
         ))}
       </div>
 
-      <div className="mt-4 grid grid-cols-2 gap-3">
+      <div className="fade-in mt-4 grid grid-cols-2 gap-3">
         {visible.map((r) => {
           const remaining = remainingFor(r);
           const soldOut = isSoldOut(r);
@@ -99,7 +99,7 @@ export function RewardsBoard({ pointsBalance, rewards }: { pointsBalance: number
             <button
               key={r.id}
               onClick={() => openReward(r)}
-              className="flex flex-col overflow-hidden rounded-2xl bg-card text-left [border:var(--border-thick)] [box-shadow:var(--shadow-hard-sm)]"
+              className="card-hard card-hard-hover flex flex-col overflow-hidden rounded-2xl bg-card text-left [border:var(--border-thick)]"
             >
               <div
                 className="flex h-24 flex-col justify-between p-3 text-ink"
@@ -134,9 +134,12 @@ export function RewardsBoard({ pointsBalance, rewards }: { pointsBalance: number
       {visible.length === 0 ? <p className="mt-6 text-sm text-soft">No rewards in this category yet.</p> : null}
 
       {stage !== "browsing" && selected ? (
-        <div className="fixed inset-0 z-[60] flex items-end justify-center bg-ink/40" onClick={stage === "confirming" ? closeSheet : undefined}>
+        <div
+          className="overlay-fade-in fixed inset-0 z-[60] flex items-end justify-center bg-ink/40"
+          onClick={stage === "confirming" ? closeSheet : undefined}
+        >
           <div
-            className="w-full max-w-sm rounded-t-3xl bg-paper p-6 [border-top:var(--border-thick)]"
+            className="pop-in w-full max-w-sm rounded-t-3xl bg-paper p-6 [border-top:var(--border-thick)]"
             onClick={(e) => e.stopPropagation()}
           >
             {stage === "voucher" && voucher ? (
@@ -172,7 +175,7 @@ export function RewardsBoard({ pointsBalance, rewards }: { pointsBalance: number
                     <b className="text-xl">{selected.name}</b>
                   </div>
                 </div>
-                <div className="mt-4 rounded-2xl bg-card [border:var(--border-thick)]">
+                <div className="card-hard mt-4 rounded-2xl bg-card [border:var(--border-thick)]">
                   <div className="flex justify-between border-b-2 border-ink/10 p-3 font-semibold">
                     <span>Cost</span>
                     <b>{selected.costPoints.toLocaleString("en-US")} pts</b>

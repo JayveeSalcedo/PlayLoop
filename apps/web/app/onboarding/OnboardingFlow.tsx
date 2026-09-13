@@ -75,7 +75,7 @@ export function OnboardingFlow({ challenge }: { challenge?: string }) {
       <h1 className="text-3xl font-extrabold tracking-tight">Make your player</h1>
       <form onSubmit={submitProfile} className="mt-6 flex flex-col gap-6">
         {challenge ? <input type="hidden" name="challenge" value={challenge} /> : null}
-        <div className="flex flex-col gap-2">
+        <div className="pop-in-1 flex flex-col gap-2">
           <label className="text-sm font-extrabold" htmlFor="name">
             Gamer name
           </label>
@@ -92,7 +92,7 @@ export function OnboardingFlow({ challenge }: { challenge?: string }) {
           />
         </div>
 
-        <div className="flex flex-col gap-2">
+        <div className="pop-in-2 flex flex-col gap-2">
           <span className="text-sm font-extrabold">Pick an avatar</span>
           <div className="grid grid-cols-6 gap-2">
             {Array.from({ length: AVATAR_COUNT }, (_, i) => (
@@ -107,7 +107,7 @@ export function OnboardingFlow({ challenge }: { challenge?: string }) {
           </div>
         </div>
 
-        <div className="flex flex-col gap-2">
+        <div className="pop-in-3 flex flex-col gap-2">
           <span className="text-sm font-extrabold">What do you like to play?</span>
           <div className="flex flex-wrap gap-2">
             {INTERESTS.map((t) => (

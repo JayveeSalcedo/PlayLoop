@@ -132,12 +132,12 @@ export default async function CampaignPage({ params }: { params: Promise<{ id: s
           results, and "cost per play: AED 5,000" against an unfunded budget is
           a number that means nothing. */}
       {status === "draft" ? (
-        <p className="mt-4 rounded-2xl bg-card p-4 text-sm font-bold text-soft [border:var(--border-thick)]">
+        <p className="card-hard mt-4 rounded-2xl bg-card p-4 text-sm font-bold text-soft [border:var(--border-thick)]">
           Waiting on us to confirm your payment. Nothing is running and no numbers are counting yet.
         </p>
       ) : (
         <>
-      <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
+      <div className="fade-in mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
         <Stat label="Plays" value={totals.plays.toLocaleString("en-US")} />
         <Stat label="Minutes played" value={minutes.toLocaleString("en-US")} />
         <Stat label="New players" value={firstTimers.toLocaleString("en-US")} />
@@ -147,7 +147,7 @@ export default async function CampaignPage({ params }: { params: Promise<{ id: s
       </div>
 
       {campaign.poolTotal != null ? (
-        <section className="mt-6 rounded-2xl bg-card p-4 [border:var(--border-thick)]">
+        <section className="card-hard mt-6 rounded-2xl bg-card p-4 [border:var(--border-thick)]">
           <div className="flex items-baseline justify-between">
             <p className="font-extrabold">Reward pool</p>
             <p className="text-sm font-bold text-soft">
@@ -185,7 +185,7 @@ export default async function CampaignPage({ params }: { params: Promise<{ id: s
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl bg-card p-4 [border:var(--border-thick)]">
+    <div className="card-hard rounded-2xl bg-card p-4 [border:var(--border-thick)]">
       <p className="text-xs font-extrabold text-soft">{label}</p>
       <p className="text-2xl font-extrabold">{value}</p>
     </div>

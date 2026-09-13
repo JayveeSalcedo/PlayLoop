@@ -52,7 +52,7 @@ export default async function AdminStoresPage() {
 
       <NewStoreForm brands={brands} />
 
-      <div className="mt-8 flex flex-col gap-3">
+      <div className="fade-in mt-8 flex flex-col gap-3">
         {stores.map((s) => (
           <StoreCard
             key={s.id}

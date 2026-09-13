@@ -2,6 +2,7 @@ import { getDb, schema } from "@playloop/db";
 import { campaignStatus, formatAed } from "@playloop/economy";
 import { desc, eq } from "drizzle-orm";
 import Link from "next/link";
+import { BackToFeed } from "@/app/_components/BackToFeed";
 import { SignOut } from "@/app/_components/SignOut";
 import { requireBrandMember } from "@/lib/brand";
 
@@ -41,7 +42,10 @@ export default async function BrandPage() {
           <p className="text-xs font-extrabold text-soft">Brand console</p>
           <h1 className="text-3xl font-extrabold tracking-tight">{brand.name}</h1>
         </div>
-        <SignOut className="btn sm" />
+        <div className="flex shrink-0 gap-2">
+          <BackToFeed />
+          <SignOut className="btn sm" />
+        </div>
       </div>
       {brand.description ? <p className="mt-1 text-sm font-bold text-soft">{brand.description}</p> : null}
 
@@ -53,14 +57,14 @@ export default async function BrandPage() {
       {campaigns.length === 0 ? (
         <p className="mt-2 text-sm font-bold text-soft">No campaigns yet.</p>
       ) : (
-        <div className="mt-3 flex flex-col gap-3">
+        <div className="fade-in mt-3 flex flex-col gap-3">
           {campaigns.map((c) => {
             const status = campaignStatus(c);
             return (
               <Link
                 key={c.id}
                 href={`/brand/campaigns/${c.id}`}
-                className="flex items-center gap-3 rounded-2xl bg-card p-4 [border:var(--border-thick)]"
+                className="card-hard row-hard-hover flex items-center gap-3 rounded-2xl bg-card p-4 [border:var(--border-thick)]"
               >
                 <div className="min-w-0">
                   <p className="font-extrabold">{c.gameTitle}</p>

@@ -58,9 +58,9 @@ export default async function AdminPage() {
           <p className="mt-1 mb-3 text-sm font-bold text-soft">
             Confirm the money arrived. Nothing counts for the brand until you do.
           </p>
-          <div className="flex flex-col gap-3">
+          <div className="fade-in flex flex-col gap-3">
             {unfunded.map((c) => (
-              <div key={c.id} className="rounded-2xl bg-card p-4 [border:var(--border-thick)]">
+              <div key={c.id} className="card-hard rounded-2xl bg-card p-4 [border:var(--border-thick)]">
                 <p className="font-extrabold">
                   {c.brandName} · {formatAed(c.budgetFils)}
                 </p>
@@ -81,7 +81,7 @@ export default async function AdminPage() {
           : `${pending.length} game${pending.length === 1 ? "" : "s"} waiting for review.`}
       </p>
 
-      <div className="mt-6 flex flex-col gap-5">
+      <div className="fade-in mt-6 flex flex-col gap-5">
         {pending.map((g) => {
           const config = (g.config ?? {}) as {
             questions?: QuizQuestion[];
@@ -90,7 +90,7 @@ export default async function AdminPage() {
             target?: string;
           };
           return (
-            <section key={g.id} className="overflow-hidden rounded-2xl bg-card [border:var(--border-thick)]">
+            <section key={g.id} className="card-hard overflow-hidden rounded-2xl bg-card [border:var(--border-thick)]">
               <div className="flex gap-4 p-4">
                 <div
                   className="h-24 w-32 shrink-0 overflow-hidden rounded-xl [border:var(--border-thick)]"

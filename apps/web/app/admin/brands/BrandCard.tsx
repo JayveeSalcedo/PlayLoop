@@ -40,7 +40,7 @@ export function BrandCard({ brand }: { brand: AdminBrand }) {
   }
 
   return (
-    <div className="rounded-2xl bg-card p-4 [border:var(--border-thick)]">
+    <div className="card-hard rounded-2xl bg-card p-4 [border:var(--border-thick)]">
       <p className="font-extrabold">{brand.name}</p>
       {brand.description ? <p className="mt-1 text-sm text-soft">{brand.description}</p> : null}
 
@@ -86,7 +86,7 @@ export function BrandCard({ brand }: { brand: AdminBrand }) {
           {busy ? <Spinner size={16} /> : "Add member"}
         </button>
       </div>
-      <p className="mt-1 text-xs font-bold text-soft">They need to have signed up already — this doesn't invite anyone.</p>
+      <p className="mt-1 text-xs font-bold text-soft">They need to have signed up already — this doesn&apos;t invite anyone.</p>
     </div>
   );
 }

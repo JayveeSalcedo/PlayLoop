@@ -23,7 +23,10 @@
   --color-night: #1b1446;
   --color-night-2: #261d5c;
 
-  --font-display: "Bricolage Grotesque", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  /* --font-bricolage is set by next/font/google in apps/web/app/layout.tsx —
+     falls back to system-ui until that's loaded (e.g. in a context that
+     doesn't apply the root layout's font-variable class). */
+  --font-display: var(--font-bricolage, "Bricolage Grotesque"), system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 
 /*

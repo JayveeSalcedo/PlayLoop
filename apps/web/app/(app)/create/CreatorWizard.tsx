@@ -127,7 +127,7 @@ export function CreatorWizard() {
         {STEPS.map((label, i) => (
           <li
             key={label}
-            className={`flex items-center gap-2 rounded-full px-3 py-1 text-xs font-extrabold [border:var(--border-thick)] ${
+            className={`pop-in-${i + 1} flex items-center gap-2 rounded-full px-3 py-1 text-xs font-extrabold [border:var(--border-thick)] ${
               i === step ? "bg-ink text-paper" : i < step ? "bg-mint" : "bg-card text-soft"
             }`}
           >
@@ -139,7 +139,7 @@ export function CreatorWizard() {
 
       {draft.type ? (
         <div
-          className="mb-6 overflow-hidden rounded-2xl [border:var(--border-thick)]"
+          className="card-hard mb-6 overflow-hidden rounded-2xl [border:var(--border-thick)]"
           dangerouslySetInnerHTML={{ __html: artSVG(draft.type as GameArtType, draft.theme, draft.item) }}
         />
       ) : null}
@@ -151,11 +151,11 @@ export function CreatorWizard() {
             Every template is already fun and phone-ready. You bring the content.
           </p>
           <div className="flex flex-col gap-3">
-            {TEMPLATES.map((t) => (
+            {TEMPLATES.map((t, i) => (
               <button
                 key={t.type}
                 onClick={() => set({ type: t.type, title: draft.title })}
-                className={`rounded-2xl p-4 text-left [border:var(--border-thick)] ${
+                className={`card-hard card-hard-hover pop-in-${i + 1} rounded-2xl p-4 text-left [border:var(--border-thick)] ${
                   draft.type === t.type ? "bg-lemon" : "bg-card"
                 }`}
               >
@@ -426,9 +426,9 @@ function QuizEditor({
 
   return (
     <Field label="Questions" hint="Tap a letter to mark the right answer." error={issueFor("questions")}>
-      <div className="flex flex-col gap-4">
+      <div className="fade-in flex flex-col gap-4">
         {draft.questions.map((q, i) => (
-          <div key={i} className="rounded-2xl bg-card p-3 [border:var(--border-thick)]">
+          <div key={i} className="card-hard rounded-2xl bg-card p-3 [border:var(--border-thick)]">
             <div className="mb-2 flex items-center justify-between">
               <span className="text-xs font-extrabold text-soft">Question {i + 1}</span>
               {draft.questions.length > 1 ? (

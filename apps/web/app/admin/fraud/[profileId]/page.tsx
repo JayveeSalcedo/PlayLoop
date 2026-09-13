@@ -79,7 +79,7 @@ export default async function FraudProfilePage({ params }: { params: Promise<{ p
         {rejected.length === 0 ? (
           <p className="mt-2 text-sm font-bold text-soft">None.</p>
         ) : (
-          <ul className="mt-3 flex flex-col gap-2">
+          <ul className="fade-in mt-3 flex flex-col gap-2">
             {rejected.map((r) => {
               // The ceiling that made this a rejection, recomputed from the same
               // rules the validator used — a bare "score_implausible" doesn't
@@ -91,7 +91,7 @@ export default async function FraudProfilePage({ params }: { params: Promise<{ p
                 questionCount,
               });
               return (
-                <li key={r.id} className="rounded-2xl bg-card p-3 [border:var(--border-thick)]">
+                <li key={r.id} className="card-hard rounded-2xl bg-card p-3 [border:var(--border-thick)]">
                   <div className="flex items-baseline justify-between gap-2">
                     <p className="font-extrabold">{r.gameTitle}</p>
                     <p className="shrink-0 text-xs font-bold text-soft">
@@ -120,9 +120,9 @@ export default async function FraudProfilePage({ params }: { params: Promise<{ p
         {referred.length === 0 ? (
           <p className="mt-2 text-sm font-bold text-soft">None.</p>
         ) : (
-          <ul className="mt-3 flex flex-col gap-2">
+          <ul className="fade-in mt-3 flex flex-col gap-2">
             {referred.map((p) => (
-              <li key={p.id} className="rounded-2xl bg-card p-3 [border:var(--border-thick)]">
+              <li key={p.id} className="card-hard rounded-2xl bg-card p-3 [border:var(--border-thick)]">
                 <Link href={`/admin/fraud/${p.id}`} className="font-extrabold underline">
                   {p.name ?? "(no name)"}
                 </Link>

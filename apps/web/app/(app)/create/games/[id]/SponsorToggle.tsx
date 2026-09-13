@@ -24,12 +24,13 @@ export function SponsorToggle({ gameId, initial }: { gameId: string; initial: bo
     <div className="mt-4">
       <button
         onClick={toggle}
-        className={`flex w-full items-center gap-3 rounded-2xl p-4 text-left [border:var(--border-thick)] ${on ? "bg-mint" : "bg-card"}`}
+        className={`row-hard-hover flex w-full items-center gap-3 rounded-2xl p-4 text-left [border:var(--border-thick)] ${on ? "bg-mint" : "bg-card"}`}
       >
-        <span
-          className={`grid h-6 w-10 shrink-0 items-center rounded-full bg-paper px-1 [border:var(--border-thick)] ${on ? "justify-end" : "justify-start"}`}
-        >
-          <span className="block h-3 w-3 rounded-full bg-ink" />
+        <span className="relative h-6 w-10 shrink-0 rounded-full bg-paper [border:var(--border-thick)]">
+          <span
+            className="toggle-thumb block h-3 w-3 rounded-full bg-ink"
+            style={{ top: "50%", left: on ? "24px" : "4px", transform: "translateY(-50%)" }}
+          />
         </span>
         <span>
           <b className="block">Open to brand sponsors</b>

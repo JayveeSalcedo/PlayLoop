@@ -68,7 +68,7 @@ export function ChallengeShare({ sessionId }: { sessionId: string }) {
   }
 
   return (
-    <div className="flex w-full items-center gap-2 rounded-2xl bg-card p-3 [border:var(--border-thick)]">
+    <div className="card-hard pop-in flex w-full items-center gap-2 rounded-2xl bg-card p-3 [border:var(--border-thick)]">
       <p className="flex-1 truncate text-sm font-bold">{url}</p>
       <button onClick={copy} className="btn sm">
         {copied ? "Copied" : "Copy link"}

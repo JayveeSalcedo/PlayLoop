@@ -60,7 +60,7 @@ export default async function CreatorGamePage({
       {published ? <p className="mb-3 font-extrabold text-mint-foreground">Published — it&apos;s in the queue.</p> : null}
 
       <div
-        className="overflow-hidden rounded-3xl [border:var(--border-thick)]"
+        className="card-hard overflow-hidden rounded-3xl [border:var(--border-thick)]"
         dangerouslySetInnerHTML={{
           __html: artSVG(game.type as GameArtType, game.theme as ThemeName, config.item ?? "bean"),
         }}
@@ -71,7 +71,7 @@ export default async function CreatorGamePage({
         {game.difficulty} · up to {game.maxPoints} pts
       </p>
 
-      <div className="mt-4 rounded-2xl bg-card p-4 [border:var(--border-thick)]">
+      <div className="card-hard mt-4 rounded-2xl bg-card p-4 [border:var(--border-thick)]">
         <p className="font-extrabold">{copy.title}</p>
         <p className="mt-1 text-sm font-bold text-soft">{copy.body}</p>
         {rejection ? (
@@ -83,11 +83,11 @@ export default async function CreatorGamePage({
       </div>
 
       <div className="mt-4 grid grid-cols-2 gap-3">
-        <div className="rounded-2xl bg-card p-4 [border:var(--border-thick)]">
+        <div className="card-hard rounded-2xl bg-card p-4 [border:var(--border-thick)]">
           <p className="text-xs font-extrabold text-soft">Plays</p>
           <p className="text-2xl font-extrabold">{game.playCount.toLocaleString("en-US")}</p>
         </div>
-        <div className="rounded-2xl bg-card p-4 [border:var(--border-thick)]">
+        <div className="card-hard rounded-2xl bg-card p-4 [border:var(--border-thick)]">
           <p className="text-xs font-extrabold text-soft">Earned</p>
           {/* AED 0.02 per play, per the creator earnings explainer in the brief.
               Derived on read — there's no creator_earnings table until payouts exist. */}

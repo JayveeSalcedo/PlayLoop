@@ -43,7 +43,7 @@ export default async function AdminRewardsPage() {
 
       <NewRewardForm brands={brands} />
 
-      <div className="mt-8 flex flex-col gap-3">
+      <div className="fade-in mt-8 flex flex-col gap-3">
         {rewards.map((r) => (
           <RewardRow key={r.id} reward={r} brands={brands} />
         ))}

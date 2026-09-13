@@ -1,4 +1,5 @@
 import { TabBar } from "./_components/TabBar";
+import { TopBar } from "./_components/TopBar";
 
 /**
  * Shared chrome for the tabbed screens (feed/wallet/rewards). A route group
@@ -10,6 +11,7 @@ import { TabBar } from "./_components/TabBar";
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="pb-24">
+      <TopBar />
       {children}
       <TabBar />
     </div>

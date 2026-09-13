@@ -59,7 +59,7 @@ export function ReviewCard({ gameId, title }: { gameId: string; title: string })
       {error ? <p className="mb-3 text-sm font-bold text-gum">{error}</p> : null}
 
       {mode === "rejecting" ? (
-        <div>
+        <div className="pop-in">
           <label className="block text-sm font-extrabold" htmlFor={`reason-${gameId}`}>
             Why is {title} being rejected?
           </label>

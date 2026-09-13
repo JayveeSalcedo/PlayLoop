@@ -52,7 +52,7 @@ export default async function ChallengePage({ params }: { params: Promise<{ code
     const lost = challenge.winnerId === challenge.senderId;
     return (
       <main className="mx-auto max-w-sm p-6 text-center">
-        <div className="overflow-hidden rounded-3xl [border:var(--border-thick)]" dangerouslySetInnerHTML={{ __html: art }} />
+        <div className="card-hard overflow-hidden rounded-3xl [border:var(--border-thick)]" dangerouslySetInnerHTML={{ __html: art }} />
         <h1 className="mt-4 text-2xl font-extrabold tracking-tight">Challenge complete</h1>
         <p className="mt-2 text-soft">
           {won ? "You won this one." : lost ? `${sender.name ?? "They"} won this one.` : "It was a tie."}
@@ -71,7 +71,7 @@ export default async function ChallengePage({ params }: { params: Promise<{ code
     <main className="mx-auto max-w-sm p-6 text-center">
       <div className="flex items-center justify-center gap-2" dangerouslySetInnerHTML={{ __html: avatar(sender.avatarIndex, 40) }} />
       <p className="mt-2 text-sm font-bold text-soft">{sender.name ?? "A friend"} challenges you</p>
-      <div className="mt-4 overflow-hidden rounded-3xl [border:var(--border-thick)]" dangerouslySetInnerHTML={{ __html: art }} />
+      <div className="card-hard mt-4 overflow-hidden rounded-3xl [border:var(--border-thick)]" dangerouslySetInnerHTML={{ __html: art }} />
       <h1 className="mt-4 text-3xl font-extrabold tracking-tight">{game.title}</h1>
       <p className="mt-2 text-lg font-extrabold">
         Beat <span className="text-violet">{challenge.senderScore.toLocaleString("en-US")}</span>

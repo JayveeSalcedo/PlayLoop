@@ -96,7 +96,9 @@ export function GamePlayer({ game, challengeCode }: { game: GameRow; challengeCo
         <p className="font-bold text-soft">{game.title} complete</p>
         <div className="my-2 text-7xl font-extrabold tracking-tight text-ink">{result.score}</div>
         {cr ? (
-          <div className={`rounded-2xl p-3 [border:var(--border-thick)] ${cr.outcome === "tie" ? "bg-card" : cr.bonusAwarded > 0 ? "bg-mint" : "bg-card"}`}>
+          <div
+            className={`card-hard pop-in-1 rounded-2xl p-3 [border:var(--border-thick)] ${cr.outcome === "tie" ? "bg-card" : cr.bonusAwarded > 0 ? "bg-mint" : "bg-card"}`}
+          >
             <p className="font-extrabold">
               {cr.outcome === "tie"
                 ? `It's a tie — they also scored ${cr.opponentScore.toLocaleString("en-US")}`
@@ -106,7 +108,7 @@ export function GamePlayer({ game, challengeCode }: { game: GameRow; challengeCo
             </p>
           </div>
         ) : null}
-        <div className="mt-4 rounded-2xl bg-lemon p-4 [border:var(--border-thick)]">
+        <div className="card-hard pop-in-2 mt-4 rounded-2xl bg-lemon p-4 [border:var(--border-thick)]">
           <p className="text-4xl font-extrabold">+{result.payoutPoints}</p>
           <p className="text-sm font-bold">points earned</p>
         </div>
@@ -144,7 +146,7 @@ export function GamePlayer({ game, challengeCode }: { game: GameRow; challengeCo
   return (
     <main className="mx-auto max-w-sm p-6">
       <div
-        className="overflow-hidden rounded-3xl [border:var(--border-thick)]"
+        className="card-hard overflow-hidden rounded-3xl [border:var(--border-thick)]"
         dangerouslySetInnerHTML={{
           __html: artSVG(game.type as GameArtType, game.theme as ThemeName, (config.item as ItemKind) ?? "bean"),
         }}
@@ -155,7 +157,7 @@ export function GamePlayer({ game, challengeCode }: { game: GameRow; challengeCo
       </p>
       <p className="mt-3 text-soft">{game.description}</p>
       {awaitingReview ? (
-        <div className="mt-4 rounded-2xl bg-card p-4 [border:var(--border-thick)]">
+        <div className="card-hard mt-4 rounded-2xl bg-card p-4 [border:var(--border-thick)]">
           <p className="font-extrabold">
             {game.status === "rejected" ? "Not approved" : "Pending review"}
           </p>

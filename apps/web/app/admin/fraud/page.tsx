@@ -69,7 +69,7 @@ export default async function FraudPage() {
         referrals, or an existing suspension.
       </p>
 
-      <p className="mt-4 rounded-2xl bg-card p-4 text-sm font-bold text-soft [border:var(--border-thick)]">
+      <p className="card-hard mt-4 rounded-2xl bg-card p-4 text-sm font-bold text-soft [border:var(--border-thick)]">
         There is no IP address, device fingerprint or login log anywhere in this system, so the same
         person on several accounts isn&apos;t directly detectable. These are behavioural signals only —
         read them as a reason to look, not as proof.
@@ -78,12 +78,12 @@ export default async function FraudPage() {
       {rows.length === 0 ? (
         <p className="mt-6 font-bold text-soft">Nothing to review.</p>
       ) : (
-        <div className="mt-6 flex flex-col gap-3">
+        <div className="fade-in mt-6 flex flex-col gap-3">
           {rows.map((r) => (
             <Link
               key={r.id}
               href={`/admin/fraud/${r.id}`}
-              className="flex items-center gap-3 rounded-2xl bg-card p-4 [border:var(--border-thick)]"
+              className="card-hard row-hard-hover flex items-center gap-3 rounded-2xl bg-card p-4 [border:var(--border-thick)]"
             >
               <div className="min-w-0">
                 <p className="truncate font-extrabold">{r.name ?? "(no name)"}</p>

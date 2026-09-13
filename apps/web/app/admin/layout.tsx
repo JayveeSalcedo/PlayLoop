@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { BackToFeed } from "@/app/_components/BackToFeed";
 import { SignOut } from "@/app/_components/SignOut";
 import { requireAdmin } from "@/lib/admin";
 
@@ -33,7 +34,8 @@ export default async function AdminLayout({ children }: { children: React.ReactN
               {t.label}
             </Link>
           ))}
-          <div className="ml-auto">
+          <div className="ml-auto flex shrink-0 gap-2">
+            <BackToFeed />
             <SignOut className="btn sm" />
           </div>
         </div>

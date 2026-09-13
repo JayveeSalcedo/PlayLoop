@@ -56,7 +56,7 @@ export function ScannerPanel() {
 
   if (stage === "done" && done) {
     return (
-      <div className="mt-6 rounded-2xl bg-mint p-5 text-center [border:var(--border-thick)]">
+      <div className="card-hard pop-in mt-6 rounded-2xl bg-mint p-5 text-center [border:var(--border-thick)]">
         <p className="text-xl font-extrabold">Redeemed</p>
         <p className="mt-1 font-bold">Hand over: {done.rewardName}</p>
         <button className="btn go mt-4" onClick={reset}>
@@ -100,7 +100,7 @@ export function ScannerPanel() {
       {error ? <p className="mt-3 text-sm font-bold text-gum">{error}</p> : null}
 
       {result ? (
-        <div className="mt-4 rounded-2xl bg-card p-4 [border:var(--border-thick)]">
+        <div className="card-hard pop-in mt-4 rounded-2xl bg-card p-4 [border:var(--border-thick)]">
           {result.status === "active" ? (
             <>
               <p className="text-xs font-extrabold text-soft">{result.brandName}</p>

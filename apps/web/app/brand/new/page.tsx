@@ -45,7 +45,7 @@ export default async function NewCampaignPage() {
       </p>
 
       {rewards.length === 0 ? (
-        <p className="mt-6 rounded-2xl bg-card p-4 font-bold text-soft [border:var(--border-thick)]">
+        <p className="card-hard mt-6 rounded-2xl bg-card p-4 font-bold text-soft [border:var(--border-thick)]">
           {brand.name} has no active rewards to fund yet.
         </p>
       ) : (

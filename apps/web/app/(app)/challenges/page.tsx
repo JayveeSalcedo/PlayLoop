@@ -82,9 +82,9 @@ export default async function ChallengesPage() {
           Finish a game and challenge a friend to send one.
         </p>
       ) : (
-        <div className="mt-2 flex flex-col gap-2">
+        <div className="fade-in mt-2 flex flex-col gap-2">
           {sent.map((c) => (
-            <div key={c.code} className="rounded-2xl bg-card p-3 [border:var(--border-thick)]">
+            <div key={c.code} className="card-hard rounded-2xl bg-card p-3 [border:var(--border-thick)]">
               <b>{c.gameTitle}</b>
               <p className="text-sm font-bold text-soft">Beat {c.senderScore.toLocaleString("en-US")}</p>
             </div>
@@ -98,7 +98,7 @@ export default async function ChallengesPage() {
           No challenges played yet.
         </p>
       ) : (
-        <div className="mt-2 flex flex-col gap-2">
+        <div className="fade-in mt-2 flex flex-col gap-2">
           {history.map((h, i) => {
             const opponentId = h.senderId === profile.id ? h.recipientId : h.senderId;
             const opponent = opponentId ? opponentById.get(opponentId) : undefined;
@@ -106,7 +106,7 @@ export default async function ChallengesPage() {
             const won = h.winnerId === profile.id;
             const tie = h.winnerId === null;
             return (
-              <div key={i} className="flex items-center gap-3 rounded-2xl bg-card p-3 [border:var(--border-thick)]">
+              <div key={i} className="card-hard flex items-center gap-3 rounded-2xl bg-card p-3 [border:var(--border-thick)]">
                 <span dangerouslySetInnerHTML={{ __html: avatar(opponent?.avatarIndex ?? 0, 36) }} />
                 <div className="flex-1">
                   <b>
@@ -127,7 +127,7 @@ export default async function ChallengesPage() {
           Play a challenge to start a rivalry.
         </p>
       ) : (
-        <div className="mt-2 overflow-hidden rounded-2xl bg-card [border:var(--border-thick)]">
+        <div className="card-hard fade-in mt-2 overflow-hidden rounded-2xl bg-card [border:var(--border-thick)]">
           {[...leaderboard.entries()].map(([id, entry]) => (
             <div key={id} className="flex items-center justify-between border-b-2 border-ink/10 p-3 text-sm font-semibold last:border-b-0">
               <span>{entry.name}</span>

@@ -32,7 +32,7 @@ export function CancelButton({ campaignId }: { campaignId: string }) {
   }
 
   return (
-    <div className="rounded-2xl bg-card p-4 [border:var(--border-thick)]">
+    <div className="card-hard pop-in rounded-2xl bg-card p-4 [border:var(--border-thick)]">
       <p className="font-extrabold">Cancel this campaign?</p>
       <p className="mt-1 text-sm font-bold text-soft">
         It stops counting and can&apos;t be restarted. Plays already recorded stay in the numbers.

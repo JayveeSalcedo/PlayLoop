@@ -1,5 +1,6 @@
 import { getDb, schema } from "@playloop/db";
 import { and, desc, eq, isNull, sql } from "drizzle-orm";
+import { BackToFeed } from "@/app/_components/BackToFeed";
 import { SignOut } from "@/app/_components/SignOut";
 import { requireStaff } from "@/lib/staff";
 import { UNDO_WINDOW_MINUTES } from "./constants";
@@ -45,7 +46,10 @@ export default async function StaffPage() {
           </p>
           <h1 className="text-3xl font-extrabold tracking-tight">{store.name}</h1>
         </div>
-        <SignOut className="btn sm" />
+        <div className="flex shrink-0 gap-2">
+          <BackToFeed />
+          <SignOut className="btn sm" />
+        </div>
       </div>
 
       <ScannerPanel />
@@ -57,11 +61,11 @@ export default async function StaffPage() {
         {today.length === 0 ? (
           <p className="mt-2 text-sm font-bold text-soft">Nothing redeemed here yet today.</p>
         ) : (
-          <ul className="mt-3 flex flex-col gap-2">
+          <ul className="fade-in mt-3 flex flex-col gap-2">
             {today.map((r) => (
               <li
                 key={r.id}
-                className={`rounded-2xl p-3 [border:var(--border-thick)] ${r.reversedAt ? "bg-paper" : "bg-card"}`}
+                className={`card-hard rounded-2xl p-3 [border:var(--border-thick)] ${r.reversedAt ? "bg-paper" : "bg-card"}`}
               >
                 <div className="flex items-center gap-3">
                   <div className="min-w-0">
