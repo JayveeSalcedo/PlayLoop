@@ -1,0 +1,504 @@
+<title>playloop Test Pass</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+
+<style>
+  :root {
+    --paper: #f0ecff;
+    --card: #ffffff;
+    --ink: #18123f;
+    --soft: #5e5885;
+    --faint: #9d97bf;
+    --rule: #d9d2f5;
+    --lemon: #ffdd3c;
+    --mint: #22d39b;
+    --gum: #ff5fa2;
+    --violet: #5b3bff;
+    --ok-ink: #0b6b4d;
+    --warn-ink: #8d1f4f;
+    --border: 2.5px solid var(--ink);
+    --shadow: 5px 5px 0 var(--ink);
+    --display: "Bricolage Grotesque", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  }
+
+  :root:not([data-theme="light"]) {
+    @media (prefers-color-scheme: dark) {
+      --paper: #120f33;
+      --card: #1b1446;
+      --ink: #ece8ff;
+      --soft: #a9a2d4;
+      --faint: #6f68a0;
+      --rule: #2f2766;
+      --ok-ink: #6ff0c2;
+      --warn-ink: #ff9ec6;
+      --border: 2.5px solid #4a3fa0;
+      --shadow: 5px 5px 0 #4a3fa0;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --paper: #120f33;
+    --card: #1b1446;
+    --ink: #ece8ff;
+    --soft: #a9a2d4;
+    --faint: #6f68a0;
+    --rule: #2f2766;
+    --ok-ink: #6ff0c2;
+    --warn-ink: #ff9ec6;
+    --border: 2.5px solid #4a3fa0;
+    --shadow: 5px 5px 0 #4a3fa0;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    padding-block: 40px 72px;
+    padding-left: 20px;
+    padding-right: 20px;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--body);
+    font-size: 16px;
+    line-height: 1.6;
+  }
+
+  .wrap { max-width: 720px; margin: 0 auto; }
+
+  h1, h2, h3 { font-family: var(--display); text-wrap: balance; margin: 0; }
+
+  h1 { font-size: clamp(32px, 7vw, 46px); font-weight: 800; letter-spacing: -0.02em; line-height: 1.05; }
+
+  .kicker {
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--violet);
+    margin-bottom: 10px;
+  }
+
+  .lede { color: var(--soft); font-size: 17px; margin-top: 14px; }
+
+  .progress {
+    display: flex; align-items: center; gap: 12px;
+    margin-top: 24px; padding: 12px 16px;
+    background: var(--card); border: var(--border); border-radius: 14px;
+    font-family: var(--mono); font-size: 13px; font-weight: 600;
+  }
+  .bar { flex: 1; height: 10px; border-radius: 99px; background: var(--rule); overflow: hidden; }
+  .bar > i { display: block; height: 100%; width: 0; background: var(--mint); transition: width .25s ease; }
+
+  .role { margin-top: 44px; }
+
+  .role-head {
+    background: var(--card);
+    border: var(--border);
+    border-radius: 16px;
+    box-shadow: var(--shadow);
+    padding: 18px 20px;
+  }
+  .role-head h2 { font-size: 25px; font-weight: 800; letter-spacing: -0.01em; }
+  .role-meta {
+    margin-top: 8px; display: flex; flex-wrap: wrap; gap: 8px;
+    font-family: var(--mono); font-size: 12.5px;
+  }
+  .chip {
+    padding: 3px 9px; border-radius: 99px;
+    border: 1.5px solid var(--rule); color: var(--soft); background: var(--paper);
+  }
+  .chip.route { color: var(--ink); border-color: var(--ink); font-weight: 600; }
+  .need { margin-top: 12px; font-size: 14.5px; color: var(--soft); }
+
+  ol.steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0; }
+
+  li.step {
+    display: grid;
+    grid-template-columns: 30px 1fr;
+    gap: 14px;
+    padding: 18px 4px;
+    border-bottom: 1px solid var(--rule);
+    align-items: start;
+  }
+  li.step:last-child { border-bottom: 0; }
+
+  .n {
+    font-family: var(--mono); font-size: 12px; font-weight: 600;
+    color: var(--faint); padding-top: 3px; font-variant-numeric: tabular-nums;
+  }
+
+  .do { font-weight: 600; }
+  .expect {
+    margin-top: 7px; padding-left: 13px;
+    border-left: 3px solid var(--mint);
+    color: var(--soft); font-size: 15px;
+  }
+  .expect b { color: var(--ok-ink); font-weight: 600; }
+
+  label.tick { display: flex; gap: 9px; align-items: flex-start; cursor: pointer; }
+  label.tick input {
+    appearance: none; flex: 0 0 auto; width: 19px; height: 19px; margin: 3px 0 0;
+    border: 2px solid var(--soft); border-radius: 5px; background: var(--card); cursor: pointer;
+  }
+  label.tick input:checked { background: var(--mint); border-color: var(--mint); }
+  label.tick input:checked::after {
+    content: "✓"; display: block; color: #06301f; font-size: 14px;
+    font-weight: 700; line-height: 15px; text-align: center;
+  }
+  label.tick input:focus-visible { outline: 3px solid var(--violet); outline-offset: 2px; }
+  li.step:has(input:checked) .do { opacity: .45; text-decoration: line-through; }
+  li.step:has(input:checked) .expect { opacity: .45; }
+
+  code {
+    font-family: var(--mono); font-size: 0.88em;
+    background: var(--card); border: 1px solid var(--rule);
+    padding: 1px 5px; border-radius: 5px; white-space: nowrap;
+  }
+
+  pre {
+    font-family: var(--mono); font-size: 13px; line-height: 1.55;
+    background: var(--card); border: var(--border); border-radius: 12px;
+    padding: 14px 16px; overflow-x: auto; margin: 12px 0 0;
+  }
+  pre code { background: none; border: 0; padding: 0; white-space: pre; }
+
+  .callout {
+    margin-top: 20px; padding: 16px 18px;
+    border-radius: 14px; border: var(--border);
+    background: var(--card);
+  }
+  .callout.warn { border-color: var(--gum); box-shadow: 4px 4px 0 var(--gum); }
+  .callout h3 { font-size: 17px; font-weight: 800; }
+  .callout.warn h3 { color: var(--warn-ink); }
+  .callout p { margin: 8px 0 0; font-size: 15px; color: var(--soft); }
+
+  .gaps { margin-top: 44px; }
+  .gaps ul { margin: 14px 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 12px; }
+  .gaps li { padding-left: 16px; border-left: 3px solid var(--gum); font-size: 15px; color: var(--soft); }
+  .gaps b { color: var(--ink); font-weight: 600; }
+
+  footer { margin-top: 48px; padding-top: 20px; border-top: 1px solid var(--rule); font-size: 14px; color: var(--faint); }
+
+  @media (prefers-reduced-motion: reduce) { .bar > i { transition: none; } }
+</style>
+
+<div class="wrap">
+  <p class="kicker">Manual QA · phases 1–6</p>
+  <h1>playloop Test Pass</h1>
+  <p class="lede">
+    Work through one role at a time. Each step says what to do and what you should see —
+    if what you see differs, that's the bug report. Ticks are saved in this browser.
+  </p>
+
+  <div class="progress">
+    <span id="count">0 / 0</span>
+    <span class="bar"><i id="fill"></i></span>
+    <button id="reset" style="font:inherit;background:none;border:0;color:var(--violet);cursor:pointer;padding:0;">Reset</button>
+  </div>
+
+  <!-- SETUP -->
+  <section class="role">
+    <div class="role-head">
+      <h2>Before you start</h2>
+      <div class="role-meta"><span class="chip">one-time</span><span class="chip">terminal + SQL</span></div>
+      <p class="need">
+        Three of the five roles can't be reached without a row or an env var. Do this once and
+        you can test everything with four logins.
+      </p>
+    </div>
+    <ol class="steps">
+      <li class="step"><span class="n">01</span><div>
+        <label class="tick"><input type="checkbox"><span class="do">Run <code>pnpm db:seed</code>, then <code>pnpm dev</code>.</span></label>
+        <div class="expect">Seeds 3 brands, 4 games, 4 rewards, 3 stores. Note the port it prints — it climbs if 3000 is busy.</div>
+      </div></li>
+      <li class="step"><span class="n">02</span><div>
+        <label class="tick"><input type="checkbox"><span class="do">Sign in four times with four different emails, so you have four profiles. Codes appear in the terminal, not your inbox.</span></label>
+        <div class="expect">Look for <code>[dev-mail] OTP for &lt;email&gt;: 123456</code>. Suggested: a player, a creator, a barista, a marketer.</div>
+      </div></li>
+      <li class="step"><span class="n">03</span><div>
+        <label class="tick"><input type="checkbox"><span class="do">Put your admin email in <code>ADMIN_EMAILS</code> in <code>.env</code>, then restart the dev server.</span></label>
+        <div class="expect">Restart matters — it's read at boot. Empty means <b>nobody</b> is an admin, including you.</div>
+      </div></li>
+      <li class="step"><span class="n">04</span><div>
+        <label class="tick"><input type="checkbox"><span class="do">As the admin, open the new <b>Brands</b> tab (<code>/admin/brands</code>) and add the marketer's email to Beanhouse.</span></label>
+        <div class="expect">No SQL needed any more — brand console access is granted from admin now. Typing an email that hasn't signed up yet is refused ("No player with that email has signed up yet."); adding the same person to a second brand is refused too (one brand per person).</div>
+      </div></li>
+      <li class="step"><span class="n">05</span><div>
+        <label class="tick"><input type="checkbox"><span class="do">In the new <b>Stores</b> tab (<code>/admin/stores</code>), the seeded stores already exist — add the barista's email to Beanhouse Marina.</span></label>
+        <div class="expect">Also no SQL — same one-per-person rule as brands, with the same refusal wording. Deactivating a store from here should 404 its <code>/staff</code> scanner without deleting the store or its redemption history.</div>
+      </div></li>
+    </ol>
+  </section>
+
+  <!-- PLAYER -->
+  <section class="role">
+    <div class="role-head">
+      <h2>Player</h2>
+      <div class="role-meta">
+        <span class="chip route">/feed</span><span class="chip route">/rewards</span><span class="chip route">/wallet</span>
+        <span class="chip">no setup needed</span>
+      </div>
+      <p class="need">The core loop: earn points, spend them, get a voucher.</p>
+    </div>
+    <ol class="steps">
+      <li class="step"><span class="n">01</span><div>
+        <label class="tick"><input type="checkbox"><span class="do">Sign up fresh, pick a name, avatar and interests.</span></label>
+        <div class="expect">The <b>Send me a code</b> and <b>Continue</b> buttons show a spinner while submitting, so it's obvious the tap registered. After picking your avatar/interests, a <b>welcome-gift screen</b> appears — tap the gift box to open it, revealing <b>+300 points</b> — then Continue lands on the feed with that same 300-point balance and 4 games.</div>
+      </div></li>
+      <li class="step"><span class="n">02</span><div>
+        <label class="tick"><input type="checkbox"><span class="do">Play Desert Genius. Answer all five.</span></label>
+        <div class="expect">3-2-1 countdown, then questions. Result shows score, points earned and XP. Answering fast earns more — a correct answer is 100 plus up to 50 for speed.</div>
+      </div></li>
+      <li class="step"><span class="n">03</span><div>
+        <label class="tick"><input type="checkbox"><span class="do">Play the other three games (Catch, Memory, Reflex) at least once each.</span></label>
+        <div class="expect">Catch is drag-to-move, Reflex is tap-the-smiling-ones, Memory is six pairs. All should hit 60fps and end on a result screen.</div>
+      </div></li>
+      <li class="step"><span class="n">04</span><div>
+        <label class="tick"><input type="checkbox"><span class="do">Open Rewards. Check the affordability text on each card.</span></label>
+        <div class="expect">Anything you can't afford says <b>"Need N more"</b>, and N should equal cost minus your balance exactly.</div>
+      </div></li>
+      <li class="step"><span class="n">05</span><div>
+        <label class="tick"><input type="checkbox"><span class="do">Earn 500+, then redeem the Free flat white.</span></label>
+        <div class="expect">Sheet shows cost, balance and balance-after. Confirming gives a <b>scannable QR</b> and a code like <code>BE-4F2A-91</code>. Write the code down — you need it for Store staff.</div>
+      </div></li>
+      <li class="step"><span class="n">06</span><div>
+        <label class="tick"><input type="checkbox"><span class="do">Open Wallet.</span></label>
+        <div class="expect">Balance, level, games played, the voucher marked <b>active</b> with its QR, and a history where every line adds up to the balance.</div>
+      </div></li>
+      <li class="step"><span class="n">07</span><div>
+        <label class="tick"><input type="checkbox"><span class="do">From a result screen, tap Challenge a friend and copy the link. Open it in a private window and sign up as someone new.</span></label>
+        <div class="expect">The new visitor sees "beat this score", signs up first, then plays. Winner gets a bonus; the sender gets a one-time referral bonus when the new account finishes its first game.</div>
+      </div></li>
+      <li class="step"><span class="n">08</span><div>
+        <label class="tick"><input type="checkbox"><span class="do">Scroll to the bottom of the Wallet and press Sign out. Then try to open <code>/wallet</code> again.</span></label>
+        <div class="expect">Sign out now asks <b>"Sign out?"</b> in a bottom sheet first — it doesn't fire on the first tap. Confirm, and you're back at the login screen; <code>/wallet</code> then <b>redirects to login</b> rather than rendering. Same confirm sheet on the staff, brand and admin screens — a shared counter device needs it most.</div>
+      </div></li>
+    </ol>
+  </section>
+
+  <!-- CREATOR -->
+  <section class="role">
+    <div class="role-head">
+      <h2>Creator</h2>
+      <div class="role-meta"><span class="chip route">/create</span><span class="chip">no setup needed</span></div>
+      <p class="need">Any player can make a game. The "+" tab in the bottom bar.</p>
+    </div>
+    <ol class="steps">
+      <li class="step"><span class="n">01</span><div>
+        <label class="tick"><input type="checkbox"><span class="do">Open the "+" tab and pick Quiz Blitz.</span></label>
+        <div class="expect">Four templates listed; picking one shows a live cover preview above the stepper.</div>
+      </div></li>
+      <li class="step"><span class="n">02</span><div>
+        <label class="tick"><input type="checkbox"><span class="do">Press Customise with everything blank.</span></label>
+        <div class="expect">Refuses to advance and says <b>"Give your game a title, up to 26 characters."</b></div>
+      </div></li>
+      <li class="step"><span class="n">03</span><div>
+        <label class="tick"><input type="checkbox"><span class="do">Fill in a title, pick a colour and difficulty, and write two complete questions. Change the max-points slider.</span></label>
+        <div class="expect">The cover preview updates as you type. Marking a different answer letter moves the green highlight. Fewer than two complete questions blocks the next step.</div>
+      </div></li>
+      <li class="step"><span class="n">04</span><div>
+        <label class="tick"><input type="checkbox"><span class="do">Press Test play. Play it through, then press Play again, then Looks good.</span></label>
+        <div class="expect">
+          The real game runs full-screen with <b>no tab bar showing through underneath it</b> (that was
+          leaking through before — <code>/create</code> is the one screen with a persistent tab bar behind
+          a fullscreen game host, since <code>/play</code> has none). The quit button top-left shows an
+          actual <b>✕ icon</b>, not an empty bordered box — that was missing everywhere, not just here, so
+          it's fixed for real gameplay too. Result says what a player would earn and that nothing was
+          saved; Play again restarts cleanly; the quit ✕ exits.
+        </div>
+      </div></li>
+      <li class="step"><span class="n">05</span><div>
+        <label class="tick"><input type="checkbox"><span class="do">Publish it.</span></label>
+        <div class="expect">Lands on the game page reading <b>"Waiting for review"</b>, 0 plays, AED 0.00.</div>
+      </div></li>
+      <li class="step"><span class="n">06</span><div>
+        <label class="tick"><input type="checkbox"><span class="do">Check the feed, then open the game's own page.</span></label>
+        <div class="expect">It is <b>not</b> in the feed. Its own page shows a "Pending review" banner and the Play button does nothing. That's correct, not a bug.</div>
+      </div></li>
+      <li class="step"><span class="n">07</span><div>
+        <label class="tick"><input type="checkbox"><span class="do">Make a second game with a different template — Catch, Reflex or Memory.</span></label>
+        <div class="expect">Catch offers four falling items, Reflex three target colours, Memory an image upload with the shape pack as fallback. My games lists both with status badges.</div>
+      </div></li>
+    </ol>
+  </section>
+
+  <!-- ADMIN -->
+  <section class="role">
+    <div class="role-head">
+      <h2>Admin</h2>
+      <div class="role-meta">
+        <span class="chip route">/admin</span><span class="chip route">/admin/fraud</span>
+        <span class="chip route">/admin/rewards</span><span class="chip route">/admin/activity</span>
+        <span class="chip">needs ADMIN_EMAILS</span>
+      </div>
+      <p class="need">Four tabs. Everything here is gated by the env var, not a database role.</p>
+    </div>
+    <ol class="steps">
+      <li class="step"><span class="n">01</span><div>
+        <label class="tick"><input type="checkbox"><span class="do">While signed in as the <em>player</em>, visit <code>/admin</code>.</span></label>
+        <div class="expect">A plain <b>404</b> — not "forbidden". A non-admin shouldn't learn the page exists.</div>
+      </div></li>
+      <li class="step"><span class="n">02</span><div>
+        <label class="tick"><input type="checkbox"><span class="do">Sign in as the admin. Approve the creator's first game, reject the second with a reason.</span></label>
+        <div class="expect">Each card shows the actual content — quiz questions with the right answer highlighted. Rejecting with a blank reason does nothing. Both leave the queue after deciding.</div>
+      </div></li>
+      <li class="step"><span class="n">03</span><div>
+        <label class="tick"><input type="checkbox"><span class="do">Back as the creator, open the rejected game.</span></label>
+        <div class="expect">Shows <b>"What the reviewer said"</b> with your exact wording. The approved one now appears in the feed and pays out when played.</div>
+      </div></li>
+      <li class="step"><span class="n">04</span><div>
+        <label class="tick"><input type="checkbox"><span class="do">Open the Fraud tab.</span></label>
+        <div class="expect">Likely empty on a clean database — it only lists accounts with 2+ rejected plays, 3+ referrals, or an existing suspension. The panel explaining there's no IP or device data should be visible.</div>
+      </div></li>
+      <li class="step"><span class="n">05</span><div>
+        <label class="tick"><input type="checkbox"><span class="do">Open Rewards. Create one, edit its cost, top up a pool, deactivate it.</span></label>
+        <div class="expect">Top-up controls appear <b>only</b> on pooled rewards. Topping up 500 moves both numbers ("1,500 of 1,500 left"). Deactivating removes it from the player catalogue but any voucher already issued still works.</div>
+      </div></li>
+      <li class="step"><span class="n">06</span><div>
+        <label class="tick"><input type="checkbox"><span class="do">Open the Activity tab.</span></label>
+        <div class="expect">Every action you just took, newest first, each naming <b>who</b> did it. This is the only place that records the actor.</div>
+      </div></li>
+    </ol>
+  </section>
+
+  <!-- STAFF -->
+  <section class="role">
+    <div class="role-head">
+      <h2>Store staff</h2>
+      <div class="role-meta"><span class="chip route">/staff</span><span class="chip">granted from Admin &gt; Stores</span></div>
+      <p class="need">The counter. Membership is granted in <code>/admin/stores</code> (Setup step 5). You need the voucher code from Player step 5.</p>
+    </div>
+    <ol class="steps">
+      <li class="step"><span class="n">01</span><div>
+        <label class="tick"><input type="checkbox"><span class="do">Sign in as the barista and open <code>/staff</code>.</span></label>
+        <div class="expect">Header reads <b>Beanhouse · Dubai / Marina</b> — the store from your INSERT.</div>
+      </div></li>
+      <li class="step"><span class="n">02</span><div>
+        <label class="tick"><input type="checkbox"><span class="do">Try a made-up code, e.g. <code>BE-ZZZZ-99</code>.</span></label>
+        <div class="expect">"No such code."</div>
+      </div></li>
+      <li class="step"><span class="n">03</span><div>
+        <label class="tick"><input type="checkbox"><span class="do">Redeem a Glow Arcade reward as the player, then try that code here.</span></label>
+        <div class="expect"><b>"Wrong brand"</b> — a Beanhouse counter can't take a Glow Arcade voucher. Deliberate.</div>
+      </div></li>
+      <li class="step"><span class="n">04</span><div>
+        <label class="tick"><input type="checkbox"><span class="do">Type the real flat-white code — lowercase, with spaces instead of dashes.</span></label>
+        <div class="expect">Still resolves. <code>be 4f2a 91</code> and <code>BE-4F2A-91</code> are the same code.</div>
+      </div></li>
+      <li class="step"><span class="n">05</span><div>
+        <label class="tick"><input type="checkbox"><span class="do">Confirm the redemption, then enter the same code again.</span></label>
+        <div class="expect">First: "Redeemed — hand over: Free flat white". Second: <b>"Already used"</b>, naming the store and time.</div>
+      </div></li>
+      <li class="step"><span class="n">06</span><div>
+        <label class="tick"><input type="checkbox"><span class="do">Press Undo in today's list, then check the player's Wallet.</span></label>
+        <div class="expect">The row goes struck-through and "undone"; the voucher is <b>active again</b> in the Wallet with its QR back. Undo only offered for 10 minutes.</div>
+      </div></li>
+    </ol>
+  </section>
+
+  <!-- BRAND -->
+  <section class="role">
+    <div class="role-head">
+      <h2>Brand</h2>
+      <div class="role-meta"><span class="chip route">/brand</span><span class="chip">granted from Admin &gt; Brands</span></div>
+      <p class="need">The sponsor's side. Membership is granted in <code>/admin/brands</code> (Setup step 5) — needs the admin to confirm funding before anything counts.</p>
+    </div>
+    <ol class="steps">
+      <li class="step"><span class="n">01</span><div>
+        <label class="tick"><input type="checkbox"><span class="do">Sign in as the marketer, open <code>/brand</code>, and create a campaign.</span></label>
+        <div class="expect">The reward dropdown shows <b>only Beanhouse rewards</b> — no Glow Arcade or Nomad Books. Start date defaults to today.</div>
+      </div></li>
+      <li class="step"><span class="n">02</span><div>
+        <label class="tick"><input type="checkbox"><span class="do">Look at the campaign page straight after creating it.</span></label>
+        <div class="expect">Status <b>draft</b>, and <b>no figures at all</b> — just a note that it's waiting on payment confirmation. Numbers on an unpaid campaign would be meaningless.</div>
+      </div></li>
+      <li class="step"><span class="n">03</span><div>
+        <label class="tick"><input type="checkbox"><span class="do">As the admin, mark it funded on <code>/admin</code>.</span></label>
+        <div class="expect">It appears under "Campaigns awaiting funding" with brand, budget and dates; marking funded removes it.</div>
+      </div></li>
+      <li class="step"><span class="n">04</span><div>
+        <label class="tick"><input type="checkbox"><span class="do">Reopen the campaign as the marketer.</span></label>
+        <div class="expect">Now <b>live</b>, with plays, minutes, new players, store visits, pool burn and cost-per-play. Cost per play should equal budget ÷ plays — check one by hand.</div>
+      </div></li>
+      <li class="step"><span class="n">05</span><div>
+        <label class="tick"><input type="checkbox"><span class="do">Play the sponsored game a few more times, then refresh the dashboard.</span></label>
+        <div class="expect">Plays climb and the bar chart gains a column. It refreshes on load, not live — that's intended.</div>
+      </div></li>
+      <li class="step"><span class="n">06</span><div>
+        <label class="tick"><input type="checkbox"><span class="do">Check "Cost per visit" before anyone has redeemed.</span></label>
+        <div class="expect">An em dash <b>—</b>, not "AED 0.00". No visits means no cost per visit, not a free one.</div>
+      </div></li>
+    </ol>
+  </section>
+
+  <!-- GAPS -->
+  <section class="gaps">
+    <h2 style="font-size:25px;font-weight:800;">Not bugs — known and deliberate</h2>
+    <p style="color:var(--soft);margin-top:8px;">Please don't spend time reporting these.</p>
+    <ul>
+      <li><b>Campaigns have no city targeting.</b> The brief asks for it, but nothing in the system knows where a player is, so the control would look like it worked and do nothing.</li>
+      <li><b>No forecast before launching a campaign.</b> With no history, any number would be invented.</li>
+      <li><b>The dashboard isn't live.</b> It's correct when you open or refresh it. Nothing pushes updates.</li>
+      <li><b>Multi-accounting isn't detectable.</b> No IP, device fingerprint or login history is stored anywhere — that needs a privacy and data-retention decision first.</li>
+      <li><b>Pool changes aren't attributed beyond the activity log.</b> You can see who added units; there's no per-pool ledger.</li>
+      <li><b>Suspended players keep their points and vouchers.</b> Suspension stops earning and spending, not reading. Taking back what someone already paid for would be confiscation.</li>
+      <li><b>The look is deliberately plain.</b> Game screens are faithful to the prototype; the surrounding pages use the colours but not the full hand-drawn treatment yet.</li>
+      <li><b>Everything is desktop-width-friendly but built phone-first.</b> Try it at phone width — that's the target.</li>
+    </ul>
+  </section>
+
+  <div class="callout">
+    <h3>Reporting back</h3>
+    <p>
+      Most useful: which role, which step number, what you saw instead. A screenshot of the screen
+      plus the terminal output at that moment usually pins it immediately. If something looks wrong
+      but might be intended, say so — the boundary between the two is exactly where I want your read.
+    </p>
+  </div>
+
+  <footer>
+    Covers phases 1–6. Four logins, one env var, two SQL inserts.
+  </footer>
+</div>
+
+<script>
+  const KEY = "playloop-qa-v1";
+  const boxes = [...document.querySelectorAll('input[type="checkbox"]')];
+  const countEl = document.getElementById("count");
+  const fillEl = document.getElementById("fill");
+
+  boxes.forEach((b, i) => (b.id = "q" + i));
+
+  function paint() {
+    const done = boxes.filter((b) => b.checked).length;
+    countEl.textContent = done + " / " + boxes.length;
+    fillEl.style.width = boxes.length ? (done / boxes.length) * 100 + "%" : "0%";
+  }
+
+  function save() {
+    try {
+      localStorage.setItem(KEY, JSON.stringify(boxes.map((b) => b.checked)));
+    } catch (e) {
+      /* private window or blocked storage — ticking still works for this session */
+    }
+  }
+
+  try {
+    const saved = JSON.parse(localStorage.getItem(KEY) || "[]");
+    if (Array.isArray(saved)) saved.forEach((v, i) => { if (boxes[i]) boxes[i].checked = !!v; });
+  } catch (e) { /* ignore malformed or unavailable storage */ }
+
+  boxes.forEach((b) => b.addEventListener("change", () => { paint(); save(); }));
+
+  document.getElementById("reset").addEventListener("click", () => {
+    boxes.forEach((b) => (b.checked = false));
+    paint();
+    save();
+  });
+
+  paint();
+</script>

@@ -10,12 +10,20 @@ export type AdminAction =
   | "reward.update"
   | "reward.top_up"
   | "reward.activate"
-  | "reward.deactivate";
+  | "reward.deactivate"
+  | "brand.create"
+  | "brand.member_add"
+  | "brand.member_remove"
+  | "store.create"
+  | "store.activate"
+  | "store.deactivate"
+  | "store.staff_add"
+  | "store.staff_remove";
 
 export interface AdminActionRecord {
   actorProfileId: string;
   action: AdminAction;
-  targetType: "game" | "campaign" | "profile" | "reward";
+  targetType: "game" | "campaign" | "profile" | "reward" | "brand" | "store";
   targetId: string;
   /** One line, written for whoever reads the activity list months from now. */
   summary: string;

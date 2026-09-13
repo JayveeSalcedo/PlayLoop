@@ -1,3 +1,4 @@
+import { SubmitButton } from "@/app/_components/SubmitButton";
 import { verifyCode } from "./actions";
 
 export default async function VerifyPage({
@@ -33,9 +34,7 @@ export default async function VerifyPage({
           suppressHydrationWarning
         />
         {error ? <p className="text-sm font-bold text-gum">{error}</p> : null}
-        <button type="submit" className="btn go lg block" suppressHydrationWarning>
-          Continue
-        </button>
+        <SubmitButton pendingText="Verifying…">Continue</SubmitButton>
       </form>
     </main>
   );

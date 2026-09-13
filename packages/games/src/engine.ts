@@ -7,6 +7,7 @@
  * is passed in. Framework-agnostic: works the same whether `host` came from
  * a React ref, a plain DOM query, or a test harness.
  */
+import { icon } from "@playloop/ui";
 import type { GameApi, GameDefinition, RunGameResult } from "./types";
 
 const num = (n: number) => Math.round(n).toLocaleString("en-US");
@@ -19,7 +20,7 @@ function bump(el: HTMLElement | null) {
 }
 
 function hostHTML(): string {
-  return `<div class="ghud"><button class="gx" aria-label="Quit game" type="button"></button><div class="gtimer"><svg viewBox="0 0 54 54"><circle class="tb" cx="27" cy="27" r="22" fill="none" stroke-width="5"/><circle class="tf" cx="27" cy="27" r="22" fill="none" stroke-width="5" stroke-linecap="round" stroke-dasharray="138.2" stroke-dashoffset="0"/></svg><b class="gt">0</b></div><div class="gscore"><small>Score</small><b class="gs">0</b></div></div><div class="gstage"></div><div class="gcount"></div><div class="ghint"></div>`;
+  return `<div class="ghud"><button class="gx" aria-label="Quit game" type="button">${icon("close")}</button><div class="gtimer"><svg viewBox="0 0 54 54"><circle class="tb" cx="27" cy="27" r="22" fill="none" stroke-width="5"/><circle class="tf" cx="27" cy="27" r="22" fill="none" stroke-width="5" stroke-linecap="round" stroke-dasharray="138.2" stroke-dashoffset="0"/></svg><b class="gt">0</b></div><div class="gscore"><small>Score</small><b class="gs">0</b></div></div><div class="gstage"></div><div class="gcount"></div><div class="ghint"></div>`;
 }
 
 export interface RunGameHandle {

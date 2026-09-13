@@ -1,3 +1,4 @@
+import { SubmitButton } from "@/app/_components/SubmitButton";
 import { requestCode } from "./actions";
 
 export default async function LoginPage({
@@ -30,9 +31,7 @@ export default async function LoginPage({
           suppressHydrationWarning
         />
         {error ? <p className="text-sm font-bold text-gum">{error}</p> : null}
-        <button type="submit" className="btn go lg block" suppressHydrationWarning>
-          Send me a code
-        </button>
+        <SubmitButton pendingText="Sending…">Send me a code</SubmitButton>
       </form>
       <p className="mt-4 text-xs text-soft">
         We&apos;ll email you a 6-digit code. No password to remember.

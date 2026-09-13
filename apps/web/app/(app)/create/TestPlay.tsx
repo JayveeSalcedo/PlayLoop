@@ -40,7 +40,10 @@ export function TestPlay({ draft, onClose }: { draft: GameDraft; onClose: () => 
   }, [round, score, draft.type, draft.difficulty, draft.theme, draft.config]);
 
   if (score === null) {
-    return <div ref={hostRef} className="ghost" style={{ position: "fixed", inset: 0 }} />;
+    // zIndex above the (app) group's TabBar (z-50) — Test Play is the one place
+    // the fullscreen game host has to cover a persistent tab bar, since /play
+    // has none. The result panel below already sets this; the live host didn't.
+    return <div ref={hostRef} className="ghost" style={{ position: "fixed", inset: 0, zIndex: 60 }} />;
   }
 
   const projected = payout(draft.maxPoints, score, scoreTarget(draft.type, questionCount(draft.type, draft.config)));
