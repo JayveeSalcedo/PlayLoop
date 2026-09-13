@@ -4,6 +4,7 @@ import { and, desc, eq } from "drizzle-orm";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireProfile } from "@/lib/profile";
+import { GameShare } from "./GameShare";
 import { SponsorToggle } from "./SponsorToggle";
 
 const STATUS_COPY: Record<string, { title: string; body: string }> = {
@@ -96,6 +97,8 @@ export default async function CreatorGamePage({
       </div>
 
       <SponsorToggle gameId={game.id} initial={game.sponsorReady} />
+
+      {game.status === "published" ? <GameShare slug={game.slug} /> : null}
 
       <div className="mt-6 flex flex-col gap-3">
         <Link href={`/play/${game.slug}`} className="btn block">
