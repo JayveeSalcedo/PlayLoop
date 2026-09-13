@@ -45,7 +45,7 @@ export function NewGameForm() {
       });
       const data = (await res.json()) as { id?: string; error?: string };
       if (!res.ok || !data.id) throw new Error(data.error ?? "Couldn't save the game.");
-      router.push(`/play/${data.id}`);
+      router.push(`/games/${data.id}/report`);
       router.refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -66,7 +66,7 @@ export function NewGameForm() {
         </p>
       ) : null}
       <button className="btn go block" type="button" onClick={save} disabled={busy}>
-        {busy ? "Checking in the sandbox…" : "Check and play"}
+        {busy ? "Loading it in the sandbox…" : "Save and run checks"}
       </button>
     </div>
   );

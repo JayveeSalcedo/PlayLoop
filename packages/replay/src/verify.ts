@@ -12,24 +12,15 @@
  * Only `verifyPlay`'s score should ever be paid. The client's claimed score is
  * compared against it purely to flag tampering or engine divergence.
  */
-import { PRELUDE_SOURCE, type GameMeta, type ReplayResult } from "@playloop/runtime";
-import { Worker } from "node:worker_threads";
-import { runJob, type JobOutcome, type ReplayJob } from "./sandbox-worker.mjs";
+import type { GameMeta, ReplayResult } from "@playloop/runtime";
+import { byteLength, MAX_CODE_BYTES, runSandboxed, type SandboxFailureReason } from "./sandbox";
 
-export const MAX_CODE_BYTES = 60_000;
+export { MAX_CODE_BYTES } from "./sandbox";
 export const MAX_LOG_BYTES = 200_000;
-const DEFAULT_TIME_LIMIT_MS = 2_000;
-const DEFAULT_MEMORY_LIMIT_BYTES = 32 * 1024 * 1024;
-/** Worker boot + WebAssembly compile, allowed on top of the game's own time limit. */
-const WORKER_STARTUP_GRACE_MS = 1_500;
 
 export type VerifyFailureReason =
   | "too_large"
-  | "compile_error"
-  | "contract_error"
-  | "runtime_error"
-  | "timeout"
-  | "out_of_memory"
+  | SandboxFailureReason
   | "bad_log"
   | "tick_mismatch"
   | "events_after_end"
@@ -37,7 +28,7 @@ export type VerifyFailureReason =
   | "score_mismatch";
 
 export type VerifyResult =
-  | { ok: true; score: number; ticks: number; endReason: string; hash: string; elapsedMs: number }
+  | { ok: true; score: number; ticks: number; endReason: string; hash: string; elapsedMs: number; replayMs: number }
   | { ok: false; reason: VerifyFailureReason; detail: string; tick?: number; replayScore?: number; elapsedMs: number };
 
 export interface VerifyInput {
@@ -71,29 +62,16 @@ export async function verifyPlay(input: VerifyInput): Promise<VerifyResult> {
     return { ok: false, reason: "too_large", detail: `Input log is over ${MAX_LOG_BYTES / 1000} KB.`, elapsedMs: elapsed() };
   }
 
-  const job: ReplayJob = {
-    prelude: PRELUDE_SOURCE,
+  const run = await runSandboxed({
     code: input.code,
-    seed: input.seed,
-    logJson,
-    timeLimitMs: input.timeLimitMs ?? DEFAULT_TIME_LIMIT_MS,
-    memoryLimitBytes: input.memoryLimitBytes ?? DEFAULT_MEMORY_LIMIT_BYTES,
-  };
+    expression: `__pl.replay(${JSON.stringify(input.seed)}, ${JSON.stringify(logJson)})`,
+    timeLimitMs: input.timeLimitMs,
+    memoryLimitBytes: input.memoryLimitBytes,
+    isolate: input.isolate,
+  });
+  if (!run.ok) return { ok: false, reason: run.reason, detail: run.detail, elapsedMs: elapsed() };
 
-  const outcome = input.isolate === "inline" ? await runJob(job) : await runInWorker(job);
-  if (outcome === "killed") {
-    return { ok: false, reason: "timeout", detail: `The game didn't finish replaying within ${job.timeLimitMs} ms.`, elapsedMs: elapsed() };
-  }
-
-  if (!outcome.ok) {
-    if (outcome.stage === "prelude") {
-      // The prelude is our own code; failing here is a platform bug, not the game's fault.
-      throw new Error(`PlayLoop prelude failed to load: ${outcome.message}`);
-    }
-    return { ok: false, reason: classify(outcome), detail: outcome.message, elapsedMs: elapsed() };
-  }
-
-  const result = JSON.parse(String(outcome.value)) as ReplayResult;
+  const result = JSON.parse(String(run.value)) as ReplayResult;
   if (!result.ok) {
     // QuickJS's out-of-memory error is catchable, so the replay loop reports it as a game exception.
     const reason = result.reason === "runtime_error" && /out of memory/i.test(result.detail) ? "out_of_memory" : result.reason;
@@ -108,12 +86,20 @@ export async function verifyPlay(input: VerifyInput): Promise<VerifyResult> {
       elapsedMs: elapsed(),
     };
   }
-  return { ok: true, score: result.score, ticks: result.ticks, endReason: result.endReason, hash: result.hash, elapsedMs: elapsed() };
+  return {
+    ok: true,
+    score: result.score,
+    ticks: result.ticks,
+    endReason: result.endReason,
+    hash: result.hash,
+    elapsedMs: elapsed(),
+    replayMs: run.evalMs,
+  };
 }
 
 export type InspectResult =
   | { ok: true; meta: GameMeta; elapsedMs: number }
-  | { ok: false; reason: "too_large" | "compile_error" | "contract_error" | "runtime_error" | "timeout" | "out_of_memory"; detail: string; elapsedMs: number };
+  | { ok: false; reason: "too_large" | SandboxFailureReason; detail: string; elapsedMs: number };
 
 /**
  * Loads a game in the sandbox without playing it and returns its meta, or why
@@ -126,65 +112,9 @@ export async function inspectGame(code: string, options: { timeLimitMs?: number 
   if (byteLength(code) > MAX_CODE_BYTES) {
     return { ok: false, reason: "too_large", detail: `Game code is over ${MAX_CODE_BYTES / 1000} KB.`, elapsedMs: elapsed() };
   }
-  const job: ReplayJob = {
-    mode: "meta",
-    prelude: PRELUDE_SOURCE,
-    code,
-    seed: "",
-    logJson: "",
-    timeLimitMs: options.timeLimitMs ?? DEFAULT_TIME_LIMIT_MS,
-    memoryLimitBytes: DEFAULT_MEMORY_LIMIT_BYTES,
-  };
-  const outcome = await runInWorker(job);
-  if (outcome === "killed") return { ok: false, reason: "timeout", detail: "The game took too long to load.", elapsedMs: elapsed() };
-  if (!outcome.ok) {
-    if (outcome.stage === "prelude") throw new Error(`PlayLoop prelude failed to load: ${outcome.message}`);
-    // classify() only yields load-time reasons for a game/meta evaluation failure.
-    const reason = classify(outcome) as Extract<InspectResult, { ok: false }>["reason"];
-    return { ok: false, reason, detail: outcome.message, elapsedMs: elapsed() };
-  }
-  const result = JSON.parse(String(outcome.value)) as { ok: true; meta: GameMeta } | { ok: false; detail: string };
+  const run = await runSandboxed({ code, expression: "__pl.meta()", timeLimitMs: options.timeLimitMs });
+  if (!run.ok) return { ok: false, reason: run.reason, detail: run.detail, elapsedMs: elapsed() };
+  const result = JSON.parse(String(run.value)) as { ok: true; meta: GameMeta } | { ok: false; detail: string };
   if (!result.ok) return { ok: false, reason: "contract_error", detail: result.detail, elapsedMs: elapsed() };
   return { ok: true, meta: result.meta, elapsedMs: elapsed() };
-}
-
-function runInWorker(job: ReplayJob): Promise<JobOutcome | "killed"> {
-  return new Promise((resolve, reject) => {
-    const worker = new Worker(new URL("./sandbox-worker.mjs", import.meta.url));
-    let settled = false;
-    const settle = (fn: () => void) => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timer);
-      fn();
-    };
-    const timer = setTimeout(() => {
-      settle(() => resolve("killed"));
-      void worker.terminate();
-    }, job.timeLimitMs + WORKER_STARTUP_GRACE_MS);
-
-    worker.once("message", (msg: { ok: true; outcome: JobOutcome } | { ok: false; message: string }) => {
-      settle(() => (msg.ok ? resolve(msg.outcome) : reject(new Error(`Replay worker failed: ${msg.message}`))));
-      void worker.terminate();
-    });
-    worker.once("error", (err) => settle(() => reject(err)));
-    worker.once("exit", (code) => settle(() => reject(new Error(`Replay worker exited early (code ${code}).`))));
-    worker.postMessage(job);
-  });
-}
-
-/** Maps a QuickJS exception to a failure reason. */
-function classify(outcome: Extract<JobOutcome, { ok: false }>): VerifyFailureReason {
-  if (outcome.name === "InternalError" && /interrupted/i.test(outcome.message)) return "timeout";
-  if (/out of memory/i.test(outcome.message)) return "out_of_memory";
-  if (outcome.name === "SyntaxError") return "compile_error";
-  if (outcome.stage === "game") {
-    // Thrown while the game file was evaluated: a bad playloop.game({...}) call is a contract problem.
-    return /playloop\.game|meta\.|init\(|update\(|render\(/.test(outcome.message) ? "contract_error" : "runtime_error";
-  }
-  return "runtime_error";
-}
-
-function byteLength(text: string): number {
-  return new TextEncoder().encode(text).length;
 }

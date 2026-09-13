@@ -6,7 +6,7 @@
  * and decides), but backed by files and memory instead of the database, and
  * paying nothing. See the plan's "Built in isolation" section.
  */
-import { inspectGame, verifyPlay, type VerifyResult } from "@playloop/replay";
+import { checkGame, inspectGame, verifyPlay, type LabReport, type VerifyResult } from "@playloop/replay";
 import { fnv1a, TICKS_PER_SECOND, type GameMeta } from "@playloop/runtime";
 import { randomBytes, randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
@@ -20,6 +20,7 @@ const DATA_DIR = process.env.LAB_DATA_DIR ?? path.join(process.cwd(), ".data");
 const EXAMPLES_DIR = process.env.LAB_EXAMPLES_DIR ?? path.resolve(process.cwd(), "../../packages/runtime/examples");
 const CUSTOM_DIR = path.join(DATA_DIR, "games");
 const PLAYS_FILE = path.join(DATA_DIR, "plays.jsonl");
+const REPORTS_DIR = path.join(DATA_DIR, "reports");
 
 /** Timer granularity allowance for the "played faster than real time" check. */
 const REAL_TIME_TOLERANCE_SECONDS = 0.5;
@@ -101,6 +102,44 @@ export async function addGame(code: string): Promise<{ ok: true; id: string } | 
   const name = `${Date.now().toString(36)}-${fnv1a(code)}`;
   await writeFile(path.join(CUSTOM_DIR, `${name}.js`), code, "utf8");
   return { ok: true, id: `custom-${name}` };
+}
+
+// -------------------------------------------------------------- reports ----
+
+const labG = globalThis as unknown as { __labReportRuns?: Map<string, Promise<LabReport>> };
+/** In-flight checks by code hash, so two requests for the same game share one run. */
+const reportRuns = (labG.__labReportRuns ??= new Map());
+
+const reportFile = (game: LabGame) => path.join(REPORTS_DIR, `${fnv1a(game.code)}-${game.code.length}.json`);
+
+/** The saved report for this exact code, if checks have run. */
+export async function cachedReport(game: LabGame): Promise<LabReport | null> {
+  const file = reportFile(game);
+  if (!existsSync(file)) return null;
+  try {
+    return JSON.parse(await readFile(file, "utf8")) as LabReport;
+  } catch {
+    return null;
+  }
+}
+
+/** Runs the game lab checks (or returns the saved report). Reports are keyed by code, so editing a game re-checks it. */
+export async function reportFor(game: LabGame, options: { rerun?: boolean } = {}): Promise<LabReport> {
+  if (!options.rerun) {
+    const saved = await cachedReport(game);
+    if (saved) return saved;
+  }
+  const file = reportFile(game);
+  const running = reportRuns.get(file);
+  if (running) return running;
+  const run = (async () => {
+    const report = await checkGame(game.code);
+    await mkdir(REPORTS_DIR, { recursive: true });
+    await writeFile(file, JSON.stringify(report, null, 2), "utf8");
+    return report;
+  })().finally(() => reportRuns.delete(file));
+  reportRuns.set(file, run);
+  return run;
 }
 
 // ------------------------------------------------------------- sessions ----

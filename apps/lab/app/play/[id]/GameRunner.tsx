@@ -19,7 +19,18 @@ const COUNTDOWN = ["3", "2", "1", "Go"];
 const COUNTDOWN_STEP_MS = 620;
 const RING = 138.2;
 
-export function GameRunner({ gameId, code, meta }: { gameId: string; code: string; meta: GameMeta }) {
+export function GameRunner({
+  gameId,
+  code,
+  meta,
+  failedChecks,
+}: {
+  gameId: string;
+  code: string;
+  meta: GameMeta;
+  /** Titles of failed game-lab checks; null when checks haven't run. */
+  failedChecks: string[] | null;
+}) {
   const router = useRouter();
   const frameRef = useRef<HTMLIFrameElement>(null);
   const sessionRef = useRef<string | null>(null);
@@ -182,6 +193,19 @@ export function GameRunner({ gameId, code, meta }: { gameId: string; code: strin
               <p className="text-xs font-bold text-soft">
                 Your inputs are recorded while you play. When the game ends, the server replays them to check the score.
               </p>
+              {failedChecks === null ? (
+                <Link href={`/games/${gameId}/report`} className="text-xs font-bold text-soft underline">
+                  Game checks haven&apos;t run yet
+                </Link>
+              ) : failedChecks.length > 0 ? (
+                <Link href={`/games/${gameId}/report`} className="chip bad self-start whitespace-normal">
+                  Failed checks: {failedChecks.join(", ")}. Scores may not verify.
+                </Link>
+              ) : (
+                <Link href={`/games/${gameId}/report`} className="chip ok self-start">
+                  ✓ Passed game checks
+                </Link>
+              )}
               {meta.imageSlots?.length ? (
                 <p className="text-xs font-bold text-soft">Image slots are empty for now; uploading and cropping arrives in phase 5.</p>
               ) : null}

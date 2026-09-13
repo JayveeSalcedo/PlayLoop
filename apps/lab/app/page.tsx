@@ -1,11 +1,12 @@
 import Link from "next/link";
-import { listGames, recentPlays } from "@/lib/lab";
+import { cachedReport, listGames, recentPlays } from "@/lib/lab";
 import { REASON_LABELS } from "@/lib/shared";
 
 export const dynamic = "force-dynamic";
 
 export default async function LabHome() {
   const [games, plays] = await Promise.all([listGames(), recentPlays()]);
+  const reports = new Map(await Promise.all(games.map(async (g) => [g.id, await cachedReport(g)] as const)));
 
   return (
     <main className="mx-auto flex max-w-2xl flex-col gap-10 px-4 py-8">
@@ -34,6 +35,7 @@ export default async function LabHome() {
                 <b className="text-lg">{game.meta?.title ?? game.id}</b>
                 <span className="chip">{game.source === "example" ? "Example" : "Added"}</span>
               </div>
+              <LabStatus report={reports.get(game.id) ?? null} gameId={game.id} />
               {game.meta ? (
                 <>
                   <p className="text-sm font-semibold text-soft">{game.meta.hint}</p>
@@ -42,9 +44,14 @@ export default async function LabHome() {
                     {game.meta.lives ? ` · ${game.meta.lives} lives` : ""}
                     {game.meta.imageSlots?.length ? ` · ${game.meta.imageSlots.length} image slot(s)` : ""}
                   </p>
-                  <Link href={`/play/${game.id}`} className="btn go sm mt-1">
-                    Play
-                  </Link>
+                  <div className="mt-1 flex gap-2">
+                    <Link href={`/play/${game.id}`} className="btn go sm flex-1">
+                      Play
+                    </Link>
+                    <Link href={`/games/${game.id}/report`} className="btn sm flex-1">
+                      Checks
+                    </Link>
+                  </div>
                 </>
               ) : (
                 <p className="text-sm font-bold text-gum">Can&apos;t load: {game.problem}</p>
@@ -98,5 +105,21 @@ export default async function LabHome() {
         )}
       </section>
     </main>
+  );
+}
+
+function LabStatus({ report, gameId }: { report: Awaited<ReturnType<typeof cachedReport>>; gameId: string }) {
+  if (!report) {
+    return (
+      <Link href={`/games/${gameId}/report`} className="self-start text-xs font-bold text-soft underline">
+        Checks not run yet
+      </Link>
+    );
+  }
+  const failed = report.checks.filter((c) => c.status === "fail").length;
+  return (
+    <Link href={`/games/${gameId}/report`} className={`${report.verdict === "pass" ? "chip ok" : "chip bad"} self-start`}>
+      {report.verdict === "pass" ? "✓ Checks passed" : `✗ ${failed} check${failed === 1 ? "" : "s"} failed`}
+    </Link>
   );
 }

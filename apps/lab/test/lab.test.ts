@@ -72,6 +72,18 @@ describe("lab server flow", () => {
     expect(await lab.startSession("example-does-not-exist")).toMatchObject({ ok: false });
   });
 
+  it("runs game checks once per code version and reuses the saved report", async () => {
+    const game = await lab.getGame("example-desert-dash");
+    expect(await lab.cachedReport(game!)).toBeNull();
+    const report = await lab.reportFor(game!);
+    expect(report.verdict).toBe("pass");
+    expect(await lab.cachedReport(game!)).toEqual(report);
+
+    const started = Date.now();
+    expect(await lab.reportFor(game!)).toEqual(report);
+    expect(Date.now() - started).toBeLessThan(500);
+  }, 120_000);
+
   it("adds a pasted game only if it loads in the sandbox", async () => {
     const bad = await lab.addGame("playloop.game({ meta: { title: 'X' } });");
     expect(bad).toMatchObject({ ok: false });

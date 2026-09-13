@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { getGame } from "@/lib/lab";
+import { cachedReport, getGame } from "@/lib/lab";
 import { GameRunner } from "./GameRunner";
 
 export const dynamic = "force-dynamic";
@@ -8,5 +8,7 @@ export default async function PlayPage({ params }: { params: Promise<{ id: strin
   const { id } = await params;
   const game = await getGame(id);
   if (!game?.meta) notFound();
-  return <GameRunner gameId={game.id} code={game.code} meta={game.meta} />;
+  const report = await cachedReport(game);
+  const failedChecks = report ? report.checks.filter((c) => c.status === "fail").map((c) => c.title) : null;
+  return <GameRunner gameId={game.id} code={game.code} meta={game.meta} failedChecks={failedChecks} />;
 }
