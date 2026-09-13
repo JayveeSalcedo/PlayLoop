@@ -12,7 +12,7 @@
  * Only `verifyPlay`'s score should ever be paid. The client's claimed score is
  * compared against it purely to flag tampering or engine divergence.
  */
-import { PRELUDE_SOURCE, type ReplayResult } from "@playloop/runtime";
+import { PRELUDE_SOURCE, type GameMeta, type ReplayResult } from "@playloop/runtime";
 import { Worker } from "node:worker_threads";
 import { runJob, type JobOutcome, type ReplayJob } from "./sandbox-worker.mjs";
 
@@ -109,6 +109,43 @@ export async function verifyPlay(input: VerifyInput): Promise<VerifyResult> {
     };
   }
   return { ok: true, score: result.score, ticks: result.ticks, endReason: result.endReason, hash: result.hash, elapsedMs: elapsed() };
+}
+
+export type InspectResult =
+  | { ok: true; meta: GameMeta; elapsedMs: number }
+  | { ok: false; reason: "too_large" | "compile_error" | "contract_error" | "runtime_error" | "timeout" | "out_of_memory"; detail: string; elapsedMs: number };
+
+/**
+ * Loads a game in the sandbox without playing it and returns its meta, or why
+ * it can't load. Top-level game code runs here, so it gets the same limits
+ * and the same killable worker as a replay.
+ */
+export async function inspectGame(code: string, options: { timeLimitMs?: number } = {}): Promise<InspectResult> {
+  const started = Date.now();
+  const elapsed = () => Date.now() - started;
+  if (byteLength(code) > MAX_CODE_BYTES) {
+    return { ok: false, reason: "too_large", detail: `Game code is over ${MAX_CODE_BYTES / 1000} KB.`, elapsedMs: elapsed() };
+  }
+  const job: ReplayJob = {
+    mode: "meta",
+    prelude: PRELUDE_SOURCE,
+    code,
+    seed: "",
+    logJson: "",
+    timeLimitMs: options.timeLimitMs ?? DEFAULT_TIME_LIMIT_MS,
+    memoryLimitBytes: DEFAULT_MEMORY_LIMIT_BYTES,
+  };
+  const outcome = await runInWorker(job);
+  if (outcome === "killed") return { ok: false, reason: "timeout", detail: "The game took too long to load.", elapsedMs: elapsed() };
+  if (!outcome.ok) {
+    if (outcome.stage === "prelude") throw new Error(`PlayLoop prelude failed to load: ${outcome.message}`);
+    // classify() only yields load-time reasons for a game/meta evaluation failure.
+    const reason = classify(outcome) as Extract<InspectResult, { ok: false }>["reason"];
+    return { ok: false, reason, detail: outcome.message, elapsedMs: elapsed() };
+  }
+  const result = JSON.parse(String(outcome.value)) as { ok: true; meta: GameMeta } | { ok: false; detail: string };
+  if (!result.ok) return { ok: false, reason: "contract_error", detail: result.detail, elapsedMs: elapsed() };
+  return { ok: true, meta: result.meta, elapsedMs: elapsed() };
 }
 
 function runInWorker(job: ReplayJob): Promise<JobOutcome | "killed"> {

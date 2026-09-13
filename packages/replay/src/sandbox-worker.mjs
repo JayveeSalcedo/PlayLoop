@@ -13,7 +13,7 @@ import { getQuickJS, shouldInterruptAfterDeadline } from "quickjs-emscripten";
 const MAX_STACK_BYTES = 1024 * 1024;
 
 /**
- * @param {{ prelude: string, code: string, seed: string, logJson: string, timeLimitMs: number, memoryLimitBytes: number }} job
+ * @param {{ mode?: "replay" | "meta", prelude: string, code: string, seed: string, logJson: string, timeLimitMs: number, memoryLimitBytes: number }} job
  * @returns {Promise<{ stage: "prelude" | "game" | "replay", ok: true, value: unknown } | { stage: "prelude" | "game" | "replay", ok: false, name: string, message: string }>}
  */
 export async function runJob(job) {
@@ -44,6 +44,7 @@ export async function runJob(job) {
     if (!prelude.ok) return prelude;
     const game = evaluate("game", job.code, "game.js");
     if (!game.ok) return game;
+    if (job.mode === "meta") return evaluate("replay", "__pl.meta()", "meta.js");
     return evaluate("replay", `__pl.replay(${JSON.stringify(job.seed)}, ${JSON.stringify(job.logJson)})`, "replay.js");
   } finally {
     vm.dispose();

@@ -3,17 +3,19 @@ import { resolve } from "node:path";
 import vm from "node:vm";
 import { describe, expect, it } from "vitest";
 // @ts-expect-error — plain .mjs build script, no type declarations
-import { bundlePrelude, renderGeneratedModule } from "../scripts/build-prelude.mjs";
+import { BUNDLES, bundle, renderGeneratedModule } from "../scripts/build-prelude.mjs";
 import { newRealm, playWithBot } from "./realm";
 
 const root = resolve(__dirname, "..");
 const example = (name: string) => readFileSync(resolve(root, "examples", name), "utf8");
 
-describe("generated prelude", () => {
-  it("is up to date with src (run `pnpm --filter @playloop/runtime build` if this fails)", () => {
-    const onDisk = readFileSync(resolve(root, "src/generated/prelude.ts"), "utf8").replace(/\r\n/g, "\n");
-    expect(onDisk).toBe(renderGeneratedModule(bundlePrelude()));
-  });
+describe("generated bundles", () => {
+  for (const { entry, out, constant } of BUNDLES as { entry: string; out: string; constant: string }[]) {
+    it(`${out} is up to date with ${entry} (run \`pnpm --filter @playloop/runtime build\` if this fails)`, () => {
+      const onDisk = readFileSync(resolve(root, out), "utf8").replace(/\r\n/g, "\n");
+      expect(onDisk).toBe(renderGeneratedModule(entry, constant, bundle(entry)));
+    });
+  }
 });
 
 describe("sandbox globals", () => {

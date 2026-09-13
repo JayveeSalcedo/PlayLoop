@@ -56,10 +56,15 @@ const FONT_STACK = {
 };
 const MAX_POLY_POINTS = 512;
 
-/** A DrawApi over a 2D canvas context that's already scaled to logical units. */
+/**
+ * A DrawApi over a 2D canvas context that's already scaled to logical units.
+ * `baseTransform` is the logical→canvas matrix, so clear() can fill the whole
+ * logical screen even after the game has translated or rotated.
+ */
 export function createCanvasDraw(
   ctx: CanvasRenderingContext2D,
   resolveImage: (ref: string) => CanvasImageSource | null,
+  baseTransform: () => DOMMatrix,
 ): DrawApi {
   const paint = (style: ShapeStyle | undefined, fallbackFill: string | undefined) => {
     const fill = style?.fill ?? (style?.stroke ? undefined : fallbackFill);
@@ -77,7 +82,7 @@ export function createCanvasDraw(
   return {
     clear(color) {
       ctx.save();
-      ctx.setTransform(ctx.getTransform().a, 0, 0, ctx.getTransform().d, 0, 0);
+      ctx.setTransform(baseTransform());
       if (color) {
         ctx.fillStyle = color;
         ctx.fillRect(0, 0, 360, 640);
