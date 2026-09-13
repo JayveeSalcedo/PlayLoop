@@ -2,7 +2,7 @@ import path from "node:path";
 import type { NextConfig } from "next";
 
 /** Server-only packages Node must load directly instead of webpack bundling them. */
-const NODE_LOADED = ["@playloop/replay", "quickjs-emscripten"];
+const NODE_LOADED = ["@playloop/replay", "@playloop/ai", "quickjs-emscripten", "groq-sdk", "@anthropic-ai/sdk"];
 
 const nextConfig: NextConfig = {
   // The monorepo root. Set explicitly because a git worktree nests this repo inside another checkout.

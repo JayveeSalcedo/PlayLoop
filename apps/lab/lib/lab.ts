@@ -123,6 +123,13 @@ export async function cachedReport(game: LabGame): Promise<LabReport | null> {
   }
 }
 
+/** Stores a report computed elsewhere (the AI pipeline already checked the game), so it isn't re-run. */
+export async function saveReport(game: LabGame, report: LabReport): Promise<void> {
+  if (report.codeHash !== fnv1a(game.code)) return;
+  await mkdir(REPORTS_DIR, { recursive: true });
+  await writeFile(reportFile(game), JSON.stringify(report, null, 2), "utf8");
+}
+
 /** Runs the game lab checks (or returns the saved report). Reports are keyed by code, so editing a game re-checks it. */
 export async function reportFor(game: LabGame, options: { rerun?: boolean } = {}): Promise<LabReport> {
   if (!options.rerun) {

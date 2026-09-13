@@ -24,9 +24,14 @@ export default async function LabHome() {
           <h2 id="games-h" className="text-xl font-extrabold">
             Games
           </h2>
-          <Link href="/new" className="btn sm">
-            Add a game
-          </Link>
+          <div className="flex gap-2">
+            <Link href="/new" className="btn sm">
+              Paste code
+            </Link>
+            <Link href="/create" className="btn go sm">
+              Create with AI
+            </Link>
+          </div>
         </div>
         <ul className="grid gap-3 sm:grid-cols-2">
           {games.map((game) => (

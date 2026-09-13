@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { getGame, reportFor, type LabGame } from "@/lib/lab";
+import { ChangeForm } from "./ChangeForm";
 import { CopyButton, RerunButton } from "./ReportActions";
 
 export const dynamic = "force-dynamic";
@@ -75,6 +76,8 @@ async function Report({ game }: { game: LabGame }) {
         </div>
       </section>
 
+      {game.meta ? <ChangeForm gameId={game.id} suggestion={report.fixPrompt} /> : null}
+
       <section className="flex flex-col gap-3" aria-labelledby="checks-h">
         <h2 id="checks-h" className="text-xl font-extrabold">
           Checks
@@ -109,7 +112,9 @@ async function Report({ game }: { game: LabGame }) {
             </h2>
             <CopyButton text={report.fixPrompt} />
           </div>
-          <p className="text-sm font-semibold text-soft">In phase 4 this is sent back to the AI automatically so it can fix the game.</p>
+          <p className="text-sm font-semibold text-soft">
+            When the AI makes a game, this is sent back to it automatically. “Fix what the checks found” above sends it too.
+          </p>
           <pre className="lab-code min-h-0 overflow-x-auto whitespace-pre-wrap">{report.fixPrompt}</pre>
         </section>
       ) : null}

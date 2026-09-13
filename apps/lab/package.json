@@ -3,15 +3,16 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "predev": "pnpm --filter @playloop/replay build",
+    "predev": "pnpm --filter @playloop/replay --filter @playloop/ai build",
     "dev": "next dev -p 3100 -H 0.0.0.0",
-    "prebuild": "pnpm --filter @playloop/replay build",
+    "prebuild": "pnpm --filter @playloop/replay --filter @playloop/ai build",
     "build": "next build",
     "start": "next start -p 3100 -H 0.0.0.0",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@playloop/ai": "workspace:*",
     "@playloop/replay": "workspace:*",
     "@playloop/runtime": "workspace:*",
     "@playloop/ui": "workspace:*",

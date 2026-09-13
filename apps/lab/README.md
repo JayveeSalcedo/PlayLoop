@@ -5,7 +5,8 @@ An isolated test app for code games. **It doesn't touch `apps/web`, the database
 - Play games in a sandboxed iframe with PlayLoop's HUD.
 - When a game ends, the server replays your recorded inputs in QuickJS and decides the score.
 - Try the built-in tamper tests to watch forged plays get rejected.
-- Paste your own game code (the AI writes it from phase 4).
+- **Create with AI**: type an idea; the AI writes the game, bots check it, failures go back to the AI to fix (up to twice), and you watch it happen live. Needs `GROQ_API_KEY` in `apps/lab/.env.local`. On any game's Checks page you can **ask the AI to change it**; the result is saved as a new game.
+- Paste your own game code.
 - Open **Checks** on any game: bots play it ~9 times in the sandbox and the report explains every problem, with a ready-to-send message for the AI. Reports are saved per code version under `.data/reports/`.
 
 ## Run it
@@ -40,7 +41,6 @@ Sessions are single-use and kept in memory (restarting the dev server clears the
 
 | Missing | Arrives in |
 |---|---|
-| AI generation (Groq) | Phase 4 |
 | Image upload + cropping (slots render empty) | Phase 5 |
 | Studio UI | Phase 6 |
 | Real points, database, auth | Phase 7 (merge) |

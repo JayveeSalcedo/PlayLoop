@@ -118,7 +118,7 @@ export async function checkGame(code: string, options: CheckOptions = {}): Promi
       runs,
       replayCost,
       durationMs: Date.now() - started,
-      fixPrompt: verdict === "fail" ? buildFixPrompt(ordered) : null,
+      fixPrompt: verdict === "fail" ? buildFixPrompt(ordered, runs) : null,
     };
   };
 
@@ -348,9 +348,22 @@ export async function checkGame(code: string, options: CheckOptions = {}): Promi
       } else {
         const allScores = successes.map((s) => s.run.score);
         const responsive = comparable.filter((b) => [b.explorer, b.masher].some((r) => r && r.score !== b.idle!.score));
+        const avgSeconds = (bot: BotKind) => {
+          const plays = successes.filter((s) => s.bot === bot);
+          return plays.length ? plays.reduce((sum, s) => sum + s.run.ticks, 0) / plays.length / TICKS_PER_SECOND : null;
+        };
+        const idleSeconds = avgSeconds("idle");
+        const activeSeconds = [avgSeconds("explorer"), avgSeconds("masher")].filter((x): x is number => x !== null);
+        const idleOutlasts =
+          idleSeconds !== null && activeSeconds.length > 0 && idleSeconds > 2 * Math.max(...activeSeconds) && idleSeconds - Math.max(...activeSeconds) > 5;
+        const outlastHint = idleOutlasts
+          ? `Players who don't touch the screen last ${idleSeconds!.toFixed(0)} s on average, but players who move last only ${Math.max(...activeSeconds).toFixed(0)} s. Moving is punished and nothing collectable is reachable. Check that collectibles actually overlap the player's reachable area and that collision boxes use the same coordinates as the drawings.`
+          : null;
+
         if (allScores.every((score) => score === 0)) {
           set("responds-to-input", "fail", `No bot scored a single point in ${successes.length} plays.`, [
-            "Make sure ctx.score(points) is called when the player does something right, and that reachable targets appear early in the game.",
+            "Nothing the bots did ever triggered ctx.score(). Trace the scoring path: do collectibles spawn where the player can reach them, does the collision check use the right positions and sizes, and is ctx.score(points) called with a positive number when it hits?",
+            ...(outlastHint ? [outlastHint] : []),
           ]);
         } else if (responsive.length === 0) {
           set("responds-to-input", "fail", "Players who do nothing score the same as players who play.", [
@@ -379,7 +392,7 @@ export async function checkGame(code: string, options: CheckOptions = {}): Promi
   }
 }
 
-function buildFixPrompt(checks: LabCheck[]): string {
+function buildFixPrompt(checks: LabCheck[], runs: LabRun[]): string {
   const failures = checks.filter((c) => c.status === "fail");
   const warnings = checks.filter((c) => c.status === "warn");
   const lines = [
@@ -390,7 +403,31 @@ function buildFixPrompt(checks: LabCheck[]): string {
   if (warnings.length > 0) {
     lines.push("", "Also worth fixing:", ...warnings.flatMap((c) => [`- ${c.title}: ${c.summary}`, ...c.details.map((d) => `    ${d}`)]));
   }
+  const summary = summarizeRuns(runs);
+  if (summary.length > 0) {
+    lines.push(
+      "",
+      "What the bots experienced (idle never touches the screen; explorer drags around and holds keys; masher taps, swipes and presses buttons rapidly):",
+      ...summary.map((s) => `- ${s}`),
+    );
+  }
   return lines.join("\n");
+}
+
+/** One line per bot: score range, average length, and how its games ended. */
+function summarizeRuns(runs: LabRun[]): string[] {
+  return BOT_KINDS.flatMap((bot) => {
+    const plays = runs.filter((r) => r.bot === bot);
+    if (plays.length === 0) return [];
+    const done = plays.filter((r) => r.ok);
+    const crashed = plays.length - done.length;
+    if (done.length === 0) return [`${bot}: all ${plays.length} plays crashed`];
+    const scores = done.map((r) => r.score ?? 0);
+    const seconds = done.reduce((sum, r) => sum + (r.ticks ?? 0), 0) / done.length / TICKS_PER_SECOND;
+    const endings = [...new Set(done.map((r) => (r.endReason ?? "").replace("_", " ")))].join(", ");
+    const range = Math.min(...scores) === Math.max(...scores) ? `${scores[0]}` : `${Math.min(...scores)}-${Math.max(...scores)}`;
+    return [`${bot}: scored ${range}, lasted ${seconds.toFixed(1)} s on average, ended by ${endings}${crashed ? `, ${crashed} crashed` : ""}`];
+  });
 }
 
 async function mapLimit<T, R>(items: T[], limit: number, fn: (item: T) => Promise<R>): Promise<R[]> {
