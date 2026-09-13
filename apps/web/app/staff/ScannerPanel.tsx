@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Spinner } from "@/app/_components/Spinner";
 import { lookupVoucher, redeemVoucher, undoRedemption, type LookupResult } from "./actions";
+import { QrScanner } from "./QrScanner";
 
 type Stage = "idle" | "checking" | "found" | "redeeming" | "done";
 
@@ -17,6 +18,7 @@ export function ScannerPanel() {
   const [result, setResult] = useState<LookupResult | null>(null);
   const [done, setDone] = useState<{ rewardName: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [scanning, setScanning] = useState(false);
 
   function reset() {
     setCode("");
@@ -26,18 +28,26 @@ export function ScannerPanel() {
     setStage("idle");
   }
 
-  async function check() {
-    if (!code.trim()) return;
+  // Takes an explicit value so a scan can look itself up immediately,
+  // rather than waiting a render for `code` state to catch up.
+  async function check(value: string = code) {
+    if (!value.trim()) return;
     setStage("checking");
     setError(null);
     try {
-      const r = await lookupVoucher(code);
+      const r = await lookupVoucher(value);
       setResult(r);
       setStage("found");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Couldn't check that code — try again.");
       setStage("idle");
     }
+  }
+
+  function onScan(scanned: string) {
+    setScanning(false);
+    setCode(scanned);
+    check(scanned);
   }
 
   async function confirm() {
@@ -92,10 +102,18 @@ export function ScannerPanel() {
           className="w-full rounded-2xl bg-card p-3 font-semibold tracking-widest uppercase [border:var(--border-thick)]"
           suppressHydrationWarning
         />
-        <button className="btn" onClick={check} disabled={stage === "checking" || !code.trim()}>
+        <button className="btn" onClick={() => check()} disabled={stage === "checking" || !code.trim()}>
           {stage === "checking" ? <Spinner size={20} /> : "Check"}
         </button>
       </div>
+
+      {!scanning ? (
+        <button type="button" className="btn sm mt-2 block w-full" onClick={() => setScanning(true)}>
+          Scan QR instead
+        </button>
+      ) : (
+        <QrScanner onScan={onScan} onClose={() => setScanning(false)} />
+      )}
 
       {error ? <p className="mt-3 text-sm font-bold text-gum">{error}</p> : null}
 
