@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Bricolage_Grotesque } from "next/font/google";
+import { ServiceWorkerRegister } from "./_components/pwa/ServiceWorkerRegister";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -37,7 +38,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
        * its children, so a real mismatch elsewhere still gets reported.
        * https://nextjs.org/docs/messages/react-hydration-error
        */}
-      <body suppressHydrationWarning>{children}</body>
+      <body suppressHydrationWarning>
+        <ServiceWorkerRegister />
+        {children}
+      </body>
     </html>
   );
 }
