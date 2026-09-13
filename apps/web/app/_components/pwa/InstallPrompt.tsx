@@ -1,12 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-
-/** Not in lib.dom.d.ts — Chrome/Edge/Android only. */
-interface BeforeInstallPromptEvent extends Event {
-  prompt(): Promise<void>;
-  userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
-}
+import { useEffect, useState, useSyncExternalStore } from "react";
+import { clearDeferredPrompt, getDeferredPrompt, subscribe } from "./installState";
 
 function isStandalone(): boolean {
   if (typeof window === "undefined") return false;
@@ -23,46 +18,35 @@ function isIOS(): boolean {
 }
 
 /**
- * "Add to home screen" CTA. Chrome/Edge/Android fire `beforeinstallprompt`,
- * which this captures and replays on click via the real native install
- * dialog — there's no custom UI to build there beyond a button. iOS Safari
- * never fires that event and can't be prompted programmatically at all, so
- * it gets a short instruction popover instead (Share -> Add to Home Screen).
- * Renders nothing once already installed (standalone display mode), and
- * nothing on a browser that's neither of the above (desktop Firefox, etc.)
- * until/unless it ever supports the prompt.
+ * "Add to home screen" CTA. Reads the captured `beforeinstallprompt` event
+ * from installState.ts's module-level store (see that file's comment) via
+ * useSyncExternalStore, rather than listening for the event itself — the
+ * event fires at most once per session, and this component gets mounted
+ * and unmounted repeatedly (landing page, then again in TopBar once
+ * signed in) as the visitor navigates, so only a shared store outside any
+ * one instance's lifecycle can catch it reliably regardless of which
+ * instance happens to be mounted when it fires. Chrome/Edge/Android
+ * replay it via the real native install dialog on click — there's no
+ * custom UI to build there. iOS Safari never fires that event and can't
+ * be prompted programmatically at all, so it gets a short instruction
+ * popover instead (Share -> Add to Home Screen). Renders nothing once
+ * already installed (standalone display mode), and nothing on a browser
+ * that's neither of the above (desktop Firefox, etc.).
  */
 export function InstallPrompt({ className = "btn sm" }: { className?: string }) {
-  const [deferred, setDeferred] = useState<BeforeInstallPromptEvent | null>(null);
+  const deferred = useSyncExternalStore(subscribe, getDeferredPrompt, () => null);
   const [showIOSHelp, setShowIOSHelp] = useState(false);
-  // {hidden, ios} together, set once per mount from feature detection that
-  // can only run client-side (matchMedia/userAgent don't exist during SSR)
-  // — not a response to an external event, so this is a one-time read, not
-  // a subscription like the listeners below.
-  const [{ hidden, ios }, setCapability] = useState({ hidden: true, ios: false });
+  // Feature detection that can only run client-side (matchMedia/userAgent
+  // don't exist during SSR) — starts hidden so the server-rendered and
+  // first client render match, then reveals once after mount.
+  const [{ mounted, standalone, ios }, setCapability] = useState({ mounted: false, standalone: false, ios: false });
 
   useEffect(() => {
-    if (isStandalone()) return; // stays hidden
     // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time client capability read, not an event response
-    setCapability({ hidden: false, ios: isIOS() });
-
-    const onPrompt = (e: Event) => {
-      e.preventDefault();
-      setDeferred(e as BeforeInstallPromptEvent);
-    };
-    const onInstalled = () => {
-      setDeferred(null);
-      setCapability((c) => ({ ...c, hidden: true }));
-    };
-    window.addEventListener("beforeinstallprompt", onPrompt);
-    window.addEventListener("appinstalled", onInstalled);
-    return () => {
-      window.removeEventListener("beforeinstallprompt", onPrompt);
-      window.removeEventListener("appinstalled", onInstalled);
-    };
+    setCapability({ mounted: true, standalone: isStandalone(), ios: isIOS() });
   }, []);
 
-  if (hidden) return null;
+  if (!mounted || standalone) return null;
   // Neither a captured Chrome-style prompt nor iOS: nothing this browser can do.
   if (!deferred && !ios) return null;
 
@@ -73,8 +57,7 @@ export function InstallPrompt({ className = "btn sm" }: { className?: string }) 
     }
     await deferred.prompt();
     await deferred.userChoice;
-    setDeferred(null);
-    setCapability((c) => ({ ...c, hidden: true }));
+    clearDeferredPrompt();
   }
 
   return (
