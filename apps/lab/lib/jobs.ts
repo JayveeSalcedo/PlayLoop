@@ -80,20 +80,23 @@ export async function tokensUsedToday(): Promise<number> {
 
 type StartResult = { ok: true; jobId: string } | { ok: false; status: number; detail: string };
 
-export async function startCreateJob(idea: string): Promise<StartResult> {
+/** Called after a job saved its game, before the job reports done (the studio attaches it as a version). */
+export type OnGameSaved = (saved: { gameId: string; title: string; summary: string; notes: string; ok: boolean }) => Promise<void>;
+
+export async function startCreateJob(idea: string, onSaved?: OnGameSaved): Promise<StartResult> {
   const text = String(idea ?? "").trim();
   if (!text) return { ok: false, status: 400, detail: "Describe the game you want first." };
   if (text.length > MAX_IDEA_CHARS) return { ok: false, status: 400, detail: `Keep the idea under ${MAX_IDEA_CHARS} characters.` };
-  return start("create", text, (options) => createGame(text, options));
+  return start("create", text, (options) => createGame(text, options), undefined, onSaved);
 }
 
-export async function startChangeJob(gameId: string, instruction: string): Promise<StartResult> {
+export async function startChangeJob(gameId: string, instruction: string, onSaved?: OnGameSaved): Promise<StartResult> {
   const text = String(instruction ?? "").trim();
   if (!text) return { ok: false, status: 400, detail: "Describe the change you want first." };
   if (text.length > MAX_IDEA_CHARS) return { ok: false, status: 400, detail: `Keep the request under ${MAX_IDEA_CHARS} characters.` };
   const game = await getGame(gameId);
   if (!game) return { ok: false, status: 404, detail: "That game doesn't exist." };
-  return start("change", text, (options) => changeGame(game.code, text, options), gameId);
+  return start("change", text, (options) => changeGame(game.code, text, options), gameId, onSaved);
 }
 
 async function start(
@@ -101,6 +104,7 @@ async function start(
   request: string,
   run: (options: Parameters<typeof createGame>[1]) => Promise<PipelineResult>,
   sourceGameId?: string,
+  onSaved?: OnGameSaved,
 ): Promise<StartResult> {
   let provider;
   try {
@@ -155,6 +159,13 @@ async function start(
         if (game) await saveReport(game, result.game.report);
         // A change keeps the creator's images for slots that still exist with the same shape.
         if (sourceGameId) await copySlotImages(sourceGameId, saved.id);
+        if (onSaved) {
+          try {
+            await onSaved({ gameId: saved.id, title: result.game.title, summary: result.game.summary, notes: result.game.notes, ok: result.ok });
+          } catch (e) {
+            job.problem = `Saved the game but couldn't attach it: ${e instanceof Error ? e.message : String(e)}`;
+          }
+        }
       } else if (!job.problem) {
         job.problem = saved.detail;
       }

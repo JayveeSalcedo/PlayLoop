@@ -5,6 +5,12 @@ An isolated test app for code games. **It doesn't touch `apps/web`, the database
 - Play games in a sandboxed iframe with PlayLoop's HUD.
 - When a game ends, the server replays your recorded inputs in QuickJS and decides the score.
 - Try the built-in tamper tests to watch forged plays get rejected.
+- **Creator studio** (`/studio`): the full creator flow in four steps.
+  1. **Idea**: "Generate a game from anything" (AI) or start from an example (live game thumbnails). Examples are copied, so edits never touch them.
+  2. **Customise**: practice play, image spots with the cropper, "Tell the AI what to change" and "Fix what the checks found", and version history with undo. Every change is a new version with its own checks and images.
+  3. **Test**: a real play, verified by server replay and recorded from the server's own session (not from the page).
+  4. **Publish**: unlocks only when the current version passes every check *and* has a verified test play; switching versions requires testing again. Lab-only: "sent for review" is just recorded.
+  Projects are saved under `.data/projects/`.
 - **Create with AI**: type an idea; the AI writes the game, bots check it, failures go back to the AI to fix (up to twice), and you watch it happen live. Needs `GROQ_API_KEY` in `apps/lab/.env.local`. On any game's Checks page you can **ask the AI to change it**; the result is saved as a new game.
 - **Images**: games declare image spots (circle, square, portrait, wide). On a game's Images page, pick a photo and crop it inside that shape: drag, pinch/scroll zoom, rotate, a blur warning, previews at game sizes, and a still frame of the real game with your image in place. Cropping happens on the device; the server only accepts the exact export size (256×256, 720×1280, 1200×675) under 300 KB. Images are saved under `.data/images/` and used when you play, and carried over when the AI changes the game. `Brand Pop` uses all four shapes.
 - Paste your own game code.
@@ -42,7 +48,6 @@ Sessions are single-use and kept in memory (restarting the dev server clears the
 
 | Missing | Arrives in |
 |---|---|
-| Studio UI | Phase 6 |
 | Real points, database, auth | Phase 7 (merge) |
 
 ## Verified so far

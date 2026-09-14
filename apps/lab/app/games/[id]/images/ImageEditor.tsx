@@ -51,11 +51,17 @@ export function ImageEditor({
   code,
   slots,
   initialImages,
+  showGamePreview = true,
+  onChange,
 }: {
   gameId: string;
   code: string;
   slots: ImageSlot[];
   initialImages: Record<string, string>;
+  /** The studio shows its own playable preview, so it hides this one. */
+  showGamePreview?: boolean;
+  /** Called after an image is saved or removed. */
+  onChange?: () => void;
 }) {
   const [images, setImages] = useState<Record<string, string>>(initialImages);
   /** The photo each slot was last cropped from, kept in memory so "Adjust crop" works without re-picking. */
@@ -88,6 +94,7 @@ export function ImageEditor({
     const res = await fetch(`/api/games/${gameId}/images/${slot.id}`, { method: "DELETE" });
     if (!res.ok) return setError("Couldn't remove that image.");
     setImages(({ [slot.id]: _removed, ...rest }) => rest);
+    onChange?.();
   }
 
   return (
@@ -144,6 +151,7 @@ export function ImageEditor({
         })}
       </ul>
 
+      {showGamePreview ? (
       <section className="flex flex-col gap-3" aria-labelledby="ingame-h">
         <div className="flex flex-wrap items-end justify-between gap-2">
           <h2 id="ingame-h" className="text-xl font-extrabold">
@@ -154,6 +162,7 @@ export function ImageEditor({
         <GamePreview code={code} images={images} atSeconds={moment} className="mx-auto aspect-[9/16] w-full max-w-[280px]" />
         <p className="text-center text-xs font-semibold text-soft">A still frame of the real game after {moment} s. Some images only appear once their object is on screen.</p>
       </section>
+      ) : null}
 
       {editing ? (
         <CropDialog
@@ -167,6 +176,7 @@ export function ImageEditor({
           onSaved={(dataUrl) => {
             setImages((i) => ({ ...i, [editing.slot.id]: dataUrl }));
             setEditing(null);
+            onChange?.();
           }}
         />
       ) : null}

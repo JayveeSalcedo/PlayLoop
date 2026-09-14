@@ -256,6 +256,11 @@ export async function tamperSession(sessionId: string, kind: TamperKind): Promis
   }
 }
 
+/** Server-side session record (seed, game, verdict), for features that must trust the server's result, not the browser's. */
+export function getSession(sessionId: string): LabSession | null {
+  return sessions.get(sessionId) ?? null;
+}
+
 /** Test hook: pretend a session started `seconds` ago, so bot plays (which run instantly) pass the real-time check. */
 export function backdateSessionForTests(sessionId: string, seconds: number) {
   const session = sessions.get(sessionId);

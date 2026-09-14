@@ -25,6 +25,7 @@ export function GameRunner({
   meta,
   failedChecks,
   images,
+  projectId,
 }: {
   gameId: string;
   code: string;
@@ -33,6 +34,8 @@ export function GameRunner({
   failedChecks: string[] | null;
   /** Creator images by slot id, as data: URLs. */
   images: Record<string, string>;
+  /** Set when this is a studio test play: the verified result is recorded on the project. */
+  projectId: string | null;
 }) {
   const router = useRouter();
   const frameRef = useRef<HTMLIFrameElement>(null);
@@ -46,6 +49,8 @@ export function GameRunner({
 
   const post = (msg: unknown) => frameRef.current?.contentWindow?.postMessage(msg, "*");
 
+  const studioHref = projectId ? `/studio/${projectId}?step=test` : null;
+
   const submit = useCallback(async (msg: Extract<HostMessage, { type: "end" }>) => {
     const sessionId = sessionRef.current;
     if (!sessionId) return;
@@ -58,11 +63,15 @@ export function GameRunner({
       });
       const data = (await res.json()) as { verdict?: PlayVerdict; error?: string };
       if (!res.ok || !data.verdict) throw new Error(data.error ?? `Verification failed (${res.status}).`);
+      if (projectId) {
+        // The server records the result from its own session, not from this page.
+        await fetch(`/api/projects/${projectId}/test-play`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ sessionId }) });
+      }
       setPhase({ name: "result", verdict: data.verdict });
     } catch (e) {
       setPhase({ name: "error", message: e instanceof Error ? e.message : String(e) });
     }
-  }, []);
+  }, [projectId]);
 
   useEffect(() => {
     const onMessage = (event: MessageEvent) => {
@@ -123,7 +132,7 @@ export function GameRunner({
 
   function quit() {
     post({ type: "quit" });
-    router.push("/");
+    router.push(studioHref ?? "/");
   }
 
   async function runTamper(kind: TamperKind) {
@@ -232,7 +241,7 @@ export function GameRunner({
 
         {phase.name === "result" ? (
           <div className="lab-overlay">
-            <ResultPanel verdict={phase.verdict} tamper={tamper} onTamper={runTamper} onAgain={playAgain} />
+            <ResultPanel verdict={phase.verdict} tamper={tamper} onTamper={runTamper} onAgain={playAgain} studioHref={studioHref} />
           </div>
         ) : null}
 
@@ -262,7 +271,9 @@ function ResultPanel({
   tamper,
   onTamper,
   onAgain,
+  studioHref,
 }: {
+  studioHref: string | null;
   verdict: PlayVerdict;
   tamper: Partial<Record<TamperKind, PlayVerdict | "running" | string>>;
   onTamper: (kind: TamperKind) => void;
@@ -338,12 +349,18 @@ function ResultPanel({
       ) : null}
 
       <div className="flex gap-2">
-        <button className="btn go flex-1" type="button" onClick={onAgain}>
+        <button className={`btn flex-1 ${studioHref ? "" : "go"}`} type="button" onClick={onAgain}>
           Play again
         </button>
-        <Link href="/" className="btn flex-1">
-          All games
-        </Link>
+        {studioHref ? (
+          <Link href={studioHref} className="btn go flex-1">
+            Back to the studio
+          </Link>
+        ) : (
+          <Link href="/" className="btn flex-1">
+            All games
+          </Link>
+        )}
       </div>
     </div>
   );

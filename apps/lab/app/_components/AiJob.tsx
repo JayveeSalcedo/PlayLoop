@@ -14,7 +14,7 @@ const STEP_ICON: Record<string, string> = {
 };
 
 /** Polls a job and shows its progress, then links to the saved game. */
-export function AiJobProgress({ jobId, onFinished }: { jobId: string; onFinished?: (job: JobView) => void }) {
+export function AiJobProgress({ jobId, onFinished, hideLinks = false }: { jobId: string; onFinished?: (job: JobView) => void; hideLinks?: boolean }) {
   const [job, setJob] = useState<JobView | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [now, setNow] = useState(Date.now());
@@ -86,7 +86,7 @@ export function AiJobProgress({ jobId, onFinished }: { jobId: string; onFinished
 
       {job.status !== "running" ? (
         <div className="flex flex-wrap items-center gap-2">
-          {job.gameId ? (
+          {job.gameId && !hideLinks ? (
             <>
               <Link href={`/play/${job.gameId}`} className="btn go sm">
                 Play it

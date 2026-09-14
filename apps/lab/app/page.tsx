@@ -19,6 +19,14 @@ export default async function LabHome() {
         </p>
       </header>
 
+      <Link href="/studio" className="card flex items-center justify-between gap-4 bg-night p-5 text-white">
+        <span>
+          <span className="block text-xl font-extrabold">Open the creator studio</span>
+          <span className="block text-sm font-semibold text-white/75">Idea → customise → test → publish, the way a creator would make a game.</span>
+        </span>
+        <span className="btn go shrink-0">Start →</span>
+      </Link>
+
       <section className="flex flex-col gap-3" aria-labelledby="games-h">
         <div className="flex items-end justify-between gap-3">
           <h2 id="games-h" className="text-xl font-extrabold">
