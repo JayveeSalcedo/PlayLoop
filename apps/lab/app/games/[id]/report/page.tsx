@@ -72,6 +72,11 @@ async function Report({ game }: { game: LabGame }) {
               Play it
             </Link>
           ) : null}
+          {game.meta?.imageSlots?.length ? (
+            <Link href={`/games/${game.id}/images`} className="btn sm">
+              Images ({game.meta.imageSlots.length})
+            </Link>
+          ) : null}
           <RerunButton gameId={game.id} />
         </div>
       </section>

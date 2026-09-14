@@ -24,12 +24,15 @@ export function GameRunner({
   code,
   meta,
   failedChecks,
+  images,
 }: {
   gameId: string;
   code: string;
   meta: GameMeta;
   /** Titles of failed game-lab checks; null when checks haven't run. */
   failedChecks: string[] | null;
+  /** Creator images by slot id, as data: URLs. */
+  images: Record<string, string>;
 }) {
   const router = useRouter();
   const frameRef = useRef<HTMLIFrameElement>(null);
@@ -105,7 +108,7 @@ export function GameRunner({
         await new Promise((r) => setTimeout(r, COUNTDOWN_STEP_MS));
       }
       setPhase({ name: "playing" });
-      post({ type: "start", seed: data.seed, images: {} });
+      post({ type: "start", seed: data.seed, images });
       frameRef.current?.focus();
     } catch (e) {
       setPhase({ name: "error", message: e instanceof Error ? e.message : String(e) });
@@ -207,7 +210,9 @@ export function GameRunner({
                 </Link>
               )}
               {meta.imageSlots?.length ? (
-                <p className="text-xs font-bold text-soft">Image slots are empty for now; uploading and cropping arrives in phase 5.</p>
+                <Link href={`/games/${gameId}/images`} className="text-xs font-bold text-soft underline">
+                  Images: {Object.keys(images).length} of {meta.imageSlots.length} added. Add or change them
+                </Link>
               ) : null}
               <button className="btn go block" type="button" onClick={start} autoFocus>
                 Start

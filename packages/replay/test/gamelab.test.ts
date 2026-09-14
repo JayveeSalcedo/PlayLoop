@@ -68,6 +68,7 @@ describe("well-formed games pass", () => {
   const good: [string, string][] = [
     ["catch.js", example("catch.js")],
     ["desert-dash.js", example("desert-dash.js")],
+    ["brand-pop.js (all four image slot shapes)", example("brand-pop.js")],
     ["tap-the-dot (lab starter)", TAP_THE_DOT],
   ];
 

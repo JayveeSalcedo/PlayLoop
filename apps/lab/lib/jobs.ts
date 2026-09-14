@@ -12,6 +12,7 @@ import { randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
 import { appendFile, mkdir, readFile } from "node:fs/promises";
 import path from "node:path";
+import { copySlotImages } from "./images";
 import { addGame, getGame, saveReport } from "./lab";
 
 const DATA_DIR = process.env.LAB_DATA_DIR ?? path.join(process.cwd(), ".data");
@@ -152,6 +153,8 @@ async function start(
         job.gameId = saved.id;
         const game = await getGame(saved.id);
         if (game) await saveReport(game, result.game.report);
+        // A change keeps the creator's images for slots that still exist with the same shape.
+        if (sourceGameId) await copySlotImages(sourceGameId, saved.id);
       } else if (!job.problem) {
         job.problem = saved.detail;
       }

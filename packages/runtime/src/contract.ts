@@ -24,6 +24,21 @@ export const HINT_MAX = 120;
 export type ImageShape = "circle" | "square" | "portrait" | "wide";
 export const IMAGE_SHAPES: readonly ImageShape[] = ["circle", "square", "portrait", "wide"];
 
+/**
+ * What an uploaded image becomes for each slot shape: the crop frame's aspect
+ * ratio and the exact pixel size it's exported at. Shared by the cropper (so
+ * the frame matches) and the server (so uploads are checked against it).
+ */
+export const IMAGE_SLOT_SPECS: Record<ImageShape, { aspect: number; width: number; height: number; round: boolean; usedFor: string }> = {
+  circle: { aspect: 1, width: 256, height: 256, round: true, usedFor: "coins, targets, avatars" },
+  square: { aspect: 1, width: 256, height: 256, round: false, usedFor: "cards, tiles, sprites" },
+  portrait: { aspect: 9 / 16, width: 720, height: 1280, round: false, usedFor: "a full-screen background" },
+  wide: { aspect: 16 / 9, width: 1200, height: 675, round: false, usedFor: "banners and covers" },
+};
+
+/** Largest uploaded slot image, in bytes. */
+export const MAX_IMAGE_BYTES = 300_000;
+
 export interface ImageSlot {
   /** Referenced from render as g.image("slot:<id>"). */
   id: string;

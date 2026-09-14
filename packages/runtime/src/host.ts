@@ -29,11 +29,14 @@ export type HostMessage =
   | { type: "ready"; meta: GameMeta }
   | { type: "error"; stage: "load" | "start" | "update" | "render"; message: string; tick?: number }
   | { type: "hud"; score: number; lives: number; timeLeft: number }
+  | { type: "previewed"; tick: number }
   | { type: "end"; score: number; ticks: number; hash: string; endReason: string; log: unknown };
 
 /** Messages the parent posts to this host. */
 export type ParentMessage =
   | { type: "hello" }
+  /** A still frame after `atSeconds` of idle play, for previews. Not a play; nothing is recorded. */
+  | { type: "preview"; seed: string; images?: Record<string, string>; atSeconds: number }
   | { type: "start"; seed: string; images?: Record<string, string> }
   | { type: "quit" };
 
@@ -86,6 +89,8 @@ const KEY_INDEX: Record<Key, number> = { left: 0, right: 1, up: 2, down: 3, acti
     const msg = event.data as ParentMessage;
     if (msg?.type === "hello") {
       if (loadMessage && !started) post(loadMessage);
+    } else if (msg?.type === "preview" && !started) {
+      void preview(String(msg.seed), msg.images ?? {}, Number(msg.atSeconds) || 0);
     } else if (msg?.type === "start" && !started) {
       started = true;
       void begin(String(msg.seed), msg.images ?? {});
@@ -112,6 +117,55 @@ const KEY_INDEX: Record<Key, number> = { left: 0, right: 1, up: 2, down: 3, acti
       ),
     );
     return out;
+  }
+
+  /**
+   * Renders one still frame of the game at `atSeconds` of idle play, with the
+   * given images, for the image cropper's in-game preview. Nothing is recorded
+   * or reported as a play; each call starts a fresh session, so the parent can
+   * re-preview as the crop changes.
+   */
+  let previewRun = 0;
+  async function preview(seed: string, images: Record<string, string>, atSeconds: number) {
+    const run = ++previewRun;
+    const loaded = await loadImages(images);
+    if (run !== previewRun || started) return;
+    let session: Session;
+    try {
+      session = pl.createSession(seed);
+      const ticks = Math.max(1, Math.min(session.maxTicks - 1, Math.round(atSeconds * TICKS_PER_SECOND)));
+      while (session.tick < ticks && !session.ended) session.step();
+    } catch (e) {
+      post({ type: "error", stage: "update", message: e instanceof Error ? e.message : String(e) });
+      return;
+    }
+    const canvas = g.document.getElementById("c") as HTMLCanvasElement;
+    const ctx2d = canvas.getContext("2d")!;
+    const w = g.innerWidth as number;
+    const h = g.innerHeight as number;
+    const dpr = Math.min(2, g.devicePixelRatio || 1);
+    canvas.width = Math.round(w * dpr);
+    canvas.height = Math.round(h * dpr);
+    const scale = Math.min(w / LOGICAL_WIDTH, h / LOGICAL_HEIGHT);
+    const base = () =>
+      new g.DOMMatrix([dpr * scale, 0, 0, dpr * scale, (dpr * (w - LOGICAL_WIDTH * scale)) / 2, (dpr * (h - LOGICAL_HEIGHT * scale)) / 2]) as DOMMatrix;
+    const game = pl.game();
+    ctx2d.setTransform(1, 0, 0, 1, 0, 0);
+    ctx2d.clearRect(0, 0, canvas.width, canvas.height);
+    if (game?.render) {
+      ctx2d.save();
+      ctx2d.setTransform(base());
+      ctx2d.beginPath();
+      ctx2d.rect(0, 0, LOGICAL_WIDTH, LOGICAL_HEIGHT);
+      ctx2d.clip();
+      try {
+        game.render(session.state, createCanvasDraw(ctx2d, (ref) => loaded.get(ref) ?? null, base), session.renderContext);
+      } catch (e) {
+        post({ type: "error", stage: "render", message: e instanceof Error ? e.message : String(e), tick: session.tick });
+      }
+      ctx2d.restore();
+    }
+    post({ type: "previewed", tick: session.tick });
   }
 
   async function begin(seed: string, images: Record<string, string>) {

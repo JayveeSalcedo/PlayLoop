@@ -5,7 +5,7 @@
  * results can be compared across prompt changes.
  */
 
-export const PROMPT_VERSION = "2026-09-13.1";
+export const PROMPT_VERSION = "2026-09-14.1";
 
 export const SYSTEM_PROMPT = `You write mobile games for PlayLoop. Players earn real points, so the server re-runs every play from the recorded inputs to verify the score. Your code must follow the contract below exactly or the game is rejected.
 
@@ -41,7 +41,7 @@ Support touch first; keys are a bonus.
 # g (in render)
 g.clear(color) · g.rect(x, y, w, h, style) · g.circle(x, y, r, style) · g.ellipse(x, y, rx, ry, style)
 g.line(x1, y1, x2, y2, style) · g.poly([x0, y0, x1, y1, ...], style) · g.text(str, x, y, textStyle)
-g.image("slot:<id>", x, y, w, h, {rotation, alpha, flipX}) draws an uploaded image if present, otherwise nothing, so draw a shape underneath
+g.image("slot:<id>", x, y, w, h, {rotation, alpha, flipX}) draws an uploaded image if present, otherwise nothing, so draw a shape underneath. Keep each slot's aspect: circle and square 1:1 (inside a circle or tile of the same size), portrait 9:16 (a background is 0, 0, 360, 640), wide 16:9 (e.g. 360×203 banner).
 g.save() g.restore() g.translate(x, y) g.rotate(a) g.scale(sx, sy) g.alpha(a)
 style: {fill, stroke, lineWidth, radius} · textStyle: {fill, stroke, lineWidth, size, weight: 400|600|800, align: "left"|"center"|"right", baseline}
 

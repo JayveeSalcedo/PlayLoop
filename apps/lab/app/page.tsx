@@ -47,7 +47,12 @@ export default async function LabHome() {
                   <p className="text-xs font-bold text-soft">
                     {game.meta.maxSeconds} s max
                     {game.meta.lives ? ` · ${game.meta.lives} lives` : ""}
-                    {game.meta.imageSlots?.length ? ` · ${game.meta.imageSlots.length} image slot(s)` : ""}
+                    {game.meta.imageSlots?.length ? " · " : ""}
+                    {game.meta.imageSlots?.length ? (
+                      <Link href={`/games/${game.id}/images`} className="underline">
+                        {game.meta.imageSlots.length} image spot{game.meta.imageSlots.length === 1 ? "" : "s"}
+                      </Link>
+                    ) : null}
                   </p>
                   <div className="mt-1 flex gap-2">
                     <Link href={`/play/${game.id}`} className="btn go sm flex-1">
