@@ -12,7 +12,7 @@ config({ path: path.resolve(__dirname, "../../.env") });
  * module and loads QuickJS's WebAssembly from disk, so bundling it breaks
  * both. Ported from apps/lab/next.config.ts, where this was worked out.
  */
-const NODE_LOADED = ["@playloop/replay", "quickjs-emscripten"];
+const NODE_LOADED = ["@playloop/replay", "@playloop/ai", "quickjs-emscripten", "groq-sdk", "@anthropic-ai/sdk"];
 
 const nextConfig: NextConfig = {
   // The monorepo root, so output-file tracing reaches packages/ outside apps/web.

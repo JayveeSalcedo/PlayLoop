@@ -28,7 +28,14 @@ export const playSessionStatusEnum = pgEnum("play_session_status", [
 ]);
 export const rewardCategoryEnum = pgEnum("reward_category", ["Food and drink", "Fun", "Shopping"]);
 export const challengeStatusEnum = pgEnum("challenge_status", ["pending", "completed"]);
-export const gameStatusEnum = pgEnum("game_status", ["pending_review", "published", "rejected"]);
+/**
+ * 'draft' is a creator's game that hasn't been submitted: an AI generation in
+ * progress, or versions they're still changing. Only its creator sees it; it is
+ * not in the moderation queue and doesn't count toward PENDING_LIMIT, both of
+ * which read 'pending_review' — which keeps meaning "submitted, waiting on a
+ * reviewer". Template games never use it: the template wizard submits in one go.
+ */
+export const gameStatusEnum = pgEnum("game_status", ["draft", "pending_review", "published", "rejected"]);
 export const moderationOutcomeEnum = pgEnum("moderation_outcome", ["pending", "approved", "rejected"]);
 
 /**
@@ -476,6 +483,12 @@ export const generationJobs = pgTable(
     status: generationJobStatusEnum("status").notNull().default("queued"),
     /** The creator's idea or change instruction. */
     request: text("request").notNull(),
+    /**
+     * The pipeline's saved PipelineState between rounds. Vercel's Hobby limits
+     * don't leave room for a whole generation in one invocation, so each request
+     * loads this, runs one round, and writes it back. Cleared once the job ends.
+     */
+    state: jsonb("state").$type<Record<string, unknown>>(),
     /** ProgressEvent[] from the pipeline — what the studio renders while it waits. */
     events: jsonb("events").$type<unknown[]>().notNull().default([]),
     resultVersionId: uuid("result_version_id").references((): AnyPgColumn => gameVersions.id),

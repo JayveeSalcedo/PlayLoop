@@ -14,7 +14,7 @@ export type { PlayResult };
 
 type GameForStart = {
   id: string;
-  status: "pending_review" | "published" | "rejected";
+  status: "draft" | "pending_review" | "published" | "rejected";
   gameKind: "template" | "code";
   currentVersionId: string | null;
 };

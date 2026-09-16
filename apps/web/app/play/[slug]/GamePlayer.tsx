@@ -22,7 +22,7 @@ export interface GameRow {
   difficulty: "Easy" | "Medium" | "Hard";
   maxPoints: number;
   config: unknown;
-  status: "pending_review" | "published" | "rejected";
+  status: "draft" | "pending_review" | "published" | "rejected";
 }
 
 type Stage = "intro" | "starting" | "playing" | "result" | "submitting";

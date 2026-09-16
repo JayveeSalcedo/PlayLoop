@@ -32,7 +32,7 @@ export interface CodeGameRow {
   theme: string;
   difficulty: "Easy" | "Medium" | "Hard";
   maxPoints: number;
-  status: "pending_review" | "published" | "rejected";
+  status: "draft" | "pending_review" | "published" | "rejected";
 }
 
 /** The version the page loaded. startPlay refuses if the game has moved on since, rather than replaying a different version. */

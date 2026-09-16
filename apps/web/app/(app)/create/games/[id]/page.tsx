@@ -8,6 +8,10 @@ import { GameShare } from "./GameShare";
 import { SponsorToggle } from "./SponsorToggle";
 
 const STATUS_COPY: Record<string, { title: string; body: string }> = {
+  draft: {
+    title: "Draft",
+    body: "Only you can see this game. Submit it for review when it's ready; nobody else can play it until it's approved.",
+  },
   pending_review: {
     title: "Waiting for review",
     body: "Only you can see this game. Once it's approved it goes into every player's feed and starts earning.",

@@ -3,9 +3,9 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "predev": "pnpm --filter @playloop/replay build",
+    "predev": "pnpm --filter @playloop/replay --filter @playloop/ai build",
     "dev": "next dev",
-    "prebuild": "pnpm --filter @playloop/replay build",
+    "prebuild": "pnpm --filter @playloop/replay --filter @playloop/ai build",
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
@@ -13,6 +13,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@playloop/ai": "workspace:*",
     "@playloop/db": "workspace:*",
     "@playloop/economy": "workspace:*",
     "@playloop/games": "workspace:*",

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { requireProfile } from "@/lib/profile";
 
 const STATUS_LABEL: Record<string, { text: string; className: string }> = {
+  draft: { text: "Draft", className: "bg-card" },
   pending_review: { text: "Pending review", className: "bg-lemon" },
   published: { text: "Live", className: "bg-mint" },
   rejected: { text: "Not approved", className: "bg-gum text-paper" },

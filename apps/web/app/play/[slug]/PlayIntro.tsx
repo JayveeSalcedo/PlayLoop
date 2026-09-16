@@ -24,7 +24,7 @@ export function PlayIntro({
   difficulty: string;
   maxPoints: number;
   description: string;
-  status: "pending_review" | "published" | "rejected";
+  status: "draft" | "pending_review" | "published" | "rejected";
   error: string | null;
   starting: boolean;
   onStart: () => void;
@@ -43,11 +43,15 @@ export function PlayIntro({
       <p className="mt-3 text-soft">{description}</p>
       {awaitingReview ? (
         <div className="card-hard mt-4 rounded-2xl bg-card p-4 [border:var(--border-thick)]">
-          <p className="font-extrabold">{status === "rejected" ? "Not approved" : "Pending review"}</p>
+          <p className="font-extrabold">
+            {status === "rejected" ? "Not approved" : status === "draft" ? "Draft" : "Pending review"}
+          </p>
           <p className="mt-1 text-sm font-bold text-soft">
             {status === "rejected"
               ? "This game wasn't approved for the feed, so it can't be played for points."
-              : "Only you can see this game until it's approved. It isn't in the feed and doesn't pay out points yet."}
+              : status === "draft"
+                ? "Only you can see this draft. Submit it for review when it's ready; it doesn't pay out points until it's approved."
+                : "Only you can see this game until it's approved. It isn't in the feed and doesn't pay out points yet."}
           </p>
           <Link href="/create/games" className="btn sm mt-3">
             Back to my games
