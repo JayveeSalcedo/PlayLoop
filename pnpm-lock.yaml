@@ -72,6 +72,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@playloop/ai':
+        specifier: workspace:*
+        version: link:../../packages/ai
       '@playloop/db':
         specifier: workspace:*
         version: link:../../packages/db
