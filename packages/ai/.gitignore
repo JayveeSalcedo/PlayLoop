@@ -1,0 +1,2 @@
+# Eval runs contain generated game code and token counts; keep them local.
+.eval-results/

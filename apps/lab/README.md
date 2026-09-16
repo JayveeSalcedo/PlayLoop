@@ -1,0 +1,58 @@
+# PlayLoop Lab
+
+An isolated test app for code games. **It doesn't touch `apps/web`, the database, or anyone's points.**
+
+- Play games in a sandboxed iframe with PlayLoop's HUD.
+- When a game ends, the server replays your recorded inputs in QuickJS and decides the score.
+- Try the built-in tamper tests to watch forged plays get rejected.
+- **Creator studio** (`/studio`): the full creator flow in four steps.
+  1. **Idea**: "Generate a game from anything" (AI) or start from an example (live game thumbnails). Examples are copied, so edits never touch them.
+  2. **Customise**: practice play, image spots with the cropper, "Tell the AI what to change" and "Fix what the checks found", and version history with undo. Every change is a new version with its own checks and images.
+  3. **Test**: a real play, verified by server replay and recorded from the server's own session (not from the page).
+  4. **Publish**: unlocks only when the current version passes every check *and* has a verified test play; switching versions requires testing again. Lab-only: "sent for review" is just recorded.
+  Projects are saved under `.data/projects/`.
+- **Create with AI**: type an idea; the AI writes the game, bots check it, failures go back to the AI to fix (up to twice), and you watch it happen live. Needs `GROQ_API_KEY` in `apps/lab/.env.local`. On any game's Checks page you can **ask the AI to change it**; the result is saved as a new game.
+- **Images**: games declare image spots (circle, square, portrait, wide). On a game's Images page, pick a photo and crop it inside that shape: drag, pinch/scroll zoom, rotate, a blur warning, previews at game sizes, and a still frame of the real game with your image in place. Cropping happens on the device; the server only accepts the exact export size (256×256, 720×1280, 1200×675) under 300 KB. Images are saved under `.data/images/` and used when you play, and carried over when the AI changes the game. `Brand Pop` uses all four shapes.
+- Paste your own game code.
+- Open **Checks** on any game: bots play it ~9 times in the sandbox and the report explains every problem, with a ready-to-send message for the AI. Reports are saved per code version under `.data/reports/`.
+
+## Run it
+
+```bash
+pnpm install
+pnpm --filter @playloop/lab dev     # builds @playloop/replay, then serves http://localhost:3100
+```
+
+### On your phone
+
+The dev server listens on all interfaces. With the phone on the same Wi-Fi:
+
+1. Find your PC's IP: `ipconfig` → IPv4 Address (e.g. `192.168.1.23`).
+2. Open `http://192.168.1.23:3100` on the phone.
+3. If it doesn't load, allow Node.js through Windows Defender Firewall for private networks.
+
+## How a play works
+
+```
+Start ─▶ POST /api/sessions            server picks the seed
+       ─▶ iframe runs prelude + host + game, records inputs
+end   ─▶ POST /api/sessions/:id/submit { score, log }
+       ─▶ real-time check (log can't cover more seconds than have passed)
+       ─▶ verifyPlay(): QuickJS replay in a killable worker
+       ─▶ verdict: replay score (the only one that counts) or a rejection reason
+```
+
+Sessions are single-use and kept in memory (restarting the dev server clears them). Play history and pasted games are saved under `apps/lab/.data/` (git-ignored).
+
+## What's intentionally not here yet
+
+| Missing | Arrives in |
+|---|---|
+| Real points, database, auth | Phase 7 (merge) |
+
+## Verified so far
+
+- Real Chrome plays (mouse drags, keys, taps) of both example games verified by server replay: Catch 1,500 ticks in 631 ms, Desert Dash lives-out at 428 ticks in 531 ms.
+- All four tamper tests rejected in the UI.
+- Game frame is opaque-origin: the page can't reach its document (`SecurityError`), and the game can't reach the page.
+- `pnpm --filter @playloop/lab test`: session flow, single-use, real-time check, tamper tests, pasted-game validation.

@@ -1,0 +1,34 @@
+{
+  "name": "@playloop/ai",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./dist/index.mjs"
+    }
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "eval:games": "node --env-file-if-exists=../../apps/lab/.env.local --import tsx scripts/eval.ts",
+    "smoke": "node --env-file-if-exists=../../apps/lab/.env.local --import tsx scripts/smoke.ts"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.125.0",
+    "@playloop/replay": "workspace:*",
+    "groq-sdk": "^1.6.0"
+  },
+  "devDependencies": {
+    "@playloop/config": "workspace:*",
+    "@playloop/runtime": "workspace:*",
+    "@types/node": "^22.0.0",
+    "esbuild": "^0.24.0",
+    "tsx": "^4.23.0",
+    "typescript": "^5.7.0",
+    "vitest": "^2.1.0"
+  }
+}
