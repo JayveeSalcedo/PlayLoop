@@ -31,6 +31,51 @@ export const challengeStatusEnum = pgEnum("challenge_status", ["pending", "compl
 export const gameStatusEnum = pgEnum("game_status", ["pending_review", "published", "rejected"]);
 export const moderationOutcomeEnum = pgEnum("moderation_outcome", ["pending", "approved", "rejected"]);
 
+/**
+ * Which engine plays a game.
+ *
+ * 'template' is the original four DOM templates: `type` says which one and
+ * `config` carries its content. 'code' is an AI-written (or hand-written) game
+ * whose actual JavaScript lives in gameVersions, played in a sandboxed iframe
+ * and scored by replaying it on the server.
+ *
+ * A separate column rather than a fifth game_type value, for two reasons.
+ * Postgres won't let a newly added enum value be used in the transaction that
+ * adds it, which would split the migration in two; and more importantly `type`
+ * means "which of the four templates", so adding to it would quietly make every
+ * switch over PlayableType in @playloop/games and @playloop/economy
+ * non-exhaustive at runtime while still type-checking. games_kind_type_ck
+ * enforces the pairing: `type` is set for a template game and null for a code
+ * game.
+ */
+export const gameKindEnum = pgEnum("game_kind", ["template", "code"]);
+
+/** How a game version came to exist. */
+export const versionViaEnum = pgEnum("version_via", [
+  "template",
+  "ai-create",
+  "ai-change",
+  "ai-fix",
+  /** Pasted or seeded code, e.g. one of the runtime's example games. */
+  "manual",
+]);
+
+/**
+ * Whether the game lab's checks passed for a version: contract, crashes,
+ * determinism, render purity, replay cost, input responsiveness. Purely
+ * technical — it says nothing about whether the game is any *good*, and
+ * nothing about its economy calibration (see gameVersions.scoreTarget).
+ */
+export const versionValidationEnum = pgEnum("version_validation", ["pending", "pass", "fail"]);
+
+export const generationJobKindEnum = pgEnum("generation_job_kind", ["create", "change", "fix"]);
+export const generationJobStatusEnum = pgEnum("generation_job_status", [
+  "queued",
+  "running",
+  "done",
+  "failed",
+]);
+
 export const profiles = pgTable("profiles", {
   id: uuid("id").defaultRandom().primaryKey(),
   email: text("email").notNull().unique(),
@@ -93,14 +138,39 @@ export const otpCodes = pgTable("otp_codes", {
 export const games = pgTable("games", {
   id: uuid("id").defaultRandom().primaryKey(),
   slug: text("slug").notNull().unique(),
-  type: gameTypeEnum("type").notNull(),
+  /**
+   * Which engine plays this game. Defaults to 'template' so every row that
+   * existed before code games did is correct without a backfill.
+   */
+  gameKind: gameKindEnum("game_kind").notNull().default("template"),
+  /**
+   * Which of the four DOM templates — set for a template game, null for a code
+   * game, enforced by games_kind_type_ck. Read as PlayableType by
+   * @playloop/games and @playloop/economy, so only ever narrow it after
+   * checking gameKind.
+   */
+  type: gameTypeEnum("type"),
   title: text("title").notNull(),
   description: text("description").notNull().default(""),
   theme: text("theme").notNull().default("neon"),
   difficulty: difficultyEnum("difficulty").notNull().default("Medium"),
   maxPoints: integer("max_points").notNull().default(200),
-  /** Template-specific content: quiz questions, catch item/theme, etc. */
+  /** Template-specific content: quiz questions, catch item/theme, etc. Unused ({}) for a code game. */
   config: jsonb("config").$type<Record<string, unknown>>().notNull().default({}),
+  /**
+   * For a code game: the version players get right now. Null until a version
+   * passes its checks and is published; always null for a template game.
+   *
+   * The FK is DEFERRABLE INITIALLY DEFERRED in the migration, because this and
+   * gameVersions.gameId point at each other: creating version 1 inserts the
+   * game, then the version, then sets this, and publishing goes the other way.
+   * Deferred checking means neither ordering trips.
+   *
+   * Only ever read when *starting* a play — startPlay copies it onto the
+   * session. Nothing resolves it at submit time, which is what lets a creator
+   * publish a new version without disturbing plays already in progress.
+   */
+  currentVersionId: uuid("current_version_id").references((): AnyPgColumn => gameVersions.id),
   creatorId: uuid("creator_id").references(() => profiles.id),
   brandOriginal: boolean("brand_original").notNull().default(false),
   status: gameStatusEnum("status").notNull().default("pending_review"),
@@ -109,6 +179,80 @@ export const games = pgTable("games", {
   playCount: integer("play_count").notNull().default(0),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+/**
+ * One immutable version of a code game's actual JavaScript.
+ *
+ * This is the unit a play is scored against. A creator's change request never
+ * edits a version — it creates the next one — because a version's code and the
+ * runtime it was written for are half of what makes an old play reproducible:
+ *
+ *     code + runtimeVersion + playSessions.seed + playInputLogs.log
+ *
+ * Once any session references a row here, its `code` and `runtimeVersion` must
+ * never change. Rewriting them would silently re-score plays that have already
+ * paid out.
+ *
+ * `code` is a plain text column rather than object storage: it is at most 60 KB
+ * (MAX_CODE_BYTES), Postgres TOASTs and compresses it anyway, and both startPlay
+ * and the verifier need the exact bytes the session began on — a join can't 404
+ * the way a fetch can.
+ */
+export const gameVersions = pgTable(
+  "game_versions",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    gameId: uuid("game_id")
+      .notNull()
+      .references(() => games.id),
+    /** 1, 2, 3… within a game. Unique per game; see the index below. */
+    versionNumber: integer("version_number").notNull(),
+    via: versionViaEnum("via").notNull(),
+    /** The idea or change instruction that produced this version, in the creator's words. */
+    request: text("request").notNull().default(""),
+    code: text("code").notNull(),
+    /** fnv1a of `code` — the same hash the game lab reports, so a report can be matched to its code. */
+    contentHash: text("content_hash").notNull(),
+    /** GameMeta as the sandbox reported it: title, hint, maxSeconds, lives, imageSlots. */
+    meta: jsonb("meta").$type<Record<string, unknown>>().notNull(),
+    /**
+     * Which simulation this version was written and scored against. Verification
+     * replays under exactly this runtime, never the currently deployed one — see
+     * RUNTIME_VERSION and preludeFor() in @playloop/runtime. A version whose
+     * runtime this build no longer has fails as runtime_mismatch rather than
+     * being replayed under a different one.
+     */
+    runtimeVersion: integer("runtime_version").notNull(),
+    /** PROMPT_VERSION at generation time; null for hand-written or template-forked code. */
+    promptVersion: text("prompt_version"),
+    provider: text("provider"),
+    model: text("model"),
+    title: text("title").notNull(),
+    summary: text("summary").notNull().default(""),
+    notes: text("notes").notNull().default(""),
+    /** Technical validity only — the gate on publishing. Never about content or economy. */
+    validation: versionValidationEnum("validation").notNull().default("pending"),
+    /** The whole LabReport: per-check results, bot runs, replay cost, fix prompt. */
+    report: jsonb("report").$type<Record<string, unknown>>(),
+    /**
+     * Score that earns the full maxPoints payout, derived from this version's bot
+     * runs (codeScoreTarget in @playloop/economy). Purely economy calibration:
+     * it is pinned per version so a change that alters scoring re-derives its
+     * own, and it must never decide whether a version is valid. Null means the
+     * bots never scored, so plays fall back to the flat payout floor.
+     */
+    scoreTarget: integer("score_target"),
+    /**
+     * Per-version moderation outcome, so reverting to a version a reviewer
+     * already approved can go live without a second review.
+     */
+    status: gameStatusEnum("status").notNull().default("pending_review"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("game_versions_game_id_idx").on(table.gameId, table.versionNumber),
+  ],
+);
 
 /**
  * Who did what in /admin. Every admin action writes one row here.
@@ -200,6 +344,23 @@ export const playSessions = pgTable(
     gameId: uuid("game_id")
       .notNull()
       .references(() => games.id),
+    /**
+     * For a code game: the exact version this session is being played on,
+     * copied from games.currentVersionId at startPlay and never resolved again.
+     *
+     * That pin is the whole reason a creator can publish while people are
+     * playing: a session that began on version 2 is replayed, scored and paid
+     * under version 2 even after version 3 goes live. Null for template games
+     * and for every session that predates code games.
+     */
+    gameVersionId: uuid("game_version_id").references(() => gameVersions.id),
+    /**
+     * The seed the *server* chose for this session, which the game's randomness
+     * derives from. Handed to the client at startPlay and re-read from this row
+     * at verification time — never accepted back from the client, since a player
+     * who picked their own seed could hunt for a favourable game.
+     */
+    seed: text("seed"),
     status: playSessionStatusEnum("status").notNull().default("started"),
     /**
      * What the client claimed, recorded on 'completed' AND 'rejected' rows —
@@ -209,6 +370,34 @@ export const playSessions = pgTable(
      * staying null that encodes "this earned nothing", not score.
      */
     score: integer("score"),
+    /**
+     * For a code game: the score the server's replay produced — the only score
+     * ever paid. `score` above stays the client's claim, so a divergence is
+     * legible to a reviewer rather than overwritten by it.
+     */
+    verifiedScore: integer("verified_score"),
+    /**
+     * Why verification refused: a VerifyFailureReason (score_mismatch,
+     * bad_log, tick_mismatch, timeout, runtime_mismatch, …).
+     *
+     * Kept separate from rejectReason, which holds the template engine's
+     * analytic verdicts, because the two anti-cheat systems now coexist and a
+     * fraud reviewer needs to know which one fired: "implausible for this
+     * template" and "the replay produced a different score" are very different
+     * claims.
+     */
+    verifyReason: text("verify_reason"),
+    /** How long verification took, and what the replay saw. Cost and abuse signal. */
+    verifyMs: integer("verify_ms"),
+    replayTicks: integer("replay_ticks"),
+    replayEndReason: text("replay_end_reason"),
+    /**
+     * Set when the submit handler claims this session for verification. Lets the
+     * claim stay atomic without adding a 'verifying' value to
+     * play_session_status — a new enum value can't be used in the transaction
+     * that adds it, which would split the migration in two.
+     */
+    verifyingAt: timestamp("verifying_at", { withTimezone: true }),
     payoutPoints: integer("payout_points"),
     xpAwarded: integer("xp_awarded"),
     rejectReason: text("reject_reason"),
@@ -221,6 +410,91 @@ export const playSessions = pgTable(
   (table) => [
     index("play_sessions_profile_id_idx").on(table.profileId),
     index("play_sessions_status_started_at_idx").on(table.status, table.startedAt),
+  ],
+);
+
+/**
+ * The recorded inputs of one code-game play: every pointer and key event, with
+ * the tick it happened on, quarter-pixel quantized.
+ *
+ * Together with the session's seed and its version's code and runtime, this is
+ * what reproduces a play exactly. Kept because the whole authority model rests
+ * on being able to re-run what someone actually did — a fraud reviewer looking
+ * at a rejected session needs the play, not just a number.
+ *
+ * A side table rather than a column on playSessions, which is the largest table
+ * here by row count and is scanned by the fraud queue over (status, startedAt):
+ * a column up to MAX_LOG_BYTES would drag TOAST lookups through queries that
+ * never want the log.
+ *
+ * Every log is retained for now. Real logs are a few KB of packed integers, not
+ * the 200 KB ceiling, and sampling or expiry before we've measured actual volume
+ * would be guessing — so measure first, then decide.
+ */
+export const playInputLogs = pgTable("play_input_logs", {
+  playSessionId: uuid("play_session_id")
+    .primaryKey()
+    .references(() => playSessions.id),
+  /** An InputLog: { v, ticks, events }. Stored as text — it is written and read whole, never queried into. */
+  log: text("log").notNull(),
+  logBytes: integer("log_bytes").notNull(),
+  /** What the client claimed alongside this log, kept even when the replay disagreed. */
+  claimedScore: integer("claimed_score"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/**
+ * One AI generation run: create a game from an idea, change an existing
+ * version, or fix what the checks found.
+ *
+ * In the database rather than in memory because a generation takes minutes —
+ * a model call plus the game lab's bot checks, up to two fix rounds — and a
+ * serverless invocation can be frozen or killed at any point in that. An
+ * in-process job map would lose the run and leave the creator watching a
+ * spinner forever.
+ *
+ * `heartbeatAt` is what makes that recoverable: the request doing the work
+ * refreshes it as it goes, and a read finding a 'running' row that has gone
+ * quiet marks it failed. No cron, no queue — the same derive-at-read-time
+ * approach as voucher expiry and campaign status.
+ *
+ * This table is also the rate limiter: today's SUM(tokens) is the daily budget,
+ * and a creator's open rows are their concurrency limit.
+ */
+export const generationJobs = pgTable(
+  "generation_jobs",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    profileId: uuid("profile_id")
+      .notNull()
+      .references(() => profiles.id),
+    /** Null for a 'create' that hasn't produced a game row yet. */
+    gameId: uuid("game_id").references(() => games.id),
+    /** The version being changed or fixed; null for 'create'. */
+    baseVersionId: uuid("base_version_id").references(() => gameVersions.id),
+    kind: generationJobKindEnum("kind").notNull(),
+    status: generationJobStatusEnum("status").notNull().default("queued"),
+    /** The creator's idea or change instruction. */
+    request: text("request").notNull(),
+    /** ProgressEvent[] from the pipeline — what the studio renders while it waits. */
+    events: jsonb("events").$type<unknown[]>().notNull().default([]),
+    resultVersionId: uuid("result_version_id").references((): AnyPgColumn => gameVersions.id),
+    /** Why it failed, in words a creator can act on. */
+    problem: text("problem"),
+    calls: integer("calls").notNull().default(0),
+    tokens: integer("tokens").notNull().default(0),
+    provider: text("provider"),
+    model: text("model"),
+    promptVersion: text("prompt_version"),
+    /** Refreshed by the running job; stale means the invocation died. */
+    heartbeatAt: timestamp("heartbeat_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    finishedAt: timestamp("finished_at", { withTimezone: true }),
+  },
+  (table) => [
+    index("generation_jobs_profile_created_idx").on(table.profileId, table.createdAt),
+    // The stale sweeper's query: running rows that have gone quiet.
+    index("generation_jobs_status_heartbeat_idx").on(table.status, table.heartbeatAt),
   ],
 );
 

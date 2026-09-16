@@ -177,7 +177,15 @@ export async function submitPlay(sessionId: string, rawScore: number): Promise<P
     if (!game) return { ok: false as const, error: "Game not found." };
 
     const config = (game.config ?? {}) as { questions?: unknown[] };
-    const type = game.type as PlayableType;
+    // This path scores template games only: playRules is a switch over the four
+    // templates, so a null type would fall through it and return undefined
+    // rules, and validatePlay would then read undefined ceilings — paying out on
+    // a play nothing actually checked. Code games are scored by replaying them
+    // instead; refuse here rather than guess.
+    const type: PlayableType | null = game.type;
+    if (type === null) {
+      return { ok: false as const, error: "That play couldn't be verified, so no points were awarded." };
+    }
     const questionCount = type === "quiz" ? (config.questions?.length ?? 1) : undefined;
 
     const rules = playRules(type, { difficulty: game.difficulty, questionCount });

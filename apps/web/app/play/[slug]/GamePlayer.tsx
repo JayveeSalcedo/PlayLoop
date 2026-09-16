@@ -11,7 +11,11 @@ import { ChallengeShare } from "./ChallengeShare";
 export interface GameRow {
   id: string;
   slug: string;
-  type: "quiz" | "catch" | "memory" | "reflex";
+  /**
+   * Which template to mount. Null for a code game, which this component can't
+   * play — those go to the sandboxed runner instead.
+   */
+  type: "quiz" | "catch" | "memory" | "reflex" | null;
   title: string;
   description: string;
   theme: string;
@@ -33,6 +37,14 @@ export function GamePlayer({ game, challengeCode }: { game: GameRow; challengeCo
 
   async function start() {
     setError(null);
+    // A code game has no template to mount; /play routes those to the
+    // sandboxed runner instead, so reaching here means the route picked the
+    // wrong player. Fail loudly rather than opening a session nothing can play.
+    if (game.type === null) {
+      setError("This game can't be played here.");
+      return;
+    }
+    const type = game.type;
     setStage("starting");
     let sessionId: string;
     try {
@@ -62,7 +74,7 @@ export function GamePlayer({ game, challengeCode }: { game: GameRow; challengeCo
       const onQuit = () => setStage("intro");
 
       runGameFromConfig(
-        game.type,
+        type,
         { difficulty: game.difficulty, theme: game.theme as ThemeName, config },
         host,
         onEnd,

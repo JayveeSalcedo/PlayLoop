@@ -3,7 +3,8 @@ import { artSVG, type GameArtType, type ThemeName } from "@playloop/ui";
 export interface LandingGame {
   id: string;
   title: string;
-  type: string;
+  /** Null for a code game — it isn't one of the four templates. */
+  type: string | null;
   theme: string;
   difficulty: string;
   maxPoints: number;

@@ -114,8 +114,14 @@ export const MEMORY_SHAPES: string[] = [
 
 export type GameArtType = "catch" | "quiz" | "memory" | "reflex";
 
-/** Renders the 160x120 cover art used on game cards, per template type + theme. */
-export function artSVG(type: GameArtType, theme: ThemeName = "neon", item: ItemKind = "bean"): string {
+/**
+ * Renders the 160x120 cover art used on game cards, per template type + theme.
+ *
+ * `type` is null for a code game, which isn't one of the four templates and has
+ * no art of its own yet; it falls through to the generic badge below. Giving
+ * generated games real cover art is its own piece of work.
+ */
+export function artSVG(type: GameArtType | null, theme: ThemeName = "neon", item: ItemKind = "bean"): string {
   const [a, b] = THEMES[theme] || THEMES.neon!;
   const sw = `stroke="${INK}" stroke-width="2.6"`;
   let inner = "";
