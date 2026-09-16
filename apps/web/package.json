@@ -3,7 +3,9 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
+    "predev": "pnpm --filter @playloop/replay build",
     "dev": "next dev",
+    "prebuild": "pnpm --filter @playloop/replay build",
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
@@ -14,6 +16,8 @@
     "@playloop/db": "workspace:*",
     "@playloop/economy": "workspace:*",
     "@playloop/games": "workspace:*",
+    "@playloop/replay": "workspace:*",
+    "@playloop/runtime": "workspace:*",
     "@playloop/ui": "workspace:*",
     "@zxing/browser": "^0.1.5",
     "dotenv": "^16.4.0",
@@ -22,6 +26,7 @@
     "next": "^15.1.0",
     "nodemailer": "^6.9.0",
     "qrcode": "^1.5.0",
+    "quickjs-emscripten": "^0.31.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "recharts": "^3.10.1"
