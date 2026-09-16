@@ -66,7 +66,7 @@ export default async function FraudProfilePage({ params }: { params: Promise<{ p
       })
       .from(schema.playSessions)
       .innerJoin(schema.games, eq(schema.playSessions.gameId, schema.games.id))
-      .where(and(eq(schema.playSessions.profileId, profileId), eq(schema.playSessions.status, "rejected")))
+      .where(and(eq(schema.playSessions.profileId, profileId), eq(schema.playSessions.status, "rejected"), eq(schema.playSessions.isTest, false)))
       .orderBy(desc(schema.playSessions.startedAt))
       .limit(50),
     db

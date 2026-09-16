@@ -5,8 +5,8 @@ import { playRules, validatePlay, type PlayableType } from "@playloop/games";
 import { getDb, schema } from "@playloop/db";
 import { and, eq, isNull, sql } from "drizzle-orm";
 import { randomBytes } from "node:crypto";
-import type { Tx } from "@playloop/db";
 import { creditVerifiedPlay, type PlayResult } from "@/lib/creditPlay";
+import { insertStartedSession, type CodePin } from "@/lib/playSessions";
 import { requireActiveProfile } from "@/lib/profile";
 import { requireSession } from "@/lib/session";
 
@@ -18,9 +18,6 @@ type GameForStart = {
   gameKind: "template" | "code";
   currentVersionId: string | null;
 };
-
-/** What a code game's session is pinned to. Null for a template game. */
-type CodePin = { gameVersionId: string; seed: string } | null;
 
 const selectGameForStart = {
   id: schema.games.id,
@@ -61,36 +58,6 @@ async function pinCodeVersion(game: GameForStart, expectedVersionId: string | un
   return { gameVersionId: version.id, seed: randomBytes(16).toString("hex") };
 }
 
-/** Shared by startPlay/startChallengedPlay: abandon this profile's other still-open sessions, then insert a new one. */
-async function insertStartedSession(
-  tx: Tx,
-  profileId: string,
-  gameId: string,
-  pin: CodePin,
-  challengeId?: string,
-): Promise<{ id: string }> {
-  await tx
-    .update(schema.playSessions)
-    .set({ status: "abandoned" })
-    .where(
-      and(
-        eq(schema.playSessions.profileId, profileId),
-        eq(schema.playSessions.status, "started"),
-        // A code-game session that's mid-verification has already been
-        // submitted; abandoning it would throw away a play the server is
-        // still checking. Template sessions never set this, so they're
-        // unaffected.
-        isNull(schema.playSessions.verifyingAt),
-      ),
-    );
-
-  const [row] = await tx
-    .insert(schema.playSessions)
-    .values({ profileId, gameId, challengeId, gameVersionId: pin?.gameVersionId, seed: pin?.seed })
-    .returning({ id: schema.playSessions.id });
-  return row!;
-}
-
 /**
  * Opens a play session for `gameId`: abandons this profile's other still-open
  * sessions (only one live session per player at a time) and inserts a new
@@ -119,7 +86,7 @@ export async function startPlay(gameId: string, expectedVersionId?: string): Pro
   if (game.status !== "published") throw new Error("That game isn't approved for play yet.");
 
   const pin = await pinCodeVersion(game, expectedVersionId);
-  const row = await db.transaction((tx) => insertStartedSession(tx, session.sub, game.id, pin));
+  const row = await db.transaction((tx) => insertStartedSession(tx, { profileId: session.sub, gameId: game.id, pin }));
   return { sessionId: row.id, seed: pin?.seed ?? null };
 }
 
@@ -157,7 +124,7 @@ export async function startChallengedPlay(
   if (!game || game.status !== "published") throw new Error("That game isn't available to play right now.");
 
   const pin = await pinCodeVersion(game, expectedVersionId);
-  const row = await db.transaction((tx) => insertStartedSession(tx, session.sub, gameId, pin, challenge.id));
+  const row = await db.transaction((tx) => insertStartedSession(tx, { profileId: session.sub, gameId, pin, challengeId: challenge.id }));
   return { sessionId: row.id, seed: pin?.seed ?? null };
 }
 

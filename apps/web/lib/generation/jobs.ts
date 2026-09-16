@@ -40,9 +40,8 @@ import {
   type ProgressEvent,
 } from "@playloop/ai";
 import { getDb, schema } from "@playloop/db";
-import { codeScoreTarget } from "@playloop/economy";
-import { fnv1a, RUNTIME_VERSION } from "@playloop/runtime";
 import { and, count, desc, eq, gte, inArray, lt, sql } from "drizzle-orm";
+import { addVersion } from "./versions";
 
 export type JobKind = "create" | "change" | "fix";
 export type JobStatus = "queued" | "running" | "done" | "failed";
@@ -362,26 +361,12 @@ async function endJob(jobId: string, end: { problem: string; events: ProgressEve
   return toView(row!);
 }
 
-/** Title -> URL slug with a random suffix, the same scheme as template games. */
-function toSlug(title: string): string {
-  const base =
-    title
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-+|-+$/g, "")
-      .slice(0, 32) || "game";
-  return `${base}-${Math.random().toString(36).slice(2, 7)}`;
-}
-
 /**
  * Stores what the generation produced as a new, immutable game version and ends
  * the job.
  *
- * A create makes a draft game with version 1. A change or fix adds the next
- * version to the existing game and never touches an earlier one. On a draft the
- * new version becomes current, as the studio's working copy; on a game that's
- * already submitted or live, current is left alone — what players get only
- * changes when a version is published.
+ * A create makes a draft game with version 1; a change or fix adds the next
+ * version. See addVersion for how current moves.
  *
  * A version is kept even when it failed its checks, so the creator can see why
  * and ask for a fix; startPlay never lets anyone earn on a failing version. A
@@ -407,63 +392,24 @@ async function saveResult(
   }
 
   const lastModel = [...result.attempts].reverse().find((a) => !a.error)?.model ?? result.attempts.at(-1)?.model ?? null;
-  const version = {
-    via: job.kind === "create" ? ("ai-create" as const) : job.kind === "fix" ? ("ai-fix" as const) : ("ai-change" as const),
-    request: job.request,
-    code: game.code,
-    contentHash: fnv1a(game.code),
-    meta: meta as unknown as Record<string, unknown>,
-    // checkGame ran in this build, under this runtime.
-    runtimeVersion: RUNTIME_VERSION,
-    promptVersion: result.promptVersion,
-    provider: result.provider,
-    model: lastModel,
-    title: game.title,
-    summary: game.summary,
-    notes: game.notes,
-    validation: game.report.verdict,
-    report: game.report as unknown as Record<string, unknown>,
-    // Economy calibration only; never decides validity.
-    scoreTarget: codeScoreTarget(game.report.runs),
-    status: "draft" as const,
-  };
 
   return db.transaction(async (tx) => {
-    let gameId = job.gameId;
-    let versionNumber = 1;
-
-    if (job.kind === "create") {
-      const [created] = await tx
-        .insert(schema.games)
-        .values({
-          slug: toSlug(game.title),
-          gameKind: "code",
-          type: null,
-          title: game.title,
-          description: game.summary || meta.hint,
-          creatorId: job.profileId,
-          status: "draft",
-        })
-        .returning({ id: schema.games.id });
-      gameId = created!.id;
-    } else {
-      const [latest] = await tx
-        .select({ n: sql<number>`coalesce(max(${schema.gameVersions.versionNumber}), 0)`.mapWith(Number) })
-        .from(schema.gameVersions)
-        .where(eq(schema.gameVersions.gameId, gameId!));
-      versionNumber = (latest?.n ?? 0) + 1;
-    }
-
-    const [saved] = await tx
-      .insert(schema.gameVersions)
-      .values({ ...version, gameId: gameId!, versionNumber })
-      .returning({ id: schema.gameVersions.id });
-
-    // current_version_id is DEFERRABLE, so a new game can point at its first version here.
-    await tx
-      .update(schema.games)
-      .set({ currentVersionId: saved!.id })
-      .where(and(eq(schema.games.id, gameId!), eq(schema.games.status, "draft")));
+    const saved = await addVersion(tx, {
+      creatorId: job.profileId,
+      gameId: job.gameId,
+      version: {
+        code: game.code,
+        report: game.report,
+        title: game.title,
+        summary: game.summary,
+        notes: game.notes,
+        via: job.kind === "create" ? "ai-create" : job.kind === "fix" ? "ai-fix" : "ai-change",
+        request: job.request,
+        promptVersion: result.promptVersion,
+        provider: result.provider,
+        model: lastModel,
+      },
+    });
 
     const [row] = await tx
       .update(schema.generationJobs)
@@ -472,8 +418,8 @@ async function saveResult(
         state: null,
         events,
         ...usage,
-        gameId,
-        resultVersionId: saved!.id,
+        gameId: saved.gameId,
+        resultVersionId: saved.versionId,
         // Kept when the version failed its checks, so the studio can say why.
         problem: result.problem,
         finishedAt: sql`now()`,

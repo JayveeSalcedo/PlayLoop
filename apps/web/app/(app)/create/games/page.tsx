@@ -40,7 +40,8 @@ export default async function MyGamesPage() {
             return (
               <Link
                 key={g.id}
-                href={`/create/games/${g.id}`}
+                // Code games are managed in the studio, where their versions live.
+                href={g.gameKind === "code" ? `/create/studio/${g.id}` : `/create/games/${g.id}`}
                 className="card-hard row-hard-hover flex items-center gap-3 overflow-hidden rounded-2xl bg-card p-3 [border:var(--border-thick)]"
               >
                 <div

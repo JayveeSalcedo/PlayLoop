@@ -362,6 +362,13 @@ export const playSessions = pgTable(
      */
     gameVersionId: uuid("game_version_id").references(() => gameVersions.id),
     /**
+     * A creator testing their own unpublished version from the studio. Played,
+     * recorded and replay-verified exactly like a real play — that verified run
+     * is what submitting a version for review requires — but never credited:
+     * no points, no XP, no challenge, no play count.
+     */
+    isTest: boolean("is_test").notNull().default(false),
+    /**
      * The seed the *server* chose for this session, which the game's randomness
      * derives from. Handed to the client at startPlay and re-read from this row
      * at verification time — never accepted back from the client, since a player

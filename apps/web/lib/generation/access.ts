@@ -8,8 +8,22 @@
  */
 import { getDb, schema } from "@playloop/db";
 import { eq } from "drizzle-orm";
+import { notFound } from "next/navigation";
 import { isAdminEmail } from "@/lib/admin";
+import { requireProfile, type Profile } from "@/lib/profile";
 import { getSession } from "@/lib/session";
+
+/** Whether this profile can use the studio. Pages use it to choose between the studio and the template wizard. */
+export function canUseStudio(profile: Pick<Profile, "email">): boolean {
+  return isAdminEmail(profile.email);
+}
+
+/** For studio pages and actions: the profile, or a 404 for anyone the studio isn't open to yet. */
+export async function requireStudio(): Promise<{ profile: Profile }> {
+  const { profile } = await requireProfile();
+  if (!canUseStudio(profile)) notFound();
+  return { profile };
+}
 
 export async function studioProfileId(): Promise<{ ok: true; profileId: string } | { ok: false; status: number; error: string }> {
   const session = await getSession();

@@ -19,6 +19,8 @@ import { buildGameDocument, GAME_FRAME_SANDBOX, type GameMeta, type HostMessage 
 import { artSVG, type ThemeName } from "@playloop/ui";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Spinner } from "@/app/_components/Spinner";
+import Link from "next/link";
+import { startTestPlay } from "@/app/(app)/create/studio/actions";
 import type { PlayResult } from "@/lib/creditPlay";
 import { startChallengedPlay, startPlay } from "./actions";
 import { PlayIntro } from "./PlayIntro";
@@ -49,7 +51,8 @@ type Stage =
   | { name: "countdown"; label: string }
   | { name: "playing" }
   | { name: "verifying" }
-  | { name: "result"; result: PlayResult; sessionId: string };
+  | { name: "result"; result: PlayResult; sessionId: string }
+  | { name: "tested"; score: number };
 
 const COUNTDOWN = ["3", "2", "1", "Go"];
 /** Same beat as the template engine's countdown (runGame: 620 ms per step). */
@@ -62,10 +65,17 @@ export function CodeGamePlayer({
   game,
   version,
   challengeCode,
+  test,
 }: {
   game: CodeGameRow;
   version: CodeGameVersion | null;
   challengeCode?: string;
+  /**
+   * A creator's studio test play of this version: verified by replay exactly
+   * like a real play, never credited. Its verified result is what lets them
+   * submit the version.
+   */
+  test?: { backHref: string };
 }) {
   const [stage, setStage] = useState<Stage>({ name: "intro" });
   const [error, setError] = useState<string | null>(null);
@@ -100,7 +110,12 @@ export function CodeGamePlayer({
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ score: msg.score, log: msg.log }),
         });
-        const data = (await res.json().catch(() => ({}))) as Partial<PlayResult> & { error?: string };
+        const data = (await res.json().catch(() => ({}))) as Partial<PlayResult> & { error?: string; test?: boolean };
+        if (test) {
+          if (!res.ok || !data.test) throw new Error(data.error ?? "Couldn't check that test play — try again.");
+          setStage({ name: "tested", score: data.score ?? 0 });
+          return;
+        }
         if (!res.ok || typeof data.payoutPoints !== "number") {
           throw new Error(data.error ?? "Couldn't save that play — try again.");
         }
@@ -109,7 +124,7 @@ export function CodeGamePlayer({
         backToIntro(e instanceof Error ? e.message : "Couldn't save that play — try again.");
       }
     },
-    [backToIntro],
+    [backToIntro, test],
   );
 
   useEffect(() => {
@@ -162,9 +177,11 @@ export function CodeGamePlayer({
       clearTimeout(timer);
       readyRef.current = null;
 
-      const { sessionId, seed } = challengeCode
-        ? await startChallengedPlay(game.id, challengeCode, version.id)
-        : await startPlay(game.id, version.id);
+      const { sessionId, seed } = test
+        ? await startTestPlay(version.id)
+        : challengeCode
+          ? await startChallengedPlay(game.id, challengeCode, version.id)
+          : await startPlay(game.id, version.id);
       if (!seed) throw new Error("Couldn't start that game — try again.");
       sessionRef.current = sessionId;
 
@@ -186,6 +203,24 @@ export function CodeGamePlayer({
     return <PlayResultScreen title={game.title} result={stage.result} sessionId={stage.sessionId} onPlayAgain={() => backToIntro(null)} />;
   }
 
+  if (stage.name === "tested" && test) {
+    return (
+      <main className="mx-auto max-w-sm p-6 text-center">
+        <p className="font-bold text-soft">Test play verified</p>
+        <div className="my-2 text-7xl font-extrabold tracking-tight text-ink">{stage.score}</div>
+        <p className="text-sm font-bold text-soft">The server replayed your inputs and got the same score. Test plays earn no points.</p>
+        <div className="mt-6 flex gap-3">
+          <Link href={test.backHref} className="btn go flex-1">
+            Back to the studio
+          </Link>
+          <button onClick={() => backToIntro(null)} className="btn flex-1">
+            Test again
+          </button>
+        </div>
+      </main>
+    );
+  }
+
   if (stage.name === "intro" || !version) {
     return (
       <PlayIntro
@@ -198,6 +233,7 @@ export function CodeGamePlayer({
         error={version ? error : "This game isn't ready to play yet."}
         starting={false}
         onStart={start}
+        testMode={!!test}
       />
     );
   }

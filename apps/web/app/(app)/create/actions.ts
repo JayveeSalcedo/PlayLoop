@@ -4,6 +4,7 @@ import { getDb, schema } from "@playloop/db";
 import { normalizeConfig, validateGameDraft, type GameDraft } from "@playloop/games";
 import { and, count, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
+import { PENDING_LIMIT } from "@/lib/moderation";
 import { requireProfile } from "@/lib/profile";
 
 /**
@@ -11,7 +12,6 @@ import { requireProfile } from "@/lib/profile";
  * Cheap backpressure against someone flooding the queue — one count query, no
  * rate-limiting infrastructure (Upstash is still deferred, see the plan).
  */
-const PENDING_LIMIT = 3;
 
 const SLUG_SUFFIX_LENGTH = 5;
 

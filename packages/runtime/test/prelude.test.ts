@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 import vm from "node:vm";
 import { describe, expect, it } from "vitest";
 // @ts-expect-error — plain .mjs build script, no type declarations
-import { BUNDLES, bundle, renderGeneratedModule } from "../scripts/build-prelude.mjs";
+import { BUNDLES, bundle, EXAMPLES_OUT, renderExamplesModule, renderGeneratedModule } from "../scripts/build-prelude.mjs";
 import { RUNTIME_VERSION } from "../src/contract";
 import { preludeFor, SUPPORTED_RUNTIME_VERSIONS } from "../src/preludes";
 import { newRealm, playWithBot } from "./realm";
@@ -18,6 +18,13 @@ describe("generated bundles", () => {
       expect(onDisk).toBe(renderGeneratedModule(entry, constant, bundle(entry)));
     });
   }
+});
+
+describe("generated examples", () => {
+  it(`${EXAMPLES_OUT} is up to date with examples/*.js (run \`pnpm --filter @playloop/runtime build\` if this fails)`, () => {
+    const onDisk = readFileSync(resolve(root, EXAMPLES_OUT), "utf8").replace(/\r\n/g, "\n");
+    expect(onDisk).toBe(renderExamplesModule());
+  });
 });
 
 describe("runtime versioning", () => {

@@ -10,3 +10,4 @@ export { PRELUDES, SUPPORTED_RUNTIME_VERSIONS, preludeFor, currentPrelude } from
 export { HOST_SOURCE } from "./generated/host";
 export type { HostMessage, ParentMessage } from "./host";
 export { buildGameDocument, GAME_FRAME_SANDBOX } from "./document";
+export { EXAMPLE_GAMES } from "./generated/examples";

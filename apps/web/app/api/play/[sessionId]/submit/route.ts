@@ -25,6 +25,11 @@
  *     the session completed or rejected, and on success credits it through
  *     creditVerifiedPlay, the same code template games are paid through.
  *
+ * A studio test play (play_sessions.is_test) goes through all three steps the
+ * same way — its verified result is what lets a creator submit that version —
+ * but is never credited, and gets the replay's reason back when it fails, since
+ * the creator is debugging their own game rather than being checked for cheating.
+ *
  * If the function dies between 1 and 3, the session is left 'started' with
  * verifying_at set: nothing is paid, and it can't be submitted again. That's
  * the safe direction to fail in.
@@ -93,6 +98,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ ses
       gameVersionId: schema.playSessions.gameVersionId,
       seed: schema.playSessions.seed,
       challengeId: schema.playSessions.challengeId,
+      isTest: schema.playSessions.isTest,
       elapsedSeconds: sql<number>`extract(epoch from (now() - ${schema.playSessions.startedAt}))`.mapWith(Number),
     });
   if (!claimed?.gameVersionId || !claimed.seed) {
@@ -171,7 +177,19 @@ export async function POST(request: Request, { params }: { params: Promise<{ ses
       .returning({ id: schema.playSessions.id });
     if (!marked) return { ok: false as const, error: "This play session was already used or doesn't exist.", status: 409 };
 
-    if (!verdict.ok) return { ok: false as const, error: rejectionMessage(verdict.reason), status: 422 };
+    if (!verdict.ok) {
+      return {
+        ok: false as const,
+        error: claimed.isTest ? `That test play didn't verify: ${verdict.detail}` : rejectionMessage(verdict.reason),
+        reason: claimed.isTest ? verdict.reason : undefined,
+        status: 422,
+      };
+    }
+
+    if (claimed.isTest) {
+      // Verified, recorded, and deliberately not paid.
+      return { ok: true as const, test: true as const, score: verdict.score, ticks: verdict.ticks, endReason: verdict.endReason };
+    }
 
     const credited = await creditVerifiedPlay(tx, {
       sessionId,
@@ -185,7 +203,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ ses
     return credited.ok ? credited : { ...credited, status: 403 };
   });
 
-  if (!outcome.ok) return NextResponse.json({ error: outcome.error }, { status: outcome.status });
+  if (!outcome.ok) return NextResponse.json({ error: outcome.error, reason: "reason" in outcome ? outcome.reason : undefined }, { status: outcome.status });
   const { ok: _ok, ...result } = outcome;
   return NextResponse.json(result);
 }

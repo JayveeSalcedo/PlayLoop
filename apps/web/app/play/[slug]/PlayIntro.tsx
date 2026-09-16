@@ -18,6 +18,7 @@ export function PlayIntro({
   error,
   starting,
   onStart,
+  testMode = false,
 }: {
   artHtml: string;
   title: string;
@@ -28,10 +29,12 @@ export function PlayIntro({
   error: string | null;
   starting: boolean;
   onStart: () => void;
+  /** A creator's studio test play: playable whatever the game's status, and says it pays nothing. */
+  testMode?: boolean;
 }) {
   // Only the creator can reach an unpublished game (the page 404s for everyone
   // else), so this banner is always addressed to them.
-  const awaitingReview = status !== "published";
+  const awaitingReview = !testMode && status !== "published";
 
   return (
     <main className="mx-auto max-w-sm p-6">
@@ -56,6 +59,15 @@ export function PlayIntro({
           <Link href="/create/games" className="btn sm mt-3">
             Back to my games
           </Link>
+        </div>
+      ) : null}
+      {testMode ? (
+        <div className="card-hard mt-4 rounded-2xl bg-card p-4 [border:var(--border-thick)]">
+          <p className="font-extrabold">Test play</p>
+          <p className="mt-1 text-sm font-bold text-soft">
+            Your inputs are recorded and the server replays them, exactly like a real play. Nothing is paid. Play to the end
+            to be able to submit this version.
+          </p>
         </div>
       ) : null}
       {error ? <p className="mt-3 text-sm font-bold text-gum">{error}</p> : null}
