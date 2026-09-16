@@ -113,6 +113,59 @@ export function scoreTarget(type: GameType, questionCount?: number): number {
 }
 
 /**
+ * Fraction of the best bot score a player must reach to earn the full payout.
+ *
+ * The bots are not good players — they idle, wander and mash — so a competent
+ * human clears their best score comfortably. Biasing below it is deliberate:
+ * a target set too high makes a game feel unrewarding and quietly kills it,
+ * while one set too low costs nothing, because payout() clamps at maxPoints
+ * either way. Better to be generous than to punish.
+ *
+ * There is no data behind 0.7 yet. Recalibrate from the real distribution of
+ * play_sessions.verified_score once code games have meaningful volume.
+ */
+export const BOT_TARGET_FACTOR = 0.7;
+
+/** One bot play from a version's LabReport: which bot, and what it scored. */
+export interface BotRunScore {
+  bot: string;
+  ok: boolean;
+  score?: number;
+}
+
+/**
+ * Score needed to earn the full maxPoints payout on a code game, derived from
+ * how its own bots did when it was checked.
+ *
+ * Template games get a hand-tuned scoreTarget per type, which an open-ended
+ * generated game can't have — nobody knows what "a good score" means for a game
+ * that didn't exist an hour ago. The bot runs are the one measurement we always
+ * have: the game lab plays every version with an idle bot, an explorer and a
+ * masher across several seeds before it can pass.
+ *
+ * Idle runs are excluded because they measure what the game pays for doing
+ * nothing, not what a player can achieve. That the active bots beat the idle one
+ * is already guaranteed by the lab's responds-to-input check, so the best active
+ * score is a real floor on achievable scoring.
+ *
+ * This is **economy calibration only**. It has no say in whether a version is
+ * valid or publishable — that is the lab's verdict, decided separately. Null
+ * here means "the bots never scored, so we can't calibrate", which makes plays
+ * fall back to payout()'s flat floor; it does not mean the game is broken.
+ */
+export function codeScoreTarget(runs: readonly BotRunScore[]): number | null {
+  const active = runs
+    .filter((r) => r.ok && r.bot !== "idle" && typeof r.score === "number")
+    .map((r) => r.score!);
+  if (active.length === 0) return null;
+
+  const best = Math.max(...active);
+  if (best <= 0) return null;
+
+  return Math.max(1, Math.round(BOT_TARGET_FACTOR * best));
+}
+
+/**
  * Days a redeemed voucher stays valid before it's treated as expired.
  * Checked at read/redeem time by voucherStatus() below — no background job,
  * same pattern as otp_codes' expiresAt.

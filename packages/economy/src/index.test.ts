@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   addXp,
+  BOT_TARGET_FACTOR,
   campaignStatus,
   challengeOutcome,
+  codeScoreTarget,
   clamp,
   costPer,
   formatAed,
@@ -192,5 +194,47 @@ describe("costPer", () => {
     // "AED 0.00 per play" would read as free; no plays means no cost per play.
     expect(costPer(500_000, 0)).toBeNull();
     expect(costPer(500_000, -1)).toBeNull();
+  });
+});
+
+describe("codeScoreTarget", () => {
+  const run = (bot: string, score?: number, ok = true) => ({ bot, ok, score });
+
+  it("targets a fraction of the best active bot score", () => {
+    const runs = [run("explorer", 100), run("masher", 200), run("explorer", 150)];
+    expect(codeScoreTarget(runs)).toBe(Math.round(BOT_TARGET_FACTOR * 200));
+  });
+
+  it("ignores the idle bot", () => {
+    // The idle bot measures what the game pays for doing nothing. Letting it
+    // set the target would reward players for not playing.
+    const runs = [run("idle", 5000), run("explorer", 100)];
+    expect(codeScoreTarget(runs)).toBe(Math.round(BOT_TARGET_FACTOR * 100));
+  });
+
+  it("ignores runs that crashed", () => {
+    const runs = [run("masher", 900, false), run("explorer", 100)];
+    expect(codeScoreTarget(runs)).toBe(Math.round(BOT_TARGET_FACTOR * 100));
+  });
+
+  it("is null when no active bot ever scored", () => {
+    // Not a verdict on the game — just that there's nothing to calibrate
+    // against, so the play falls back to payout()'s floor.
+    expect(codeScoreTarget([run("idle", 40)])).toBeNull();
+    expect(codeScoreTarget([run("explorer", 0), run("masher", 0)])).toBeNull();
+    expect(codeScoreTarget([run("explorer", undefined)])).toBeNull();
+    expect(codeScoreTarget([])).toBeNull();
+  });
+
+  it("never targets zero, which would make every play pay the maximum", () => {
+    expect(codeScoreTarget([run("explorer", 1)])).toBe(1);
+  });
+
+  it("lets a player who matches the bots earn the full payout", () => {
+    const target = codeScoreTarget([run("explorer", 200)])!;
+    expect(payout(200, 200, target)).toBe(200);
+    // And someone well short of the bots still earns something.
+    expect(payout(200, 40, target)).toBeGreaterThan(15);
+    expect(payout(200, 40, target)).toBeLessThan(200);
   });
 });
