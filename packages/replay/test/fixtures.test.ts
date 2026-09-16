@@ -23,6 +23,7 @@ interface Fixture {
   game: string;
   bot: string;
   seed: string;
+  runtimeVersion: number;
   code: string;
   log: { v: 1; ticks: number; events: number[] };
   expectedScore: number;
@@ -48,6 +49,7 @@ describe("frozen recorded plays", () => {
         seed: fixture.seed,
         log: JSON.stringify(fixture.log),
         claimedScore: fixture.expectedScore,
+        runtimeVersion: fixture.runtimeVersion,
       });
 
       expect(result.ok ? null : `${result.reason}: ${result.detail}`).toBeNull();
@@ -76,6 +78,24 @@ describe("frozen recorded plays", () => {
     if (result.ok) return;
     expect(result.reason).toBe("score_mismatch");
     expect(result.replayScore).toBe(fixture.expectedScore);
+  });
+
+  it("refuses to replay under a runtime version this build doesn't have", async () => {
+    const fixture = JSON.parse(readFileSync(resolve(dir, names[0]!), "utf8")) as Fixture;
+
+    const result = await verifyPlay({
+      code: fixture.code,
+      seed: fixture.seed,
+      log: JSON.stringify(fixture.log),
+      claimedScore: fixture.expectedScore,
+      runtimeVersion: 9999,
+    });
+
+    // Refusing is the point. Silently replaying under the current runtime is
+    // what would re-score old plays and reject honest players.
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.reason).toBe("runtime_mismatch");
   });
 
   it("rejects a play replayed under a different seed", async () => {

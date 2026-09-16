@@ -9,6 +9,7 @@
  *
  *   node scripts/make-fixture.mjs <game.js> <out.json> [bot] [seed]
  */
+import { RUNTIME_VERSION } from "@playloop/runtime";
 import { readFileSync, writeFileSync } from "node:fs";
 import { BOT_SCRIPT } from "../src/bots.ts";
 import { runSandboxed } from "../src/sandbox.ts";
@@ -36,7 +37,13 @@ if (!play.ok) throw new Error(`bot play failed at ${play.stage} tick ${play.tick
 
 // Replay it exactly as the server will, so the fixture records a score we know
 // the production path reproduces rather than one we merely observed.
-const verified = await verifyPlay({ code, seed, log: JSON.stringify(play.log), claimedScore: play.score });
+const verified = await verifyPlay({
+  code,
+  seed,
+  log: JSON.stringify(play.log),
+  claimedScore: play.score,
+  runtimeVersion: RUNTIME_VERSION,
+});
 if (!verified.ok) throw new Error(`replay disagreed with the recording: ${verified.reason} ${verified.detail}`);
 
 writeFileSync(
@@ -47,6 +54,7 @@ writeFileSync(
       game: gamePath.replace(/\\/g, "/").split("/").pop(),
       bot,
       seed,
+      runtimeVersion: RUNTIME_VERSION,
       code,
       log: play.log,
       expectedScore: verified.score,

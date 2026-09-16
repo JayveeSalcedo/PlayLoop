@@ -1,8 +1,37 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 import { playWithBot } from "../../runtime/test/realm";
+import { WORKER_KILL_SLACK_MS, WORKER_STARTUP_BUDGET_MS } from "../src/sandbox";
 import { verifyPlay } from "../src/verify";
+
+/**
+ * The absolute ceiling on a job: engine start-up, then the job's own limit.
+ * Derived rather than hardcoded so tuning either budget can't silently turn
+ * the containment tests into assertions about nothing.
+ */
+const killDeadlineMs = (timeLimitMs: number) => WORKER_STARTUP_BUDGET_MS + timeLimitMs + WORKER_KILL_SLACK_MS;
+
+/**
+ * How long a trivial play takes end to end — i.e. what the worker spends
+ * booting and compiling QuickJS's WebAssembly before any game runs.
+ *
+ * Containment is only interesting measured against this. The ceiling above
+ * allows a slow cold start, so asserting against it alone would pass even if
+ * a hostile game ran for seconds past its limit. Subtracting a measured
+ * baseline asserts what actually matters: once the game is running, the
+ * deadline that bounds it is its own time limit.
+ */
+async function measureStartupMs(): Promise<number> {
+  const at = Date.now();
+  const r = await verifyPlay({
+    code: game("if (ctx.tick === 0) ctx.end();"),
+    seed: "x",
+    log: { v: 1, ticks: 1, events: [] },
+  });
+  expect(r.ok).toBe(true);
+  return Date.now() - at;
+}
 
 const examples = resolve(__dirname, "../../runtime/examples");
 const CATCH = readFileSync(resolve(examples, "catch.js"), "utf8");
@@ -116,6 +145,11 @@ describe("tampering is rejected", () => {
 describe("hostile or broken game code is contained", () => {
   const oneTickLog = (ticks = 300) => ({ v: 1, ticks, events: [] });
 
+  let startupMs = 0;
+  beforeAll(async () => {
+    startupMs = await measureStartupMs();
+  }, 20_000);
+
   it("syntax errors", async () => {
     const r = await verifyPlay({ code: "playloop.game({ meta: ", seed: "x", log: oneTickLog() });
     expect(r).toMatchObject({ ok: false, reason: "compile_error" });
@@ -162,14 +196,18 @@ describe("hostile or broken game code is contained", () => {
     const r = await verifyPlay({ code: game(`const a = []; for (;;) a.push(new Array(1e5).fill(1));`), seed: "x", log: oneTickLog(), timeLimitMs: 1000 });
     expect(r.ok).toBe(false);
     expect(["out_of_memory", "timeout"]).toContain(r.ok ? "" : r.reason);
-    expect(r.elapsedMs).toBeLessThan(1000 + 1500 + 1000);
-  }, 15_000);
+    expect(r.elapsedMs).toBeLessThan(killDeadlineMs(1000));
+    // Tight bound: whatever start-up costs, the game itself got ~1 s, not the
+    // whole start-up budget on top of it.
+    expect(r.elapsedMs).toBeLessThan(startupMs + 1000 + 1500);
+  }, 20_000);
 
   it("a native operation that never checks the deadline is still killed on time", async () => {
     const r = await verifyPlay({ code: game(`const big = []; for (let i = 0; i < 400; i++) big.push(new Array(1e5).fill(i)); s.n = big.length;`), seed: "x", log: oneTickLog(), timeLimitMs: 500, memoryLimitBytes: 256 * 1024 * 1024 });
     expect(r.ok).toBe(false);
-    expect(r.elapsedMs).toBeLessThan(500 + 1500 + 1000);
-  }, 15_000);
+    expect(r.elapsedMs).toBeLessThan(killDeadlineMs(500));
+    expect(r.elapsedMs).toBeLessThan(startupMs + 500 + 1500);
+  }, 20_000);
 
   it("score only moves through ctx and never goes negative", async () => {
     const r = await verifyPlay({ code: game(`if (ctx.tick === 0) ctx.score(-5); if (ctx.tick === 10) ctx.score(7.4); if (ctx.tick === 20) ctx.end(); if (ctx.tick > 20) ctx.score(99);`), seed: "x", log: oneTickLog(21) });

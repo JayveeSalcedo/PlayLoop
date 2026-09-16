@@ -11,6 +11,29 @@
  */
 import type { DrawApi } from "./draw";
 
+/**
+ * Which simulation this game was written and scored against.
+ *
+ * A play is only reproducible from its code, seed and input log if it is
+ * replayed by the *same* simulation that produced it. So every game version
+ * records the runtime version it was made under, every play inherits it, and
+ * verification replays against that exact prelude — never whatever happens to
+ * be deployed today. See src/preludes.ts.
+ *
+ * **Bump this** when a change could make an existing recorded play score
+ * differently: anything in prelude.ts, session.ts, replay.ts, input.ts,
+ * rng.ts, detmath.ts, or the simulation-facing parts of this file. Then add
+ * the new frozen prelude in src/generated/ and register it in preludes.ts;
+ * the old one stays forever so old plays keep replaying.
+ *
+ * **Don't bump** for draw.ts, host.ts or document.ts — render never runs on
+ * the server, so drawing cannot change a score.
+ *
+ * test/prelude.test.ts enforces this: if the runtime changes without a bump,
+ * the frozen prelude for this version stops matching and the build fails.
+ */
+export const RUNTIME_VERSION = 1;
+
 export const LOGICAL_WIDTH = 360;
 export const LOGICAL_HEIGHT = 640;
 export const TICKS_PER_SECOND = 60;

@@ -16,10 +16,16 @@ const MAX_STACK_BYTES = 1024 * 1024;
 
 /**
  * @param {import("./sandbox-worker.d.mts").SandboxJob} job
+ * @param {(() => void)} [onReady] Called once QuickJS is booted and the job is
+ *   about to run, so the parent can time the game itself rather than the
+ *   engine's start-up. Without this the kill deadline has to cover a cold
+ *   WebAssembly compile too, which either kills slow-starting honest plays or
+ *   hands a hostile game seconds of extra wall clock.
  * @returns {Promise<import("./sandbox-worker.d.mts").JobOutcome>}
  */
-export async function runJob(job) {
+export async function runJob(job, onReady) {
   const QuickJS = await getQuickJS();
+  onReady?.();
   const runtime = QuickJS.newRuntime();
   runtime.setMemoryLimit(job.memoryLimitBytes);
   runtime.setMaxStackSize(MAX_STACK_BYTES);
@@ -63,7 +69,8 @@ if (!isMainThread && parentPort) {
   const port = parentPort;
   port.once("message", async (job) => {
     try {
-      port.postMessage({ ok: true, outcome: await runJob(job) });
+      const outcome = await runJob(job, () => port.postMessage({ ready: true }));
+      port.postMessage({ ok: true, outcome });
     } catch (e) {
       port.postMessage({ ok: false, message: e instanceof Error ? e.message : String(e) });
     }

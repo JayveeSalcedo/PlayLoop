@@ -48,6 +48,15 @@ export interface VerifyInput {
    * for trusted code paths such as tests of known-good games.
    */
   isolate?: "worker" | "inline";
+  /**
+   * The runtime version the game version was created under — pass it for any
+   * real play. A recorded play is only reproducible under the simulation that
+   * produced it, so verifying a stored play against the current runtime is a
+   * bug: after any determinism change it would re-score honest plays and read
+   * the difference as tampering. Omitted means "the current runtime", which is
+   * right only for a game being checked as it's created.
+   */
+  runtimeVersion?: number;
 }
 
 export async function verifyPlay(input: VerifyInput): Promise<VerifyResult> {
@@ -68,6 +77,7 @@ export async function verifyPlay(input: VerifyInput): Promise<VerifyResult> {
     timeLimitMs: input.timeLimitMs,
     memoryLimitBytes: input.memoryLimitBytes,
     isolate: input.isolate,
+    runtimeVersion: input.runtimeVersion,
   });
   if (!run.ok) return { ok: false, reason: run.reason, detail: run.detail, elapsedMs: elapsed() };
 

@@ -16,4 +16,4 @@ export type JobOutcome =
   | { stage: JobStage; ok: true; value: unknown; evalMs: number }
   | { stage: JobStage; ok: false; name: string; message: string; evalMs: number };
 
-export function runJob(job: SandboxJob): Promise<JobOutcome>;
+export function runJob(job: SandboxJob, onReady?: () => void): Promise<JobOutcome>;
