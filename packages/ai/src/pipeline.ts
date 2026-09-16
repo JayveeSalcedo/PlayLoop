@@ -83,91 +83,174 @@ const MIN_OUTPUT_TOKENS = 2_500;
 
 export function createGame(idea: string, options: PipelineOptions): Promise<PipelineResult> {
   if (!idea.trim()) return Promise.resolve(failedBeforeStart(options, "Describe the game you want first."));
-  return run(options, { task: "create", message: createMessage(idea) });
+  return run(options, createState(idea, options));
 }
 
 export function changeGame(code: string, instruction: string, options: PipelineOptions): Promise<PipelineResult> {
   if (!instruction.trim()) return Promise.resolve(failedBeforeStart(options, "Describe the change you want first."));
-  return run(options, { task: "change", message: changeMessage(code, instruction) });
+  return run(options, changeState(code, instruction, options));
 }
 
-async function run(options: PipelineOptions, first: { task: AiTask; message: string }): Promise<PipelineResult> {
+/**
+ * A generation in progress, as plain JSON, so it can be saved between rounds and
+ * picked up by a different process.
+ *
+ * createGame/changeGame run every round back to back in one call. A serverless
+ * host can't: a whole generation (up to three model calls, each followed by the
+ * game lab's bot checks) can outlast one function invocation. There, each
+ * invocation loads the state, calls advance() once, and saves what comes back —
+ * the same loop, one iteration per request.
+ */
+export interface PipelineState {
+  v: 1;
+  /** What the next round asks the AI for. */
+  task: AiTask;
+  /** The message the next round sends. */
+  message: string;
+  /** Index of the next round; 0 is the first attempt. */
+  round: number;
+  maxFixRounds: number;
+  /** The best game so far: the passing one, else the last one that loaded. */
+  best: PipelineResult["game"];
+  problem: string | null;
+  attempts: Attempt[];
+  /** Nothing more to do: passed, gave up, or ran out of rounds or time. */
+  finished: boolean;
+  /** Time spent inside rounds so far, across however many invocations ran them. */
+  elapsedMs: number;
+}
+
+export function createState(idea: string, options: Pick<PipelineOptions, "maxFixRounds"> = {}): PipelineState {
+  return initialState("create", createMessage(idea), options);
+}
+
+export function changeState(code: string, instruction: string, options: Pick<PipelineOptions, "maxFixRounds"> = {}): PipelineState {
+  return initialState("change", changeMessage(code, instruction), options);
+}
+
+function initialState(task: AiTask, message: string, options: Pick<PipelineOptions, "maxFixRounds">): PipelineState {
+  return {
+    v: 1,
+    task,
+    message,
+    round: 0,
+    maxFixRounds: options.maxFixRounds ?? DEFAULT_MAX_FIX_ROUNDS,
+    best: null,
+    problem: null,
+    attempts: [],
+    finished: false,
+    elapsedMs: 0,
+  };
+}
+
+async function run(options: PipelineOptions, initial: PipelineState): Promise<PipelineResult> {
+  let state = initial;
+  while (!state.finished) state = await advance(state, options);
+  return finish(state, options);
+}
+
+/**
+ * Runs one round — ask the AI, then check what it wrote — and returns the next
+ * state. Doesn't mutate its input. Emits the same progress events as a full run,
+ * except the final done/failed, which finish() emits.
+ */
+export async function advance(previous: PipelineState, options: PipelineOptions): Promise<PipelineState> {
+  if (previous.finished) return previous;
+  const state: PipelineState = { ...previous, attempts: [...previous.attempts] };
   const started = Date.now();
   const provider = options.provider;
-  const maxFixRounds = options.maxFixRounds ?? DEFAULT_MAX_FIX_ROUNDS;
   const check = options.check ?? ((code: string) => checkGame(code));
   const sleep = options.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
   const progress = options.onProgress ?? (() => {});
   const now = options.now ?? Date.now;
-  const outOfTime = () => options.deadlineAt !== undefined && now() >= options.deadlineAt;
-  const attempts: Attempt[] = [];
+  const done = (): PipelineState => ({ ...state, elapsedMs: state.elapsedMs + (Date.now() - started) });
 
-  let task = first.task;
-  let message = first.message;
-  let best: PipelineResult["game"] = null;
-  let problem: string | null = null;
-
-  for (let round = 0; round <= maxFixRounds; round++) {
-    if (outOfTime()) {
-      problem = best ? `Ran out of time before the checks passed. ${problem ?? ""}`.trim() : "Ran out of time before the game was written.";
-      break;
-    }
-    progress({
-      step: round === 0 ? "writing" : "fixing",
-      round,
-      message: round === 0 ? (task === "change" ? "Making your change…" : "Writing the game…") : `Fixing what the checks found (round ${round} of ${maxFixRounds})…`,
-    });
-
-    const attempt: Attempt = { round, task, model: provider.model(task), usage: { inputTokens: 0, outputTokens: 0 }, latencyMs: 0, output: null, report: null, error: null };
-    attempts.push(attempt);
-
-    let output: GameOutput;
-    try {
-      const result = await callWithRetries(provider, task, message, { options, sleep, progress, round, now });
-      attempt.model = result.model;
-      attempt.usage = result.usage;
-      attempt.latencyMs = result.latencyMs;
-      output = parseGameOutput(result.json);
-      attempt.output = output;
-    } catch (e) {
-      if (e instanceof DeadlineReached) {
-        attempt.error = { kind: "rate_limited", message: e.message };
-        problem = e.message;
-        break;
-      }
-      const err = e instanceof AiError ? e : new AiError("provider_error", e instanceof Error ? e.message : String(e));
-      attempt.error = { kind: err.kind, message: err.message };
-      problem = err.message;
-      // Unfixable by trying again with the same setup.
-      if (["not_configured", "auth", "refused", "request_too_large"].includes(err.kind)) break;
-      // A malformed answer or a long one: retry the same step as the next round, if any remain.
-      continue;
-    }
-
-    progress({ step: "checking", round, message: "Testing it with bots…" });
-    const report = await check(output.code);
-    attempt.report = report;
-
-    const loaded = report.checks.find((c) => c.id === "contract")?.status === "pass";
-    if (report.verdict === "pass") {
-      best = { ...output, report };
-      problem = null;
-      break;
-    }
-    if (loaded || !best) best = { ...output, report };
-    const failed = report.checks.filter((c) => c.status === "fail").map((c) => c.title);
-    problem = `The game still fails: ${failed.join(", ")}.`;
-
-    // Next round fixes this version.
-    task = "fix";
-    message = fixMessage(output.code, report.fixPrompt ?? "The game lab found problems. Fix them and return the complete game.");
+  const { round, task } = state;
+  if (round > state.maxFixRounds) return { ...state, finished: true };
+  if (options.deadlineAt !== undefined && now() >= options.deadlineAt) {
+    state.problem = state.best ? `Ran out of time before the checks passed. ${state.problem ?? ""}`.trim() : "Ran out of time before the game was written.";
+    state.finished = true;
+    return done();
   }
 
-  const ok = best?.report.verdict === "pass";
-  const usage = attempts.reduce((sum, a) => ({ inputTokens: sum.inputTokens + a.usage.inputTokens, outputTokens: sum.outputTokens + a.usage.outputTokens }), { inputTokens: 0, outputTokens: 0 });
-  progress(ok ? { step: "done", round: Math.max(0, attempts.length - 1), message: "Your game passed every check." } : { step: "failed", round: Math.max(0, attempts.length - 1), message: problem ?? "The game couldn't be made." });
+  progress({
+    step: round === 0 ? "writing" : "fixing",
+    round,
+    message: round === 0 ? (task === "change" ? "Making your change…" : "Writing the game…") : `Fixing what the checks found (round ${round} of ${state.maxFixRounds})…`,
+  });
 
-  return { ok, provider: provider.id, promptVersion: PROMPT_VERSION, game: best, attempts, usage, durationMs: Date.now() - started, problem: ok ? null : problem };
+  const attempt: Attempt = { round, task, model: provider.model(task), usage: { inputTokens: 0, outputTokens: 0 }, latencyMs: 0, output: null, report: null, error: null };
+  state.attempts.push(attempt);
+  state.round = round + 1;
+
+  let output: GameOutput;
+  try {
+    const result = await callWithRetries(provider, task, state.message, { options, sleep, progress, round, now });
+    attempt.model = result.model;
+    attempt.usage = result.usage;
+    attempt.latencyMs = result.latencyMs;
+    output = parseGameOutput(result.json);
+    attempt.output = output;
+  } catch (e) {
+    if (e instanceof DeadlineReached) {
+      attempt.error = { kind: "rate_limited", message: e.message };
+      state.problem = e.message;
+      state.finished = true;
+      return done();
+    }
+    const err = e instanceof AiError ? e : new AiError("provider_error", e instanceof Error ? e.message : String(e));
+    attempt.error = { kind: err.kind, message: err.message };
+    state.problem = err.message;
+    // Unfixable by trying again with the same setup.
+    if (["not_configured", "auth", "refused", "request_too_large"].includes(err.kind)) state.finished = true;
+    // Otherwise a malformed or overlong answer: retry the same step as the next round, if any remain.
+    if (state.round > state.maxFixRounds) state.finished = true;
+    return done();
+  }
+
+  progress({ step: "checking", round, message: "Testing it with bots…" });
+  const report = await check(output.code);
+  attempt.report = report;
+
+  const loaded = report.checks.find((c) => c.id === "contract")?.status === "pass";
+  if (report.verdict === "pass") {
+    state.best = { ...output, report };
+    state.problem = null;
+    state.finished = true;
+    return done();
+  }
+  if (loaded || !state.best) state.best = { ...output, report };
+  const failed = report.checks.filter((c) => c.status === "fail").map((c) => c.title);
+  state.problem = `The game still fails: ${failed.join(", ")}.`;
+
+  // Next round fixes this version.
+  state.task = "fix";
+  state.message = fixMessage(output.code, report.fixPrompt ?? "The game lab found problems. Fix them and return the complete game.");
+  if (state.round > state.maxFixRounds) state.finished = true;
+  return done();
+}
+
+/** The result of a finished (or abandoned) state, emitting the final progress event. */
+export function finish(state: PipelineState, options: Pick<PipelineOptions, "provider" | "onProgress">): PipelineResult {
+  const ok = state.best?.report.verdict === "pass";
+  const usage = state.attempts.reduce(
+    (sum, a) => ({ inputTokens: sum.inputTokens + a.usage.inputTokens, outputTokens: sum.outputTokens + a.usage.outputTokens }),
+    { inputTokens: 0, outputTokens: 0 },
+  );
+  const round = Math.max(0, state.attempts.length - 1);
+  (options.onProgress ?? (() => {}))(
+    ok ? { step: "done", round, message: "Your game passed every check." } : { step: "failed", round, message: state.problem ?? "The game couldn't be made." },
+  );
+  return {
+    ok,
+    provider: options.provider.id,
+    promptVersion: PROMPT_VERSION,
+    game: state.best,
+    attempts: state.attempts,
+    usage,
+    durationMs: state.elapsedMs,
+    problem: ok ? null : state.problem,
+  };
 }
 
 async function callWithRetries(

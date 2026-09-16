@@ -1,6 +1,6 @@
 import type { LabReport } from "@playloop/replay";
 import { describe, expect, it } from "vitest";
-import { changeGame, createGame, type ProgressEvent } from "../src/pipeline";
+import { advance, changeGame, changeState, createGame, createState, finish, type PipelineState, type ProgressEvent } from "../src/pipeline";
 import { parseGameOutput } from "../src/output";
 import { estimateTokens, SYSTEM_PROMPT } from "../src/prompts";
 import { getProvider } from "../src/registry";
@@ -215,5 +215,65 @@ describe("output parsing and config", () => {
     expect(getProvider({ GROQ_API_KEY: "test" }).id).toBe("groq");
     const anthropic = getProvider({ AI_PROVIDER: "anthropic", ANTHROPIC_API_KEY: "test", AI_MODEL_FIX: "claude-sonnet-5" });
     expect([anthropic.id, anthropic.model("create"), anthropic.model("fix")]).toEqual(["anthropic", "claude-opus-5", "claude-sonnet-5"]);
+  });
+});
+
+describe("advance (one round per invocation)", () => {
+  /** Runs a generation the way a serverless host does: one round per "request", state through JSON in between. */
+  async function stepwise(initial: PipelineState, provider: AiProvider, events: ProgressEvent[]) {
+    let saved = JSON.stringify(initial);
+    let invocations = 0;
+    for (;;) {
+      const state = JSON.parse(saved) as PipelineState;
+      if (state.finished) return { result: finish(state, { provider, onProgress: (e) => events.push(e) }), invocations };
+      saved = JSON.stringify(await advance(state, { ...base, provider, onProgress: (e) => events.push(e) }));
+      invocations += 1;
+    }
+  }
+
+  it("produces the same result as a single run, one round per invocation", async () => {
+    const oneGoEvents: ProgressEvent[] = [];
+    const oneGo = await createGame("a game", { ...base, provider: scripted([BROKEN, GOOD]), onProgress: (e) => oneGoEvents.push(e) });
+
+    const stepEvents: ProgressEvent[] = [];
+    const { result, invocations } = await stepwise(createState("a game"), scripted([BROKEN, GOOD]), stepEvents);
+
+    expect(invocations).toBe(2);
+    expect(result).toMatchObject({ ok: oneGo.ok, problem: oneGo.problem, usage: oneGo.usage, game: { code: oneGo.game!.code } });
+    expect(result.attempts.map((a) => a.task)).toEqual(oneGo.attempts.map((a) => a.task));
+    expect(stepEvents.map((e) => e.step)).toEqual(oneGoEvents.map((e) => e.step));
+  });
+
+  it("carries the failing game and the lab's feedback across invocations", async () => {
+    const provider = scripted([BROKEN, GOOD]);
+    const afterFirst = await advance(createState("a game"), { ...base, provider });
+    const reloaded = JSON.parse(JSON.stringify(afterFirst)) as PipelineState;
+    expect(reloaded).toMatchObject({ finished: false, round: 1, task: "fix", best: { code: BROKEN } });
+
+    await advance(reloaded, { ...base, provider });
+    const fix = provider.requests[1]!.messages[0]!.content;
+    expect(fix).toContain(BROKEN);
+    expect(fix).toContain("LAB: replace Math.random with ctx.random");
+  });
+
+  it("finishes after the last fix round", async () => {
+    const { result, invocations } = await stepwise(createState("a game", { maxFixRounds: 1 }), scripted([BROKEN, BROKEN]), []);
+    expect(invocations).toBe(2);
+    expect(result).toMatchObject({ ok: false, game: { code: BROKEN } });
+  });
+
+  it("does nothing to a finished state", async () => {
+    const provider = scripted([GOOD]);
+    const done = await advance(createState("a game"), { ...base, provider });
+    expect(done.finished).toBe(true);
+    expect(await advance(done, { ...base, provider })).toBe(done);
+    expect(provider.requests).toHaveLength(1);
+  });
+
+  it("starts a change from the current code", async () => {
+    const provider = scripted([GOOD]);
+    await advance(changeState(BROKEN, "make it faster"), { ...base, provider });
+    expect(provider.requests[0]!.task).toBe("change");
+    expect(provider.requests[0]!.messages[0]!.content).toContain(BROKEN);
   });
 });
