@@ -176,3 +176,36 @@ body {
     transform: none;
   }
 }
+
+/*
+ * The code-game player (app/play/[slug]/CodeGamePlayer.tsx). Reuses the
+ * template host's HUD, stage and countdown from game-host.css; these are only
+ * the pieces a sandboxed iframe needs on top. Kept to a phone-width column,
+ * since games are drawn on a 360x640 portrait canvas.
+ */
+.code-player {
+  max-width: 480px;
+  margin: 0 auto;
+}
+.code-player .ghud {
+  padding-top: max(14px, env(safe-area-inset-top));
+}
+.code-frame {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: transparent;
+}
+.code-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 12;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  background: rgba(27, 20, 70, 0.72);
+}

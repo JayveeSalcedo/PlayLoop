@@ -7,8 +7,9 @@
  * allow-same-origin, which gives it an opaque origin: no cookies, storage or
  * access to the parent page.
  */
+import { RUNTIME_VERSION } from "./contract";
 import { HOST_SOURCE } from "./generated/host";
-import { PRELUDE_SOURCE } from "./generated/prelude";
+import { preludeFor } from "./preludes";
 
 export const GAME_FRAME_SANDBOX = "allow-scripts";
 
@@ -17,7 +18,19 @@ const CSP = "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-i
 /** `</script` inside a script body would end the tag early; `<\/script` means the same to JS. */
 const inlineScript = (source: string) => `<script>${source.replace(/<\/script/gi, "<\\/script")}</script>`;
 
-export function buildGameDocument(gameCode: string): string {
+/**
+ * `runtimeVersion` must be the version the game was made under, the same one
+ * the server will replay it with. The browser play and the server replay have
+ * to run the identical simulation: if a game made under version 1 were played
+ * here under a later prelude, its recorded inputs could produce a different
+ * score on the server, and an honest play would be rejected as tampering.
+ * Omit it only for a game being created or checked right now.
+ */
+export function buildGameDocument(gameCode: string, runtimeVersion: number = RUNTIME_VERSION): string {
+  const prelude = preludeFor(runtimeVersion);
+  if (prelude === null) {
+    throw new Error(`This build can't run runtime version ${runtimeVersion}; it has ${RUNTIME_VERSION}.`);
+  }
   return [
     "<!doctype html>",
     '<html><head><meta charset="utf-8">',
@@ -25,7 +38,7 @@ export function buildGameDocument(gameCode: string): string {
     '<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">',
     "<style>html,body{margin:0;height:100%;overflow:hidden;background:transparent;touch-action:none;-webkit-user-select:none;user-select:none}canvas{display:block;width:100%;height:100%;touch-action:none}</style>",
     '</head><body><canvas id="c"></canvas>',
-    inlineScript(PRELUDE_SOURCE),
+    inlineScript(prelude),
     inlineScript(HOST_SOURCE),
     inlineScript(gameCode),
     "</body></html>",

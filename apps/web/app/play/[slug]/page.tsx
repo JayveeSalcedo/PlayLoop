@@ -3,6 +3,8 @@ import { eq } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import { isAdminEmail } from "@/lib/admin";
 import { requireSession } from "@/lib/session";
+import type { GameMeta } from "@playloop/runtime";
+import { CodeGamePlayer } from "./CodeGamePlayer";
 import { GamePlayer } from "./GamePlayer";
 
 export default async function PlayPage({
@@ -35,6 +37,41 @@ export default async function PlayPage({
   // game's fate goes through requireAdmin(), which reads the row.
   const isCreator = game.creatorId != null && game.creatorId === session.sub;
   if (game.status !== "published" && !isCreator && !isAdminEmail(session.email)) notFound();
+
+  if (game.gameKind === "code") {
+    // The version players get right now. The browser plays exactly this code
+    // under exactly this runtime; startPlay pins the same version onto the
+    // session, and refuses if the game has moved on since this page loaded.
+    const version = game.currentVersionId
+      ? await db
+          .select({
+            id: schema.gameVersions.id,
+            code: schema.gameVersions.code,
+            runtimeVersion: schema.gameVersions.runtimeVersion,
+            meta: schema.gameVersions.meta,
+          })
+          .from(schema.gameVersions)
+          .where(eq(schema.gameVersions.id, game.currentVersionId))
+          .then((r) => r[0])
+      : undefined;
+
+    return (
+      <CodeGamePlayer
+        game={{
+          id: game.id,
+          slug: game.slug,
+          title: game.title,
+          description: game.description,
+          theme: game.theme,
+          difficulty: game.difficulty,
+          maxPoints: game.maxPoints,
+          status: game.status,
+        }}
+        version={version ? { ...version, meta: version.meta as unknown as GameMeta } : null}
+        challengeCode={challenge}
+      />
+    );
+  }
 
   return (
     <GamePlayer
