@@ -60,7 +60,21 @@ export interface PipelineOptions {
   /** How many times one AI call may be retried after a rate limit. */
   maxRateLimitRetries?: number;
   effort?: Effort;
+  /**
+   * Epoch ms after which the pipeline must not start anything new. A
+   * serverless function is killed at its time limit — possibly in the middle of
+   * waiting out a rate limit — so the caller passes its own limit minus room
+   * for one more round and for saving the result. At the deadline the pipeline
+   * stops and returns the best game so far instead of being cut off mid-sleep
+   * with nothing to show.
+   */
+  deadlineAt?: number;
+  /** Injected in tests; defaults to Date.now. */
+  now?: () => number;
 }
+
+/** Thrown inside the loop when a wait would run past options.deadlineAt; never escapes run(). */
+class DeadlineReached extends Error {}
 
 const DEFAULT_MAX_FIX_ROUNDS = 2;
 const MAX_WAIT_MS = 65_000;
@@ -84,6 +98,8 @@ async function run(options: PipelineOptions, first: { task: AiTask; message: str
   const check = options.check ?? ((code: string) => checkGame(code));
   const sleep = options.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
   const progress = options.onProgress ?? (() => {});
+  const now = options.now ?? Date.now;
+  const outOfTime = () => options.deadlineAt !== undefined && now() >= options.deadlineAt;
   const attempts: Attempt[] = [];
 
   let task = first.task;
@@ -92,6 +108,10 @@ async function run(options: PipelineOptions, first: { task: AiTask; message: str
   let problem: string | null = null;
 
   for (let round = 0; round <= maxFixRounds; round++) {
+    if (outOfTime()) {
+      problem = best ? `Ran out of time before the checks passed. ${problem ?? ""}`.trim() : "Ran out of time before the game was written.";
+      break;
+    }
     progress({
       step: round === 0 ? "writing" : "fixing",
       round,
@@ -103,13 +123,18 @@ async function run(options: PipelineOptions, first: { task: AiTask; message: str
 
     let output: GameOutput;
     try {
-      const result = await callWithRetries(provider, task, message, { options, sleep, progress, round });
+      const result = await callWithRetries(provider, task, message, { options, sleep, progress, round, now });
       attempt.model = result.model;
       attempt.usage = result.usage;
       attempt.latencyMs = result.latencyMs;
       output = parseGameOutput(result.json);
       attempt.output = output;
     } catch (e) {
+      if (e instanceof DeadlineReached) {
+        attempt.error = { kind: "rate_limited", message: e.message };
+        problem = e.message;
+        break;
+      }
       const err = e instanceof AiError ? e : new AiError("provider_error", e instanceof Error ? e.message : String(e));
       attempt.error = { kind: err.kind, message: err.message };
       problem = err.message;
@@ -140,7 +165,7 @@ async function run(options: PipelineOptions, first: { task: AiTask; message: str
 
   const ok = best?.report.verdict === "pass";
   const usage = attempts.reduce((sum, a) => ({ inputTokens: sum.inputTokens + a.usage.inputTokens, outputTokens: sum.outputTokens + a.usage.outputTokens }), { inputTokens: 0, outputTokens: 0 });
-  progress(ok ? { step: "done", round: attempts.length - 1, message: "Your game passed every check." } : { step: "failed", round: attempts.length - 1, message: problem ?? "The game couldn't be made." });
+  progress(ok ? { step: "done", round: Math.max(0, attempts.length - 1), message: "Your game passed every check." } : { step: "failed", round: Math.max(0, attempts.length - 1), message: problem ?? "The game couldn't be made." });
 
   return { ok, provider: provider.id, promptVersion: PROMPT_VERSION, game: best, attempts, usage, durationMs: Date.now() - started, problem: ok ? null : problem };
 }
@@ -149,7 +174,7 @@ async function callWithRetries(
   provider: AiProvider,
   task: AiTask,
   message: string,
-  ctx: { options: PipelineOptions; sleep: (ms: number) => Promise<void>; progress: (e: ProgressEvent) => void; round: number },
+  ctx: { options: PipelineOptions; sleep: (ms: number) => Promise<void>; progress: (e: ProgressEvent) => void; round: number; now: () => number },
 ) {
   const retries = ctx.options.maxRateLimitRetries ?? 4;
   const maxOutputTokens = outputBudget(provider, message);
@@ -167,6 +192,10 @@ async function callWithRetries(
     } catch (e) {
       if (!(e instanceof AiError) || e.kind !== "rate_limited" || attempt >= retries) throw e;
       const waitMs = Math.min(MAX_WAIT_MS, Math.max(2_000, e.retryAfterMs ?? 20_000));
+      // Waiting past the deadline would just get the function killed mid-sleep.
+      if (ctx.options.deadlineAt !== undefined && ctx.now() + waitMs >= ctx.options.deadlineAt) {
+        throw new DeadlineReached("The AI service is busy and there wasn't time to wait for it. Try again in a minute.");
+      }
       ctx.progress({ step: "waiting", round: ctx.round, waitMs, message: `The AI service is busy, trying again in ${Math.ceil(waitMs / 1000)} s…` });
       await ctx.sleep(waitMs);
     }

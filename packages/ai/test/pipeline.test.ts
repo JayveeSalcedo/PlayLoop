@@ -90,6 +90,75 @@ describe("createGame", () => {
     expect(result.attempts).toHaveLength(1);
   });
 
+  describe("with a deadline", () => {
+    /** A clock that advances only when the pipeline sleeps or the fake lab runs. */
+    function clock(start = 1_000_000) {
+      let t = start;
+      return { now: () => t, advance: (ms: number) => void (t += ms) };
+    }
+
+    it("won't wait out a rate limit that would outlast the deadline", async () => {
+      const c = clock();
+      const waits: number[] = [];
+      const provider = scripted([new AiError("rate_limited", "busy", { retryAfterMs: 30_000 }), GOOD]);
+      const result = await createGame("a game", {
+        ...base,
+        provider,
+        now: c.now,
+        deadlineAt: c.now() + 10_000,
+        sleep: async (ms) => void waits.push(ms),
+      });
+      // Better to fail now with a clear reason than be killed mid-sleep.
+      expect(waits).toEqual([]);
+      expect(provider.requests).toHaveLength(1);
+      expect(result).toMatchObject({ ok: false, game: null });
+      expect(result.problem).toMatch(/busy/);
+    });
+
+    it("still waits when the wait fits", async () => {
+      const c = clock();
+      const provider = scripted([new AiError("rate_limited", "busy", { retryAfterMs: 5_000 }), GOOD]);
+      const result = await createGame("a game", {
+        ...base,
+        provider,
+        now: c.now,
+        deadlineAt: c.now() + 60_000,
+        sleep: async (ms) => c.advance(ms),
+      });
+      expect(result.ok).toBe(true);
+    });
+
+    it("stops starting fix rounds at the deadline and keeps the best game so far", async () => {
+      const c = clock();
+      const provider = scripted([BROKEN, GOOD]);
+      const result = await createGame("a game", {
+        ...base,
+        provider,
+        now: c.now,
+        deadlineAt: c.now() + 1_000,
+        // The first check eats the remaining time.
+        check: async (code) => {
+          c.advance(5_000);
+          return fakeReport(code);
+        },
+      });
+      expect(provider.requests).toHaveLength(1);
+      expect(result.ok).toBe(false);
+      expect(result.game?.code).toBe(BROKEN);
+      expect(result.problem).toMatch(/Ran out of time.*Code scan/);
+    });
+
+    it("doesn't start at all if the deadline has already passed", async () => {
+      const c = clock();
+      const provider = scripted([GOOD]);
+      const events: ProgressEvent[] = [];
+      const result = await createGame("a game", { ...base, provider, now: c.now, deadlineAt: c.now() - 1, onProgress: (e) => events.push(e) });
+      expect(provider.requests).toHaveLength(0);
+      expect(result).toMatchObject({ ok: false, game: null });
+      expect(events).toEqual([expect.objectContaining({ step: "failed", round: 0 })]);
+    });
+  });
+
   it("doesn't retry errors that retrying can't fix", async () => {
     const provider = scripted([new AiError("auth", "bad key")]);
     const result = await createGame("a game", { ...base, provider });
