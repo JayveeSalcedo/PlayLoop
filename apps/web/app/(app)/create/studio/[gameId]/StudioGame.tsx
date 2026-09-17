@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Spinner } from "@/app/_components/Spinner";
+import { GameShare } from "@/app/(app)/create/games/[id]/GameShare";
+import { SponsorToggle } from "@/app/(app)/create/games/[id]/SponsorToggle";
 import type { JobView } from "@/lib/generation/jobs";
 import { makeVersionCurrent, submitVersion } from "../actions";
 import { JobProgress, useJobRunner } from "../JobProgress";
@@ -54,7 +56,15 @@ export function StudioGame({
   selectedId,
   openJob,
 }: {
-  game: { id: string; title: string; status: string; slug: string; currentVersionId: string | null };
+  game: {
+    id: string;
+    title: string;
+    status: string;
+    slug: string;
+    currentVersionId: string | null;
+    sponsorReady: boolean;
+    playCount: number;
+  };
   versions: StudioVersion[];
   selectedId: string | null;
   openJob: JobView | null;
@@ -206,6 +216,25 @@ export function StudioGame({
               </Link>
             ) : null}
           </div>
+        </section>
+      ) : null}
+
+      {game.status === "published" ? (
+        <section className="mt-6">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="card-hard rounded-2xl bg-card p-4 [border:var(--border-thick)]">
+              <p className="text-xs font-extrabold text-soft">Plays</p>
+              <p className="text-2xl font-extrabold">{game.playCount.toLocaleString("en-US")}</p>
+            </div>
+            <div className="card-hard rounded-2xl bg-card p-4 [border:var(--border-thick)]">
+              <p className="text-xs font-extrabold text-soft">Earned</p>
+              {/* Same AED 0.02/play estimate as the template game's page — derived on
+                  read, no creator_earnings table until payouts exist. */}
+              <p className="text-2xl font-extrabold">AED {(game.playCount * 0.02).toFixed(2)}</p>
+            </div>
+          </div>
+          <SponsorToggle gameId={game.id} initial={game.sponsorReady} />
+          <GameShare slug={game.slug} />
         </section>
       ) : null}
 

@@ -129,6 +129,10 @@ export async function toggleSponsorReady(gameId: string, next: boolean): Promise
 
   if (!row) throw new Error("That game isn't yours to change.");
 
+  // A template game's page lives at /create/games/[id]; a code game's at
+  // /create/studio/[gameId] instead. Revalidating both is harmless for
+  // whichever one this game isn't — Next.js no-ops a path that was never cached.
   revalidatePath(`/create/games/${gameId}`);
+  revalidatePath(`/create/studio/${gameId}`);
   return row;
 }

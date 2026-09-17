@@ -87,7 +87,15 @@ export default async function StudioGamePage({
 
   return (
     <StudioGame
-      game={{ id: game.id, title: game.title, status: game.status, slug: game.slug, currentVersionId: game.currentVersionId }}
+      game={{
+        id: game.id,
+        title: game.title,
+        status: game.status,
+        slug: game.slug,
+        currentVersionId: game.currentVersionId,
+        sponsorReady: game.sponsorReady,
+        playCount: game.playCount,
+      }}
       versions={rows}
       selectedId={selected?.id ?? null}
       openJob={openJob ? toView(openJob) : null}
