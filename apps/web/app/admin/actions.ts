@@ -32,10 +32,23 @@ async function decide(
       .update(schema.games)
       .set({ status: outcome === "approved" ? "published" : "rejected" })
       .where(and(eq(schema.games.id, gameId), eq(schema.games.status, "pending_review")))
-      .returning({ title: schema.games.title });
+      .returning({ title: schema.games.title, gameKind: schema.games.gameKind, currentVersionId: schema.games.currentVersionId });
 
     if (!game) {
       return { ok: false as const, error: "That game isn't waiting for review any more — someone may have just decided it." };
+    }
+
+    // Mirrors the decision onto the version actually reviewed. Without this,
+    // game_versions.status would stay 'pending_review' forever after this
+    // point — wrong on its face, and the schema's own reason for the column
+    // (reverting to a version already approved shouldn't need re-review) only
+    // holds if the outcome is recorded here, on the version, not just on the
+    // game.
+    if (game.gameKind === "code" && game.currentVersionId) {
+      await tx
+        .update(schema.gameVersions)
+        .set({ status: outcome === "approved" ? "published" : "rejected" })
+        .where(eq(schema.gameVersions.id, game.currentVersionId));
     }
 
     await tx
