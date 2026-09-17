@@ -30,12 +30,12 @@ export function getProvider(env: Env = process.env, override?: ProviderId): AiPr
 
   if (id === "groq") {
     const apiKey = env.GROQ_API_KEY?.trim();
-    if (!apiKey) throw new AiError("not_configured", "GROQ_API_KEY isn't set. Add it to apps/lab/.env.local.");
+    if (!apiKey) throw new AiError("not_configured", "GROQ_API_KEY isn't set.");
     const tpm = Number(env.GROQ_TOKENS_PER_MINUTE);
     return createGroqProvider({ apiKey, models, tokensPerMinute: Number.isFinite(tpm) && tpm > 0 ? tpm : undefined });
   }
 
   const apiKey = env.ANTHROPIC_API_KEY?.trim();
-  if (!apiKey) throw new AiError("not_configured", "ANTHROPIC_API_KEY isn't set. Add it to apps/lab/.env.local.");
+  if (!apiKey) throw new AiError("not_configured", "ANTHROPIC_API_KEY isn't set.");
   return createAnthropicProvider({ apiKey, models });
 }
