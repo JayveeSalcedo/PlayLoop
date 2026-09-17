@@ -31,6 +31,7 @@
 import {
   advance,
   changeState,
+  configuredProviderId,
   createState,
   finish,
   getProvider,
@@ -42,6 +43,20 @@ import {
 import { getDb, schema } from "@playloop/db";
 import { and, count, desc, eq, gte, inArray, lt, sql } from "drizzle-orm";
 import { addVersion } from "./versions";
+
+/** A short label for whichever provider/model is configured, or why it isn't. Shown in the studio, never load-bearing. */
+export function providerLabel(): string {
+  try {
+    const provider = getProvider();
+    return `${provider.id} · ${provider.model("create")}`;
+  } catch {
+    try {
+      return `${configuredProviderId()} (not configured)`;
+    } catch {
+      return "not configured";
+    }
+  }
+}
 
 export type JobKind = "create" | "change" | "fix";
 export type JobStatus = "queued" | "running" | "done" | "failed";

@@ -19,6 +19,7 @@ import { THEMES, artSVG, icon, itemShape, type GameArtType, type ItemKind, type 
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { Spinner } from "@/app/_components/Spinner";
+import { AiGenerateBox } from "./AiGenerateBox";
 import { publishGame } from "./actions";
 import { shrinkImage } from "./shrink";
 import { TestPlay } from "./TestPlay";
@@ -80,7 +81,7 @@ function toGameDraft(d: Draft): GameDraft {
   };
 }
 
-export function CreatorWizard() {
+export function CreatorWizard({ aiProviderLabel }: { aiProviderLabel: string }) {
   const router = useRouter();
   const [step, setStep] = useState(0);
   const [draft, setDraft] = useState<Draft>(EMPTY);
@@ -145,27 +146,37 @@ export function CreatorWizard() {
       ) : null}
 
       {step === 0 ? (
-        <section>
-          <h2 className="text-xl font-extrabold">Start from a template</h2>
-          <p className="mt-1 mb-4 text-sm font-bold text-soft">
-            Every template is already fun and phone-ready. You bring the content.
-          </p>
-          <div className="flex flex-col gap-3">
-            {TEMPLATES.map((t, i) => (
-              <button
-                key={t.type}
-                onClick={() => set({ type: t.type, title: draft.title })}
-                className={`card-hard card-hard-hover pop-in-${i + 1} rounded-2xl p-4 text-left [border:var(--border-thick)] ${
-                  draft.type === t.type ? "bg-lemon" : "bg-card"
-                }`}
-              >
-                <b className="block">{t.name}</b>
-                <span className="block text-sm font-bold text-soft">{t.blurb}</span>
-                <span className="mt-1 block text-xs font-bold text-soft">Best for: {t.best}</span>
-              </button>
-            ))}
+        <div className="flex flex-col gap-6">
+          <AiGenerateBox providerLabel={aiProviderLabel} />
+
+          <div className="flex items-center gap-3 text-sm font-bold text-soft" aria-hidden="true">
+            <span className="h-0.5 flex-1 bg-faint/40" />
+            or start from a template
+            <span className="h-0.5 flex-1 bg-faint/40" />
           </div>
-        </section>
+
+          <section>
+            <h2 className="text-xl font-extrabold">Start from a template</h2>
+            <p className="mt-1 mb-4 text-sm font-bold text-soft">
+              Every template is already fun and phone-ready. You bring the content.
+            </p>
+            <div className="flex flex-col gap-3">
+              {TEMPLATES.map((t, i) => (
+                <button
+                  key={t.type}
+                  onClick={() => set({ type: t.type, title: draft.title })}
+                  className={`card-hard card-hard-hover pop-in-${i + 1} rounded-2xl p-4 text-left [border:var(--border-thick)] ${
+                    draft.type === t.type ? "bg-lemon" : "bg-card"
+                  }`}
+                >
+                  <b className="block">{t.name}</b>
+                  <span className="block text-sm font-bold text-soft">{t.blurb}</span>
+                  <span className="mt-1 block text-xs font-bold text-soft">Best for: {t.best}</span>
+                </button>
+              ))}
+            </div>
+          </section>
+        </div>
       ) : null}
 
       {step === 1 && draft.type ? (
