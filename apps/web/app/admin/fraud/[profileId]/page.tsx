@@ -136,6 +136,11 @@ export default async function FraudProfilePage({ params }: { params: Promise<{ p
                       ? `ceiling ${rules.maxScore.toLocaleString("en-US")} · ${r.difficulty}`
                       : `replay scored ${r.verifiedScore?.toLocaleString("en-US") ?? "—"}`}
                   </p>
+                  {isCode ? (
+                    <Link href={`/admin/fraud/session/${r.id}`} className="mt-1 inline-block text-xs font-extrabold underline">
+                      View recorded input log
+                    </Link>
+                  ) : null}
                 </li>
               );
             })}
