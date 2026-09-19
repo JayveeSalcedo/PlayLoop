@@ -1,7 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { refreshVoucher } from "./actions";
+
+type RefreshResult = { qrSvg: string; backupCode: string; slotSecondsLeft: number };
 
 /**
  * Active voucher display with auto-rotating QR code every 30 seconds.
@@ -26,25 +28,40 @@ export function RotatingVoucher({
   const [secondsLeft, setSecondsLeft] = useState(30);
   const [flipping, setFlipping] = useState(false);
 
-  const refresh = useCallback(async () => {
-    const result = await refreshVoucher(voucherId);
-    if (result) {
-      // Trigger flip animation on QR swap (prototype's .flip2 keyframe)
+  useEffect(() => {
+    // A ref rather than a `let cancelled` closure over one mount: the
+    // 225ms flip delay below means a stale response from a prior interval
+    // tick could still land after a newer one starts, and only the ref
+    // form lets the setTimeout callback see updates from later ticks too.
+    let cancelled = false;
+
+    // Trigger the flip animation (prototype's .flip2 keyframe) on QR swap,
+    // then swap the actual content once it's rotated out of view. Called
+    // from a promise continuation, never directly from the effect body, so
+    // an interval tick's setState is always an async reaction to the fetch
+    // resolving — not a synchronous render loop.
+    const applyRefresh = (result: RefreshResult | null) => {
+      if (cancelled || !result) return;
       setFlipping(true);
       setTimeout(() => {
+        if (cancelled) return;
         setQrSvg(result.qrSvg);
         setBackupCode(result.backupCode);
         setSecondsLeft(result.slotSecondsLeft);
         setFlipping(false);
       }, 225);
-    }
-  }, [voucherId]);
+    };
 
-  useEffect(() => {
-    refresh();
-    const interval = setInterval(refresh, 30_000);
-    return () => clearInterval(interval);
-  }, [refresh]);
+    refreshVoucher(voucherId).then(applyRefresh);
+    const interval = setInterval(() => {
+      refreshVoucher(voucherId).then(applyRefresh);
+    }, 30_000);
+
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [voucherId]);
 
   useEffect(() => {
     const tick = setInterval(() => setSecondsLeft((s) => Math.max(0, s - 1)), 1000);
