@@ -23,9 +23,28 @@ const nextConfig: NextConfig = {
    * The worker script and the QuickJS .wasm are loaded at runtime by path, so
    * nothing statically imports them and tracing would otherwise drop them from
    * the serverless bundle.
+   *
+   * Each pnpm-store package is listed by its own real directory rather than a
+   * single broad "quickjs-emscripten" wildcard — that wider glob also swept up
+   * the symlinks pnpm creates inside a package's own nested node_modules
+   * (e.g. .pnpm/quickjs-emscripten@X/node_modules/quickjs-emscripten-core,
+   * and the four @jitl/quickjs-wasmfile-* variants under .pnpm/quickjs-
+   * emscripten@X/node_modules/@jitl/), which Vercel's deploy packager refuses
+   * ("produced an invalid deployment package ... files in symlinked
+   * directories"). Listing each package's own leaf directory only reaches
+   * real files — verified against the actual node_modules/.pnpm layout.
    */
   outputFileTracingIncludes: {
-    "/api/**": ["../../packages/replay/dist/**", "../../node_modules/.pnpm/quickjs-emscripten*/**"],
+    "/api/**": [
+      "../../packages/replay/dist/**",
+      "../../node_modules/.pnpm/quickjs-emscripten@*/node_modules/quickjs-emscripten/**",
+      "../../node_modules/.pnpm/quickjs-emscripten-core@*/node_modules/quickjs-emscripten-core/**",
+      "../../node_modules/.pnpm/@jitl+quickjs-ffi-types@*/node_modules/@jitl/quickjs-ffi-types/**",
+      "../../node_modules/.pnpm/@jitl+quickjs-wasmfile-release-sync@*/node_modules/@jitl/quickjs-wasmfile-release-sync/**",
+      "../../node_modules/.pnpm/@jitl+quickjs-wasmfile-release-asyncify@*/node_modules/@jitl/quickjs-wasmfile-release-asyncify/**",
+      "../../node_modules/.pnpm/@jitl+quickjs-wasmfile-debug-sync@*/node_modules/@jitl/quickjs-wasmfile-debug-sync/**",
+      "../../node_modules/.pnpm/@jitl+quickjs-wasmfile-debug-asyncify@*/node_modules/@jitl/quickjs-wasmfile-debug-asyncify/**",
+    ],
   },
   webpack(config, { isServer }) {
     if (isServer) {
