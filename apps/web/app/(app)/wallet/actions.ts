@@ -50,3 +50,37 @@ export async function refreshVoucher(voucherId: string): Promise<{
 
   return { qrSvg, backupCode, slotSecondsLeft };
 }
+
+/**
+ * Updates a player's profile: gamer name, avatar index, and interests.
+ * Validates inputs and revalidates the wallet page.
+ */
+export async function updateProfile(data: {
+  name: string;
+  avatarIndex: number;
+  interests: string[];
+}): Promise<{ ok: boolean; error?: string }> {
+  const { session } = await requireProfile();
+  const db = getDb();
+
+  const cleanName = (data.name ?? "").trim().slice(0, 14);
+  if (!cleanName) return { ok: false, error: "Name cannot be empty." };
+
+  const cleanAvatar = Math.max(0, Math.min(5, Math.floor(Number(data.avatarIndex) || 0)));
+  const cleanInterests = Array.isArray(data.interests) ? data.interests.map(String) : [];
+
+  await db
+    .update(schema.profiles)
+    .set({
+      name: cleanName,
+      avatarIndex: cleanAvatar,
+      interests: cleanInterests,
+    })
+    .where(eq(schema.profiles.id, session.sub));
+
+  const { revalidatePath } = await import("next/cache");
+  revalidatePath("/wallet");
+  revalidatePath("/feed");
+
+  return { ok: true };
+}

@@ -44,6 +44,10 @@ export interface PlayResult {
    * claim your reward" instead of the normal share/home actions.
    */
   isGuest: boolean;
+  /** Score target for full payout, used to calculate 1-3 star performance rating */
+  target: number;
+  /** True if this score is strictly greater than the player's previous best on this game */
+  isPersonalBest: boolean;
 }
 
 export type CreditOutcome = ({ ok: true } & PlayResult) | { ok: false; error: string };
@@ -234,6 +238,21 @@ export async function creditVerifiedPlay(
     await maybeAwardReferralBonus(tx, profile);
   }
 
+  // Check if this is a personal best for this player on this game.
+  const prevBestRow = await tx
+    .select({ maxScore: sql<number>`coalesce(max(${schema.playSessions.score}), 0)` })
+    .from(schema.playSessions)
+    .where(
+      and(
+        eq(schema.playSessions.profileId, profile.id),
+        eq(schema.playSessions.gameId, game.id),
+        eq(schema.playSessions.status, "completed"),
+        sql`${schema.playSessions.id} != ${sessionId}`,
+      ),
+    );
+  const prevBest = prevBestRow[0]?.maxScore ?? 0;
+  const isPersonalBest = score > 0 && score > prevBest;
+
   return {
     ok: true,
     score,
@@ -244,5 +263,7 @@ export async function creditVerifiedPlay(
     pointsBalance,
     challengeResult,
     isGuest: profile.isGuest,
+    target,
+    isPersonalBest,
   };
 }

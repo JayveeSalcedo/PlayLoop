@@ -8,6 +8,8 @@ import { voucherQrSvg } from "@/lib/qr";
 import { getStreak } from "@/lib/streak";
 import { StreakCard } from "./StreakCard";
 import { RotatingVoucher } from "./RotatingVoucher";
+import { ProfileCard } from "./ProfileCard";
+import { PerksModal } from "./PerksModal";
 
 export default async function WalletPage() {
   const { profile } = await requireProfile();
@@ -60,6 +62,9 @@ export default async function WalletPage() {
     <main className="mx-auto max-w-sm p-6">
       <h1 className="text-3xl font-extrabold tracking-tight">Wallet</h1>
 
+      {/* Profile Card & Editor */}
+      <ProfileCard profile={profile} />
+
       {/* Balance card — prototype's .wcard */}
       <div className="mt-4 rounded-3xl bg-violet p-5 text-white [border:var(--border-thick)] [box-shadow:var(--shadow-sm)]">
         <p className="text-sm font-bold opacity-90">Balance</p>
@@ -78,6 +83,7 @@ export default async function WalletPage() {
           </span>
           <span>{need - profile.xp} XP to next</span>
         </p>
+        <PerksModal currentLevel={profile.level} currentXp={profile.xp} />
       </div>
 
       {/* Stats row — prototype's .wstats */}
