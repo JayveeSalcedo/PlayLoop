@@ -94,7 +94,7 @@ export async function creditEventRoundPoints(args: {
     delta: cleanPoints,
     reason: `${event.title} — Round ${round.number} (#${args.rank})`,
     refType: "event_round",
-    refId: `${event.code}_R${round.number}_${Date.now()}`,
+    refId: randomUUID(),
   });
 
   const [updated] = await db
