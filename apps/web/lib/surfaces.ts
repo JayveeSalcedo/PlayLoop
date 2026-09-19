@@ -39,6 +39,7 @@ export async function surfacesFor(profile: { id: string; email: string }): Promi
   const surfaces: Surface[] = [];
   if (store) surfaces.push({ href: "/staff", label: "Store counter", detail: `${store.name}, ${store.city}` });
   if (brand) surfaces.push({ href: "/brand", label: "Brand console", detail: brand.name });
+  if (brand || isAdminEmail(profile.email)) surfaces.push({ href: "/events", label: "Event arena", detail: "Big-screen LED mode" });
   if (isAdminEmail(profile.email)) surfaces.push({ href: "/admin", label: "Admin", detail: "Moderation and rewards" });
 
   return surfaces;

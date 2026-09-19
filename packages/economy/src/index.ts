@@ -99,6 +99,9 @@ export const WELCOME_GIFT_BONUS = 300;
 /** Maximum points a guest (unverified) account can earn per calendar day. */
 export const GUEST_DAILY_CAP = 2_000;
 
+/** Bonus points awarded to 1st, 2nd, and 3rd place finishers in live big-screen event rounds. */
+export const EVENT_PODIUM_BONUS = [100, 60, 30] as const;
+
 export type GameType = "quiz" | "catch" | "memory" | "reflex";
 
 /** Score needed to earn the full maxPoints payout, per game type. */
