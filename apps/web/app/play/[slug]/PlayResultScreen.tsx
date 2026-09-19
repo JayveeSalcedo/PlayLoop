@@ -2,6 +2,7 @@
 
 import type { PlayResult } from "@/lib/creditPlay";
 import { ChallengeShare } from "./ChallengeShare";
+import { useFriends } from "./useFriends";
 
 /**
  * The result screen after a paid play. Shared by the template player and the
@@ -12,14 +13,19 @@ export function PlayResultScreen({
   title,
   result,
   sessionId,
+  challengeCode,
   onPlayAgain,
 }: {
   title: string;
   result: PlayResult;
   sessionId: string | null;
+  /** The code this play fulfilled, if any — threaded through to the claim CTA below. */
+  challengeCode?: string;
   onPlayAgain: () => void;
 }) {
+  const friends = useFriends();
   const cr = result.challengeResult;
+  const totalEarned = result.payoutPoints + (cr?.bonusAwarded ?? 0);
   return (
     <main className="mx-auto max-w-sm p-6 text-center">
       <p className="font-bold text-soft">{title} complete</p>
@@ -45,19 +51,43 @@ export function PlayResultScreen({
       {result.levelsGained > 0 ? (
         <p className="mt-2 font-extrabold text-violet">Level up! Now level {result.level}</p>
       ) : null}
-      {sessionId ? (
-        <div className="mt-6 flex">
-          <ChallengeShare sessionId={sessionId} />
-        </div>
-      ) : null}
-      <div className="mt-3 flex gap-3">
-        <a href="/feed" className="btn flex-1">
-          Home
-        </a>
-        <button onClick={onPlayAgain} className="btn go flex-1">
-          Play again
-        </button>
-      </div>
+      {result.isGuest ? (
+        <>
+          <div className="card-hard pop-in-3 mt-4 rounded-2xl bg-violet/10 p-4 [border:var(--border-thick)]">
+            <p className="font-extrabold">🔥 Nice run — don&apos;t lose this!</p>
+            <p className="mt-1 text-sm font-bold text-soft">
+              Log in to lock in your {totalEarned.toLocaleString("en-US")} points before they slip away.
+            </p>
+          </div>
+          <a
+            href={`/login${challengeCode ? `?challenge=${encodeURIComponent(challengeCode)}` : ""}`}
+            className="btn go lg block mt-3"
+          >
+            Log in to claim your reward
+          </a>
+        </>
+      ) : (
+        <>
+          {sessionId ? (
+            <div className="mt-6 flex">
+              <ChallengeShare
+                sessionId={sessionId}
+                score={result.score}
+                gameTitle={title}
+                friends={friends}
+              />
+            </div>
+          ) : null}
+          <div className="mt-3 flex gap-3">
+            <a href="/feed" className="btn flex-1">
+              Home
+            </a>
+            <button onClick={onPlayAgain} className="btn go flex-1">
+              Play again
+            </button>
+          </div>
+        </>
+      )}
     </main>
   );
 }

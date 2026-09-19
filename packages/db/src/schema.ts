@@ -118,6 +118,22 @@ export const profiles = pgTable("profiles", {
    */
   suspendedAt: timestamp("suspended_at", { withTimezone: true }),
   suspendedReason: text("suspended_reason"),
+  /**
+   * Set on a profile created silently at "Play now" time for a friend who
+   * opened a challenge link before logging in (see startGuestChallengePlay in
+   * apps/web/app/c/[code]/actions.ts) — email is a synthetic placeholder
+   * until then, never shown or sent to. requireActiveProfile() refuses a
+   * guest for everything except finishing that one challenged play, so
+   * points can be earned and a challenge resolved for real, but not
+   * redeemed or spent until the account is claimed.
+   *
+   * Claimed (flipped to false) in login/verify/actions.ts once they attach a
+   * real, OTP-verified email — in place, keeping the same profile id, so
+   * every point/XP/challenge-win already earned carries over. If that email
+   * already belongs to a different real account, the guest's earnings are
+   * merged onto it instead and this row is left suspended and orphaned.
+   */
+  isGuest: boolean("is_guest").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -700,6 +716,33 @@ export const challenges = pgTable(
   (table) => [
     index("challenges_sender_id_idx").on(table.senderId),
     index("challenges_recipient_id_idx").on(table.recipientId),
+  ],
+);
+
+/**
+ * A mutual friendship between two profiles. Created automatically when a
+ * challenge is completed between them. Symmetric: profileAId < profileBId
+ * by convention so (A,B) and (B,A) can't both exist.
+ *
+ * No "pending/accepted" state — friendships are silently created from
+ * shared gameplay, matching the prototype's model where the friend list
+ * is "people you've played with."
+ */
+export const friendships = pgTable(
+  "friendships",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    profileAId: uuid("profile_a_id")
+      .notNull()
+      .references(() => profiles.id),
+    profileBId: uuid("profile_b_id")
+      .notNull()
+      .references(() => profiles.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("friendships_profile_a_id_idx").on(table.profileAId),
+    index("friendships_profile_b_id_idx").on(table.profileBId),
   ],
 );
 
