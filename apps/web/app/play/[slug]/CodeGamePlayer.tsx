@@ -200,7 +200,15 @@ export function CodeGamePlayer({
   }
 
   if (stage.name === "result") {
-    return <PlayResultScreen title={game.title} result={stage.result} sessionId={stage.sessionId} onPlayAgain={() => backToIntro(null)} />;
+    return (
+      <PlayResultScreen
+        title={game.title}
+        result={stage.result}
+        sessionId={stage.sessionId}
+        challengeCode={challengeCode}
+        onPlayAgain={() => backToIntro(null)}
+      />
+    );
   }
 
   if (stage.name === "tested" && test) {

@@ -10,7 +10,7 @@ export default async function LoginPage({
   return (
     <main className="mx-auto flex min-h-dvh max-w-sm flex-col justify-center p-6">
       <h1 className="text-4xl font-extrabold tracking-tight">playloop</h1>
-      <p className="mt-1 text-soft">Play. Create. Earn.</p>
+      <p className="mt-1 text-soft">{challenge ? "Almost there — log in to claim the points you just earned." : "Play. Create. Earn."}</p>
       <form action={requestCode} className="mt-8 flex flex-col gap-3">
         {challenge ? <input type="hidden" name="challenge" value={challenge} /> : null}
         <label className="text-sm font-extrabold" htmlFor="email">

@@ -1,21 +1,23 @@
 import { artSVG, avatar, type GameArtType, type ThemeName } from "@playloop/ui";
 import { getDb, schema } from "@playloop/db";
 import { eq } from "drizzle-orm";
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
+import { SubmitButton } from "@/app/_components/SubmitButton";
 import { getSession } from "@/lib/session";
+import { startGuestChallengePlay } from "./actions";
 
 /**
  * The challenge landing page — outside the (app) tabbar group, like /play
  * and /onboarding: this is a standalone card, not part of the tabbed nav.
  *
- * Logged-out visitors are sent to /login with the code preserved, rather
- * than hard-redirected via requireSession() — the whole point is a
- * currently-anonymous friend needs to see enough to want to sign up.
+ * Logged-out visitors are NOT sent to /login: the whole point of this flow
+ * is letting a currently-anonymous friend play immediately, and only asking
+ * them to log in afterward, to claim what they earned (see
+ * startGuestChallengePlay and PlayResultScreen's isGuest branch).
  */
 export default async function ChallengePage({ params }: { params: Promise<{ code: string }> }) {
   const { code } = await params;
   const session = await getSession();
-  if (!session) redirect(`/login?challenge=${encodeURIComponent(code)}`);
 
   const db = getDb();
   const row = await db
@@ -32,7 +34,7 @@ export default async function ChallengePage({ params }: { params: Promise<{ code
   if (!row) notFound();
   const { challenge, game, sender } = row;
 
-  if (challenge.senderId === session.sub) {
+  if (session && challenge.senderId === session.sub) {
     return (
       <main className="mx-auto max-w-sm p-6 text-center">
         <h1 className="text-2xl font-extrabold tracking-tight">This is your challenge</h1>
@@ -48,6 +50,21 @@ export default async function ChallengePage({ params }: { params: Promise<{ code
   const art = artSVG(game.type as GameArtType, game.theme as ThemeName, (config.item as any) ?? "bean");
 
   if (challenge.status === "completed") {
+    // An anonymous visitor to an already-resolved link has no result of
+    // their own to show — there's no session to compare winnerId against,
+    // and guessing at "you" would be wrong more often than not.
+    if (!session) {
+      return (
+        <main className="mx-auto max-w-sm p-6 text-center">
+          <div className="card-hard overflow-hidden rounded-3xl [border:var(--border-thick)]" dangerouslySetInnerHTML={{ __html: art }} />
+          <h1 className="mt-4 text-2xl font-extrabold tracking-tight">This challenge is already done</h1>
+          <p className="mt-2 text-soft">Someone already played this link. Ask {sender.name ?? "them"} for a new one.</p>
+          <a href="/login" className="btn go lg block mt-6">
+            Log in
+          </a>
+        </main>
+      );
+    }
     const won = challenge.winnerId === session.sub;
     const lost = challenge.winnerId === challenge.senderId;
     return (
@@ -77,9 +94,17 @@ export default async function ChallengePage({ params }: { params: Promise<{ code
         Beat <span className="text-violet">{challenge.senderScore.toLocaleString("en-US")}</span>
       </p>
       <p className="mt-3 text-soft">{game.description}</p>
-      <a href={`/play/${game.slug}?challenge=${encodeURIComponent(code)}`} className="btn go lg block mt-6">
-        Play now
-      </a>
+      {session ? (
+        <a href={`/play/${game.slug}?challenge=${encodeURIComponent(code)}`} className="btn go lg block mt-6">
+          Play now
+        </a>
+      ) : (
+        <form action={startGuestChallengePlay}>
+          <input type="hidden" name="code" value={code} />
+          <SubmitButton pendingText="Loading…">Play now</SubmitButton>
+          <p className="mt-2 text-xs text-soft">Jump right in — you can save your score after.</p>
+        </form>
+      )}
     </main>
   );
 }

@@ -101,7 +101,9 @@ export async function startChallengedPlay(
   challengeCode: string,
   expectedVersionId?: string,
 ): Promise<{ sessionId: string; seed: string | null }> {
-  const { session } = await requireActiveProfile();
+  // A guest profile's one job is finishing the challenge that created it —
+  // see startGuestChallengePlay in app/c/[code]/actions.ts.
+  const { session } = await requireActiveProfile({ allowGuest: true });
   const db = getDb();
 
   const challenge = await db

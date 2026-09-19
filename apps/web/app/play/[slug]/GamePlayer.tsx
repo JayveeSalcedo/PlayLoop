@@ -107,6 +107,7 @@ export function GamePlayer({ game, challengeCode }: { game: GameRow; challengeCo
         title={game.title}
         result={result}
         sessionId={lastSessionId}
+        challengeCode={challengeCode}
         onPlayAgain={() => {
           setResult(null);
           setStage("intro");

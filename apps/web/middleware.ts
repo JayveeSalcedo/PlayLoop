@@ -4,8 +4,9 @@ import { NextResponse, type NextRequest } from "next/server";
 const COOKIE_NAME = "pl_session";
 // Note: /c/[code] (the challenge landing page) is deliberately NOT protected
 // here — it branches internally (getSession(), not requireSession()) so a
-// logged-out visitor reaches the page and gets redirected to /login with the
-// challenge code preserved, rather than middleware dropping it beforehand.
+// logged-out visitor reaches the page itself and can play immediately as a
+// guest, rather than middleware bouncing them to /login before they've even
+// seen what they're being challenged to.
 const PROTECTED = ["/feed", "/play", "/onboarding", "/wallet", "/rewards", "/challenges", "/create", "/admin", "/staff", "/brand"];
 
 export async function middleware(req: NextRequest) {

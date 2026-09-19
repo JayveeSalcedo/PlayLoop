@@ -22,7 +22,9 @@ export type Profile = typeof schema.profiles.$inferSelect;
  * place until then.
  */
 /**
- * Like requireProfile(), but also refuses a suspended account.
+ * Like requireProfile(), but also refuses a suspended account, and — unless
+ * `allowGuest` is passed — an unclaimed guest profile (see profiles.isGuest
+ * in packages/db/src/schema.ts).
  *
  * Deliberately *not* folded into requireProfile(): suspension blocks earning
  * and spending, not reading. A suspended player can still open their wallet
@@ -30,13 +32,17 @@ export type Profile = typeof schema.profiles.$inferSelect;
  * whatever triggered the suspension, and hiding them would be taking something
  * away rather than stopping something.
  *
- * Call this from actions that move value: startPlay, startChallengedPlay,
- * redeemReward.
+ * Call this from actions that move value: startPlay, redeemReward, and
+ * startChallengedPlay (with `allowGuest: true` — a guest's one job is
+ * finishing the challenge that created them).
  */
-export async function requireActiveProfile(): Promise<{ session: SessionPayload; profile: Profile }> {
+export async function requireActiveProfile(opts?: { allowGuest?: boolean }): Promise<{ session: SessionPayload; profile: Profile }> {
   const result = await requireProfile();
   if (result.profile.suspendedAt) {
     throw new Error("This account is suspended. Get in touch if you think that's a mistake.");
+  }
+  if (result.profile.isGuest && !opts?.allowGuest) {
+    throw new Error("Log in to claim your points first — then you can do that.");
   }
   return result;
 }
