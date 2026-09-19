@@ -50,9 +50,15 @@ const nextConfig: NextConfig = {
     if (isServer) {
       // serverExternalPackages skips pnpm workspace packages (symlinked outside
       // node_modules), so @playloop/replay needs this to stay external too.
+      //
+      // ESM packages (@playloop/replay, @playloop/ai) must use `module` type,
+      // not `commonjs` — require() of an .mjs file throws on Vercel's runtime.
+      const CJS_EXTERNALS = ["quickjs-emscripten", "groq-sdk", "@anthropic-ai/sdk"];
+      const ESM_EXTERNALS = ["@playloop/replay", "@playloop/ai"];
       config.externals = [
         ...(Array.isArray(config.externals) ? config.externals : [config.externals]),
-        ...NODE_LOADED.map((name) => ({ [name]: `commonjs ${name}` })),
+        ...CJS_EXTERNALS.map((name) => ({ [name]: `commonjs ${name}` })),
+        ...ESM_EXTERNALS.map((name) => ({ [name]: `module ${name}` })),
       ];
     }
     return config;
