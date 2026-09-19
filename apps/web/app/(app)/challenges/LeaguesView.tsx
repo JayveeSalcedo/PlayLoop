@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import QRCode from "qrcode";
 import { avatar, icon, type IconName } from "@playloop/ui";
 import {
   type Season,
@@ -10,6 +11,7 @@ import {
 import { type LeagueItem, type LeaderboardEntry } from "@/lib/leagues";
 import { createLeagueAction, joinLeagueAction } from "./leagueActions";
 import { Spinner } from "@/app/_components/Spinner";
+import { SuccessModal } from "@/app/_components/SuccessModal";
 
 export function LeaguesView({
   season,
@@ -43,6 +45,12 @@ export function LeaguesView({
   const [createTeam, setCreateTeam] = useState("");
   const [createCode, setCreateCode] = useState("");
 
+  // Celebratory modals
+  const [createdLeagueModal, setCreatedLeagueModal] = useState<any | null>(null);
+  const [createdQrDataUrl, setCreatedQrDataUrl] = useState<string>("");
+  const [joinedLeagueModal, setJoinedLeagueModal] = useState<any | null>(null);
+  const [seasonPassModal, setSeasonPassModal] = useState(false);
+
   const daysLeft = seasonDaysRemaining(season);
 
   async function handleCopy(code: string) {
@@ -70,6 +78,9 @@ export function LeaguesView({
       setJoinError(res.error ?? "Failed to join league");
     } else {
       setJoinCode("");
+      if (res.league) {
+        setJoinedLeagueModal(res.league);
+      }
     }
   }
 
@@ -94,6 +105,22 @@ export function LeaguesView({
       setCreateError(res.error ?? "Failed to create league");
     } else {
       setShowCreateModal(false);
+      const leaguePayload = res.league ?? {
+        name: createName.trim(),
+        code: createCode.trim().toUpperCase() || "LEAGUE",
+        kind: createKind,
+      };
+      setCreatedLeagueModal(leaguePayload);
+      try {
+        const qrUrl = typeof window !== "undefined"
+          ? `${window.location.origin}/challenges?join=${encodeURIComponent(leaguePayload.code)}`
+          : leaguePayload.code;
+        QRCode.toDataURL(qrUrl, { margin: 1, color: { dark: "#111111", light: "#ffffff" } })
+          .then(setCreatedQrDataUrl)
+          .catch(() => {});
+      } catch {
+        // ignore
+      }
       setCreateName("");
       setCreateTeam("");
       setCreateCode("");
@@ -120,7 +147,16 @@ export function LeaguesView({
         <p className="mt-1 text-xs font-semibold text-soft">{season.description}</p>
 
         {/* Season Pass Progress Bar */}
-        <div className="mt-4 rounded-2xl bg-card p-3 [border:var(--border-thick)]">
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={() => setSeasonPassModal(true)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") setSeasonPassModal(true);
+          }}
+          className="mt-4 rounded-2xl bg-card p-3 [border:var(--border-thick)] cursor-pointer hover:brightness-95 transition-all shadow-hard-sm"
+          aria-label="View Season Pass details"
+        >
           <div className="flex items-center justify-between text-xs font-extrabold">
             <span className="flex items-center gap-1.5">
               <span
@@ -129,10 +165,15 @@ export function LeaguesView({
               />
               Season Pass: {passProgress.tierName}
             </span>
-            <span>
-              {passProgress.nextTier
-                ? `${passProgress.pointsToNext} pts to ${passProgress.nextTier.name}`
-                : "Max Tier"}
+            <span className="flex items-center gap-1">
+              {passProgress.nextTier ? (
+                <>
+                  <span className="coin sm" aria-hidden="true" />
+                  <span>{passProgress.pointsToNext} pts to {passProgress.nextTier.name}</span>
+                </>
+              ) : (
+                "Max Tier"
+              )}
             </span>
           </div>
 
@@ -190,7 +231,7 @@ export function LeaguesView({
                     onClick={() => setOpenLeagueId(isOpen ? null : l.id)}
                     className="flex w-full items-center justify-between p-3.5 text-left transition-colors hover:bg-paper/50"
                   >
-                    <div className="flex items-center gap-3">
+                    <div className="flex min-w-0 items-center gap-3">
                       <span
                         className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl text-lg text-ink [border:2px_solid_var(--ink)]"
                         style={{ background: l.color }}
@@ -198,11 +239,11 @@ export function LeaguesView({
                           __html: icon((l.icon as IconName) || "trophy"),
                         }}
                       />
-                      <div>
+                      <div className="min-w-0">
                         <span className="text-[10px] font-extrabold uppercase tracking-wider text-soft">
                           {l.kind} league
                         </span>
-                        <h4 className="font-extrabold leading-tight text-ink">
+                        <h4 className="truncate font-extrabold leading-tight text-ink">
                           {l.name}
                         </h4>
                         <span className="text-xs font-bold text-soft">
@@ -212,7 +253,7 @@ export function LeaguesView({
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2">
+                    <div className="flex shrink-0 items-center gap-2">
                       <span className="rounded-full bg-lemon px-2.5 py-1 text-xs font-black text-ink [border:1.5px_solid_var(--ink)]">
                         #{l.userRank}
                       </span>
@@ -270,7 +311,8 @@ export function LeaguesView({
                                   </span>
                                 )}
                               </div>
-                              <span className="font-black text-ink">
+                              <span className="flex shrink-0 items-center gap-1 font-black text-ink">
+                                <span className="coin sm" aria-hidden="true" />
                                 {entry.score.toLocaleString("en-US")} pts
                               </span>
                             </div>
@@ -450,6 +492,142 @@ export function LeaguesView({
             </form>
           </div>
         </div>
+      )}
+
+      {/* Celebratory Modal: League Created & Join PIN */}
+      {createdLeagueModal && (
+        <SuccessModal
+          isOpen={Boolean(createdLeagueModal)}
+          onClose={() => setCreatedLeagueModal(null)}
+          title="🏆 League Created Successfully!"
+          badgeText={createdLeagueModal.kind ? `${createdLeagueModal.kind} League` : "Custom League"}
+          iconHtml={icon("trophy")}
+          accentColor="lemon"
+          confetti={true}
+          soundEffect="victory"
+          primaryAction={{
+            label: "Share on WhatsApp",
+            onClick: () => {
+              const pin = createdLeagueModal.code;
+              const name = createdLeagueModal.name;
+              const origin = typeof window !== "undefined" ? window.location.origin : "https://playloop.ae";
+              const text = `Join my PlayLoop League "${name}"! Use Join PIN: ${pin} or visit ${origin}/challenges`;
+              window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
+            },
+          }}
+          secondaryAction={{
+            label: "Go to League Board",
+            onClick: () => {
+              const id = createdLeagueModal.id;
+              setCreatedLeagueModal(null);
+              if (id) setOpenLeagueId(id);
+            },
+          }}
+        >
+          <div className="flex flex-col items-center gap-3">
+            <div className="w-full rounded-2xl bg-paper p-3 border-2 border-ink shadow-hard-sm text-left">
+              <span className="text-[10px] font-black uppercase tracking-wider text-soft">League Name</span>
+              <h3 className="text-lg font-black text-ink">{createdLeagueModal.name}</h3>
+            </div>
+            <p className="text-sm font-bold text-soft">
+              Your custom league is live! Share your Join PIN with your team or classmates:
+            </p>
+            <div className="flex w-full items-center justify-between gap-2 rounded-2xl bg-paper p-3 border-2 border-ink shadow-hard-sm">
+              <div className="text-left">
+                <span className="text-[10px] font-black uppercase tracking-wider text-soft">Join PIN</span>
+                <p className="font-mono text-xl font-black tracking-widest text-ink">{createdLeagueModal.code}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => handleCopy(createdLeagueModal.code)}
+                className="btn sm"
+              >
+                {copiedCode === createdLeagueModal.code ? "Copied!" : "Copy PIN"}
+              </button>
+            </div>
+            {createdQrDataUrl ? (
+              <div className="rounded-2xl border-2 border-ink bg-white p-2 shadow-hard-sm">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={createdQrDataUrl} alt="League QR code" className="h-32 w-32" />
+              </div>
+            ) : null}
+          </div>
+        </SuccessModal>
+      )}
+
+      {/* Celebratory Modal: League Joined */}
+      {joinedLeagueModal && (
+        <SuccessModal
+          isOpen={Boolean(joinedLeagueModal)}
+          onClose={() => setJoinedLeagueModal(null)}
+          title={`Welcome to ${joinedLeagueModal.name}!`}
+          badgeText="League Joined"
+          iconHtml={icon("check")}
+          accentColor="mint"
+          confetti={true}
+          soundEffect="victory"
+          primaryAction={{
+            label: "View League Leaderboard",
+            onClick: () => {
+              const id = joinedLeagueModal.id;
+              setJoinedLeagueModal(null);
+              if (id) setOpenLeagueId(id);
+            },
+          }}
+          secondaryAction={{
+            label: "Dismiss",
+            onClick: () => setJoinedLeagueModal(null),
+          }}
+        >
+          <div className="flex flex-col gap-2">
+            <p className="text-sm font-semibold">
+              You are now enrolled in <span className="font-bold text-ink">{joinedLeagueModal.name}</span>.
+            </p>
+            <p className="text-xs text-soft">
+              Play any game to contribute points to your team and climb the leaderboard!
+            </p>
+          </div>
+        </SuccessModal>
+      )}
+
+      {/* Season Pass Tier Modal */}
+      {seasonPassModal && (
+        <SuccessModal
+          isOpen={seasonPassModal}
+          onClose={() => setSeasonPassModal(false)}
+          title={`🏅 Season Tier: ${passProgress.tierName}`}
+          badgeText={season.tag}
+          iconHtml={icon("trophy")}
+          accentColor="lemon"
+          confetti={false}
+          soundEffect="tap"
+          primaryAction={{
+            label: "Keep Playing to Unlock",
+            onClick: () => setSeasonPassModal(false),
+          }}
+        >
+          <div className="flex flex-col gap-3 text-left">
+            <div className="rounded-2xl bg-paper p-3 border-2 border-ink shadow-hard-sm">
+              <div className="flex justify-between items-center text-xs font-bold text-soft mb-1">
+                <span>Current Tier</span>
+                <span className="font-extrabold text-ink">{passProgress.tierName}</span>
+              </div>
+              <div className="h-2 w-full overflow-hidden rounded-full border border-ink/40 bg-card">
+                <div className="h-full bg-lemon" style={{ width: `${passProgress.percent}%` }} />
+              </div>
+              <p className="mt-2 text-xs font-bold text-soft">
+                {passProgress.nextTier
+                  ? `${passProgress.pointsToNext.toLocaleString("en-US")} points needed for ${passProgress.nextTier.name}`
+                  : "Maximum season tier achieved!"}
+              </p>
+            </div>
+            {passProgress.nextTier && (
+              <div className="rounded-2xl bg-mint/20 p-3 border-2 border-ink text-xs font-semibold">
+                🎁 <span className="font-bold">Next Unlock:</span> {passProgress.nextTier.reward}
+              </div>
+            )}
+          </div>
+        </SuccessModal>
       )}
     </div>
   );

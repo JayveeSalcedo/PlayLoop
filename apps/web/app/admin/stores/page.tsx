@@ -43,7 +43,7 @@ export default async function AdminStoresPage() {
   }
 
   return (
-    <main className="mx-auto max-w-2xl p-6">
+    <main className="mx-auto max-w-4xl p-6">
       <h1 className="text-3xl font-extrabold tracking-tight">Stores</h1>
       <p className="mt-1 text-sm font-bold text-soft">
         Create a store, then add the people who should be able to work its scanner at <code>/staff</code>.

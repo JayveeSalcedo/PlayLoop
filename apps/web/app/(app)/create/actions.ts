@@ -1,7 +1,11 @@
 "use server";
 
 import { getDb, schema } from "@playloop/db";
-import { normalizeConfig, validateGameDraft, type GameDraft } from "@playloop/games";
+import {
+  normalizeConfig,
+  validateGameDraft,
+  type GameDraft,
+} from "@playloop/games";
 import { and, count, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { PENDING_LIMIT } from "@/lib/moderation";
@@ -33,8 +37,12 @@ function toSlug(title: string): string {
   return `${base}-${suffix}`;
 }
 
-const DESCRIPTIONS: Record<GameDraft["type"], (config: Record<string, unknown>) => string> = {
-  quiz: (c) => `${(c.questions as unknown[])?.length ?? 0} questions. Answer fast for a speed bonus.`,
+const DESCRIPTIONS: Record<
+  GameDraft["type"],
+  (config: Record<string, unknown>) => string
+> = {
+  quiz: (c) =>
+    `${(c.questions as unknown[])?.length ?? 0} questions. Answer fast for a speed bonus.`,
   memory: () => "Flip cards and match all six pairs before time runs out.",
   catch: () => "Drag to catch the falling items. Dodge the spiky ones.",
   reflex: () => "Tap the smiling orbs, avoid the spiky ones, chain combos.",
@@ -57,12 +65,16 @@ export interface PublishedGame {
  * throw is correct there; the transaction itself returns a discriminated result
  * and only throws after commit, per the convention in play/[slug]/actions.ts.
  */
-export async function publishGame(draft: GameDraft): Promise<PublishedGame> {
+export async function publishGame(
+  draft: GameDraft,
+  leagueId?: string | null,
+): Promise<PublishedGame> {
   const { profile } = await requireProfile();
   const db = getDb();
 
   const type = draft?.type;
-  if (!type || !(type in DESCRIPTIONS)) throw new Error("Pick a template first.");
+  if (!type || !(type in DESCRIPTIONS))
+    throw new Error("Pick a template first.");
 
   const config = normalizeConfig(type, draft.config);
   const clean: GameDraft = {
@@ -71,18 +83,34 @@ export async function publishGame(draft: GameDraft): Promise<PublishedGame> {
     theme: String(draft.theme ?? "neon"),
     difficulty: draft.difficulty,
     maxPoints: Number(draft.maxPoints),
+    coverImage:
+      draft.coverImage &&
+      typeof draft.coverImage === "string" &&
+      draft.coverImage.startsWith("data:image/")
+        ? draft.coverImage
+        : null,
     config,
   };
 
   const issues = validateGameDraft(clean);
-  if (issues.length > 0) throw new Error(issues[0]?.message ?? "That game isn't ready to publish yet.");
+  if (issues.length > 0)
+    throw new Error(
+      issues[0]?.message ?? "That game isn't ready to publish yet.",
+    );
 
   const [pending] = await db
     .select({ n: count() })
     .from(schema.games)
-    .where(and(eq(schema.games.creatorId, profile.id), eq(schema.games.status, "pending_review")));
+    .where(
+      and(
+        eq(schema.games.creatorId, profile.id),
+        eq(schema.games.status, "pending_review"),
+      ),
+    );
   if ((pending?.n ?? 0) >= PENDING_LIMIT) {
-    throw new Error(`You already have ${PENDING_LIMIT} games waiting for review. Hold off until those are through.`);
+    throw new Error(
+      `You already have ${PENDING_LIMIT} games waiting for review. Hold off until those are through.`,
+    );
   }
 
   const outcome = await db.transaction(async (tx) => {
@@ -96,16 +124,28 @@ export async function publishGame(draft: GameDraft): Promise<PublishedGame> {
         theme: clean.theme,
         difficulty: clean.difficulty,
         maxPoints: clean.maxPoints,
+        coverImage: clean.coverImage,
         config,
         creatorId: profile.id,
         brandOriginal: false,
+        leagueId: leagueId ?? null,
         status: "pending_review",
       })
-      .returning({ id: schema.games.id, slug: schema.games.slug, title: schema.games.title });
+      .returning({
+        id: schema.games.id,
+        slug: schema.games.slug,
+        title: schema.games.title,
+      });
 
-    if (!game) return { ok: false as const, error: "Couldn't save that game — try again." };
+    if (!game)
+      return {
+        ok: false as const,
+        error: "Couldn't save that game — try again.",
+      };
 
-    await tx.insert(schema.moderationReviews).values({ gameId: game.id, outcome: "pending" });
+    await tx
+      .insert(schema.moderationReviews)
+      .values({ gameId: game.id, outcome: "pending" });
     return { ok: true as const, ...game };
   });
 
@@ -117,14 +157,19 @@ export async function publishGame(draft: GameDraft): Promise<PublishedGame> {
 }
 
 /** Creator opt-in for brand sponsorship. Ownership is checked by the UPDATE itself, not a prior read. */
-export async function toggleSponsorReady(gameId: string, next: boolean): Promise<{ sponsorReady: boolean }> {
+export async function toggleSponsorReady(
+  gameId: string,
+  next: boolean,
+): Promise<{ sponsorReady: boolean }> {
   const { profile } = await requireProfile();
   const db = getDb();
 
   const [row] = await db
     .update(schema.games)
     .set({ sponsorReady: next })
-    .where(and(eq(schema.games.id, gameId), eq(schema.games.creatorId, profile.id)))
+    .where(
+      and(eq(schema.games.id, gameId), eq(schema.games.creatorId, profile.id)),
+    )
     .returning({ sponsorReady: schema.games.sponsorReady });
 
   if (!row) throw new Error("That game isn't yours to change.");

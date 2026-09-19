@@ -22,7 +22,7 @@ export default async function AdminActivityPage() {
     .limit(200);
 
   return (
-    <main className="mx-auto max-w-2xl p-6">
+    <main className="mx-auto max-w-4xl p-6">
       <h1 className="text-3xl font-extrabold tracking-tight">Activity</h1>
       <p className="mt-1 text-sm font-bold text-soft">
         Every admin action, newest first. Append-only — nothing here is edited or removed.

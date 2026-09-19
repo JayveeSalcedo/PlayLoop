@@ -4,6 +4,7 @@ import { icon, type IconName } from "@playloop/ui";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Spinner } from "@/app/_components/Spinner";
+import { SuccessModal } from "@/app/_components/SuccessModal";
 import { setRewardActive, topUpPool } from "./actions";
 import { EditRewardForm, type BrandOption } from "./RewardForm";
 
@@ -25,9 +26,10 @@ export interface AdminReward {
 export function RewardRow({ reward, brands }: { reward: AdminReward; brands: BrandOption[] }) {
   const router = useRouter();
   const [editing, setEditing] = useState(false);
-  const [topUp, setTopUp] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [topUp, setTopUp] = useState("");
+  const [topUpSuccess, setTopUpSuccess] = useState<{ units: number } | null>(null);
 
   async function run(fn: () => Promise<unknown>) {
     setBusy(true);
@@ -52,11 +54,15 @@ export function RewardRow({ reward, brands }: { reward: AdminReward; brands: Bra
         />
         <div className="min-w-0">
           <p className={`font-extrabold ${reward.active ? "" : "text-soft line-through"}`}>{reward.name}</p>
-          <p className="text-xs font-bold text-soft">
-            {reward.brandName} · {reward.category} · {reward.costPoints.toLocaleString("en-US")} pts ·{" "}
-            {reward.poolTotal == null
+          <p className="text-xs font-bold text-soft flex flex-wrap items-center gap-1">
+            <span>{reward.brandName} · {reward.category} ·</span>
+            <span className="inline-flex items-center gap-1 font-extrabold text-ink">
+              <span className="coin sm" aria-hidden="true" />
+              {reward.costPoints.toLocaleString("en-US")} pts
+            </span>
+            <span>· {reward.poolTotal == null
               ? "uncapped"
-              : `${reward.poolRemaining?.toLocaleString("en-US")} of ${reward.poolTotal.toLocaleString("en-US")} left`}
+              : `${reward.poolRemaining?.toLocaleString("en-US")} of ${reward.poolTotal.toLocaleString("en-US")} left`}</span>
           </p>
         </div>
         {!reward.active ? (
@@ -94,7 +100,20 @@ export function RewardRow({ reward, brands }: { reward: AdminReward; brands: Bra
             <button
               className="btn sm"
               disabled={busy || !topUp.trim()}
-              onClick={() => run(() => topUpPool(reward.id, Number(topUp)))}
+              onClick={async () => {
+                const units = Number(topUp);
+                if (!units || isNaN(units)) return;
+                setBusy(true);
+                setError(null);
+                try {
+                  await topUpPool(reward.id, units);
+                  setTopUpSuccess({ units });
+                } catch (e) {
+                  setError(e instanceof Error ? e.message : "Couldn't save that — try again.");
+                } finally {
+                  setBusy(false);
+                }
+              }}
             >
               Top up
             </button>
@@ -120,6 +139,46 @@ export function RewardRow({ reward, brands }: { reward: AdminReward; brands: Bra
           onDone={() => setEditing(false)}
         />
       ) : null}
+
+      {topUpSuccess && (
+        <SuccessModal
+          isOpen={Boolean(topUpSuccess)}
+          onClose={() => {
+            setTopUpSuccess(null);
+            setTopUp("");
+            router.refresh();
+          }}
+          title="Reward Voucher Pool Topped Up!"
+          badgeText="Inventory Updated"
+          iconHtml={icon("gift")}
+          accentColor="mint"
+          confetti={false}
+          soundEffect="tap"
+          primaryAction={{
+            label: "Done",
+            onClick: () => {
+              setTopUpSuccess(null);
+              setTopUp("");
+              router.refresh();
+            },
+          }}
+        >
+          <div className="flex flex-col gap-3 text-left">
+            <div className="rounded-2xl bg-paper p-3 border-2 border-ink shadow-hard-sm">
+              <p className="text-xs font-bold text-soft">{reward.brandName}</p>
+              <h3 className="text-base font-extrabold text-ink">{reward.name}</h3>
+              <div className="mt-2 flex justify-between border-t border-ink/10 pt-2 text-xs font-bold">
+                <span className="text-soft">Units Added</span>
+                <span className="font-extrabold text-mint-foreground">+{topUpSuccess.units.toLocaleString("en-US")} units</span>
+              </div>
+              <div className="flex justify-between text-xs font-bold">
+                <span className="text-soft">New Pool Total</span>
+                <span className="font-extrabold text-ink">{((reward.poolTotal ?? 0) + topUpSuccess.units).toLocaleString("en-US")} units</span>
+              </div>
+            </div>
+          </div>
+        </SuccessModal>
+      )}
     </div>
   );
 }

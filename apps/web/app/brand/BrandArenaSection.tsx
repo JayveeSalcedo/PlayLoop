@@ -90,8 +90,9 @@ export function BrandArenaSection({
                 </p>
 
                 <div className="mt-3 flex flex-wrap gap-2 text-[11px] font-extrabold text-ink">
-                  <span className="rounded-lg bg-paper px-2 py-1 border border-ink/10">
-                    🏆 {evt.prizePoolPoints.toLocaleString("en-US")} pts budget
+                  <span className="flex items-center gap-1 rounded-lg bg-paper px-2 py-1 border border-ink/10">
+                    <span className="coin sm" aria-hidden="true" />
+                    <span>{evt.prizePoolPoints.toLocaleString("en-US")} pts budget</span>
                   </span>
                   <span className="rounded-lg bg-paper px-2 py-1 border border-ink/10">
                     🎮 {evt.roundsCount} {evt.roundsCount === 1 ? "Round" : "Rounds"}:{" "}

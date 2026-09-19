@@ -38,10 +38,10 @@ export default async function StaffPage() {
   const taken = today.filter((r) => r.reversedAt == null).length;
 
   return (
-    <main className="mx-auto max-w-md p-6">
-      <div className="flex items-start justify-between gap-3">
+    <main className="mx-auto max-w-lg p-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <p className="text-xs font-extrabold text-soft">
+          <p className="text-xs font-extrabold text-soft uppercase tracking-wider">
             {store.brandName} · {store.city}
           </p>
           <h1 className="text-3xl font-extrabold tracking-tight">{store.name}</h1>
@@ -52,23 +52,47 @@ export default async function StaffPage() {
         </div>
       </div>
 
+      {/* Today's KPI bar */}
+      <div className="mt-6 grid grid-cols-2 gap-3">
+        <div className="card-hard rounded-2xl bg-card p-4 [border:var(--border-thick)]">
+          <p className="text-xs font-extrabold text-soft">Redeemed Today</p>
+          <p className="mt-1 text-3xl font-extrabold">{taken}</p>
+        </div>
+        <div className="card-hard rounded-2xl bg-card p-4 [border:var(--border-thick)]">
+          <p className="text-xs font-extrabold text-soft">Total Scanned</p>
+          <p className="mt-1 text-3xl font-extrabold">{today.length}</p>
+          <p className="mt-0.5 text-[10px] font-bold text-soft">
+            {today.filter((r) => r.reversedAt != null).length} undone
+          </p>
+        </div>
+      </div>
+
       <ScannerPanel />
 
       <section className="mt-8">
-        <h2 className="text-xl font-extrabold">
-          Today{taken > 0 ? ` · ${taken} redeemed` : ""}
-        </h2>
+        <div className="flex items-center gap-3">
+          <h2 className="text-xl font-extrabold">Today&apos;s Activity</h2>
+          {taken > 0 ? (
+            <span className="rounded-full bg-mint px-2 py-0.5 text-xs font-extrabold [border:var(--border-thick)]">
+              {taken} redeemed
+            </span>
+          ) : null}
+        </div>
         {today.length === 0 ? (
-          <p className="mt-2 text-sm font-bold text-soft">Nothing redeemed here yet today.</p>
+          <div className="mt-4 rounded-2xl border-2 border-dashed border-ink/20 p-6 text-center">
+            <p className="text-2xl">📋</p>
+            <p className="mt-1 font-extrabold text-soft">Nothing redeemed yet today</p>
+            <p className="text-xs font-bold text-soft">Scanned vouchers will appear here</p>
+          </div>
         ) : (
           <ul className="fade-in mt-3 flex flex-col gap-2">
             {today.map((r) => (
               <li
                 key={r.id}
-                className={`card-hard rounded-2xl p-3 [border:var(--border-thick)] ${r.reversedAt ? "bg-paper" : "bg-card"}`}
+                className={`card-hard rounded-2xl p-4 [border:var(--border-thick)] ${r.reversedAt ? "bg-paper" : "bg-card"}`}
               >
                 <div className="flex items-center gap-3">
-                  <div className="min-w-0">
+                  <div className="min-w-0 flex-1">
                     <p className={`font-extrabold ${r.reversedAt ? "text-soft line-through" : ""}`}>{r.rewardName}</p>
                     <p className="text-xs font-bold text-soft">
                       {r.code} ·{" "}
@@ -77,7 +101,7 @@ export default async function StaffPage() {
                     </p>
                   </div>
                   {r.undoable ? (
-                    <div className="ml-auto shrink-0">
+                    <div className="shrink-0">
                       <UndoButton redemptionId={r.id} />
                     </div>
                   ) : null}

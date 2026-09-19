@@ -3,6 +3,8 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Spinner } from "@/app/_components/Spinner";
+import { icon } from "@playloop/ui";
+import { SuccessModal } from "@/app/_components/SuccessModal";
 import { suspendProfile, unsuspendProfile } from "../actions";
 
 export function SuspendPanel({
@@ -19,6 +21,7 @@ export function SuspendPanel({
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showLiftedModal, setShowLiftedModal] = useState(false);
 
   async function run(fn: () => Promise<unknown>) {
     setBusy(true);
@@ -35,6 +38,18 @@ export function SuspendPanel({
     }
   }
 
+  async function handleLiftSuspension() {
+    setBusy(true);
+    setError(null);
+    try {
+      await unsuspendProfile(profileId);
+      setShowLiftedModal(true);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Couldn't save that.");
+      setBusy(false);
+    }
+  }
+
   if (suspended) {
     return (
       <div className="card-hard mt-4 rounded-2xl bg-gum/15 p-4 [border:var(--border-thick)]">
@@ -44,9 +59,41 @@ export function SuspendPanel({
           Can&apos;t start plays or redeem. Can still read their wallet. Points already earned were kept.
         </p>
         {error ? <p className="mt-2 text-sm font-bold text-gum">{error}</p> : null}
-        <button className="btn sm mt-3" disabled={busy} onClick={() => run(() => unsuspendProfile(profileId))}>
+        <button className="btn sm mt-3" disabled={busy} onClick={handleLiftSuspension}>
           {busy ? <Spinner size={18} /> : "Lift suspension"}
         </button>
+
+        {showLiftedModal && (
+          <SuccessModal
+            isOpen={showLiftedModal}
+            onClose={() => {
+              setShowLiftedModal(false);
+              router.refresh();
+            }}
+            title="Suspension Lifted"
+            badgeText="Account Restored"
+            iconHtml={icon("check")}
+            accentColor="mint"
+            confetti={false}
+            soundEffect="tap"
+            primaryAction={{
+              label: "Done",
+              onClick: () => {
+                setShowLiftedModal(false);
+                router.refresh();
+              },
+            }}
+          >
+            <div className="flex flex-col gap-2 text-left">
+              <p className="text-sm font-semibold">
+                The account suspension has been lifted.
+              </p>
+              <p className="text-xs text-soft">
+                The player can now play games and redeem voucher rewards again.
+              </p>
+            </div>
+          </SuccessModal>
+        )}
       </div>
     );
   }

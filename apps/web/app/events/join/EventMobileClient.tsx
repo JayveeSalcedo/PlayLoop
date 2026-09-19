@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useState, useRef, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { avatar } from "@playloop/ui";
+import { avatar, icon } from "@playloop/ui";
+import { SuccessModal } from "@/app/_components/SuccessModal";
 import type { VenueEventConfig } from "@/lib/events";
 import { arenaAudio } from "@/lib/arenaAudio";
 import { creditEventRoundPoints } from "../actions";
@@ -32,6 +34,7 @@ export function EventMobileClient({
   initialPlayer: PlayerData;
   event: VenueEventConfig;
 }) {
+  const router = useRouter();
   const [player, setPlayer] = useState(initialPlayer);
   const [status, setStatus] = useState<"lobby" | "playing" | "round_done" | "wrap">("lobby");
   const [roundIdx, setRoundIdx] = useState(0);
@@ -43,6 +46,8 @@ export function EventMobileClient({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [floaters, setFloaters] = useState<{ id: number; text: string; x: number; y: number }[]>([]);
   const [soundMuted, setSoundMuted] = useState(() => arenaAudio.isMuted());
+  const [showConnectedModal, setShowConnectedModal] = useState(true);
+  const [showPodiumModal, setShowPodiumModal] = useState(false);
 
   const round = event.rounds[roundIdx] ?? event.rounds[0]!;
   const targetIdRef = useRef(0);
@@ -101,6 +106,9 @@ export function EventMobileClient({
             newBalance: res.newBalance,
           });
           setPlayer((prev) => ({ ...prev, pointsBalance: res.newBalance }));
+          if (calculatedRank <= 3) {
+            setShowPodiumModal(true);
+          }
         }
       } catch {
         arenaAudio.playVictory();
@@ -109,6 +117,9 @@ export function EventMobileClient({
           rank: calculatedRank,
           newBalance: player.pointsBalance + 150,
         });
+        if (calculatedRank <= 3) {
+          setShowPodiumModal(true);
+        }
       } finally {
         setIsSubmitting(false);
       }
@@ -234,7 +245,11 @@ export function EventMobileClient({
                 <div className="text-xs text-yellow-300 font-mono tracking-wide">{player.onePassId}</div>
                 <div className="text-[11px] text-emerald-400 font-semibold flex items-center gap-1 mt-1">
                   <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                  Linked • Wallet: {player.pointsBalance.toLocaleString()} pts
+                  <span>Linked • Wallet:</span>
+                  <span className="inline-flex items-center gap-1 text-white font-bold">
+                    <span className="coin sm" aria-hidden="true" />
+                    {player.pointsBalance.toLocaleString()} pts
+                  </span>
                 </div>
               </div>
             </div>
@@ -319,8 +334,12 @@ export function EventMobileClient({
                       : "bg-pink-500 text-white"
                   }`}
                 >
-                  <span className="text-xl leading-none">{t.isGold ? "⭐" : "☕"}</span>
-                  <span className="text-[11px] font-black leading-none mt-0.5">+{t.points}</span>
+                  {t.isGold ? (
+                    <span className="coin md" style={{ boxShadow: "none" }} aria-hidden="true" />
+                  ) : (
+                    <span className="text-xl leading-none">☕</span>
+                  )}
+                  <span className="text-[11px] font-black leading-none mt-1">+{t.points}</span>
                 </button>
               ))}
 
@@ -361,11 +380,15 @@ export function EventMobileClient({
               {/* Wallet payout notification */}
               <div className="mt-5 pt-4 border-t border-white/10">
                 <div className="bg-yellow-400 text-ink font-black text-base py-2.5 px-4 rounded-xl flex items-center justify-center gap-2 shadow-[0_3px_0_#18123F]">
-                  <span>🪙</span>
+                  <span className="coin sm" aria-hidden="true" />
                   <span>+{lastAwarded?.points ?? 240} points saved to OnePass!</span>
                 </div>
-                <div className="text-[11px] text-white/70 mt-2">
-                  Credited directly to {player.onePassId} • New balance: {player.pointsBalance.toLocaleString()} pts
+                <div className="flex items-center justify-center gap-1.5 text-[11px] text-white/70 mt-2">
+                  <span>Credited directly to {player.onePassId} • New balance:</span>
+                  <span className="inline-flex items-center gap-1 text-yellow-300 font-bold">
+                    <span className="coin sm" aria-hidden="true" />
+                    {player.pointsBalance.toLocaleString()} pts
+                  </span>
                 </div>
               </div>
             </div>
@@ -398,9 +421,12 @@ export function EventMobileClient({
 
             <div className="bg-white/10 border-2 border-white/20 rounded-3xl p-6 backdrop-blur-md space-y-3">
               <div className="text-sm text-white/70 font-semibold">Total Event Points in Wallet</div>
-              <div className="text-5xl font-black text-yellow-400">{player.pointsBalance.toLocaleString()}</div>
+              <div className="flex items-center justify-center gap-3 text-5xl font-black text-yellow-400">
+                <span className="coin lg" aria-hidden="true" />
+                <span>{player.pointsBalance.toLocaleString()}</span>
+              </div>
               <div className="text-xs text-emerald-400 font-bold">
-                ✓ Ready to spend on vouchers, coffee & rewards
+                ✓ Ready to spend on vouchers, coffee &amp; rewards
               </div>
             </div>
 
@@ -426,6 +452,82 @@ export function EventMobileClient({
       <footer className="w-full text-center text-[10px] text-white/40 py-2 border-t border-white/10">
         PlayLoop Live LED Venue Mode • OnePass ID {player.onePassId}
       </footer>
+
+      {/* Handshake: Connected to Big Screen Modal */}
+      {status === "lobby" && showConnectedModal && (
+        <SuccessModal
+          isOpen={showConnectedModal}
+          onClose={() => setShowConnectedModal(false)}
+          title="Connected to Arena Big-Screen!"
+          badgeText="Venue Handshake Verified"
+          iconHtml={icon("spark")}
+          accentColor="mint"
+          confetti={false}
+          soundEffect="tap"
+          primaryAction={{
+            label: "Enter Player Lobby",
+            onClick: () => setShowConnectedModal(false),
+          }}
+        >
+          <div className="flex flex-col gap-3 text-left">
+            <div className="rounded-2xl bg-paper p-3 border-2 border-ink shadow-hard-sm">
+              <div className="flex justify-between items-center text-xs font-bold text-soft">
+                <span>Venue Location</span>
+                <span className="font-extrabold text-ink">{event.venueName}</span>
+              </div>
+              <div className="flex justify-between items-center text-xs font-bold text-soft mt-1">
+                <span>Event PIN</span>
+                <span className="font-mono font-extrabold text-ink">{event.code}</span>
+              </div>
+              <div className="flex justify-between items-center text-xs font-bold text-soft mt-1">
+                <span>OnePass ID</span>
+                <span className="font-mono font-extrabold text-ink">{player.onePassId}</span>
+              </div>
+            </div>
+            <p className="text-xs text-soft font-semibold text-center">
+              Look up at the LED wall to see your avatar in the lobby! When the host triggers the countdown, tap tokens quickly to reach the podium.
+            </p>
+          </div>
+        </SuccessModal>
+      )}
+
+      {/* Podium Finish Celebration Modal */}
+      {showPodiumModal && (
+        <SuccessModal
+          isOpen={showPodiumModal}
+          onClose={() => setShowPodiumModal(false)}
+          title={`🏆 PODIUM FINISH! #${lastAwarded?.rank ?? 1} PLACE`}
+          badgeText="Live Arena Ceremony"
+          iconHtml={icon("trophy")}
+          accentColor="lemon"
+          confetti={true}
+          soundEffect="victory"
+          primaryAction={{
+            label: "Claim Venue Voucher in Wallet",
+            onClick: () => {
+              router.push("/wallet");
+            },
+          }}
+          secondaryAction={{
+            label: roundIdx + 1 < event.rounds.length ? "Next Round" : "View Final Recap",
+            onClick: () => {
+              setShowPodiumModal(false);
+              handleNextRoundOrWrap();
+            },
+          }}
+        >
+          <div className="flex flex-col items-center gap-3 text-center">
+            <div className="w-full rounded-2xl bg-paper p-4 border-2 border-ink shadow-hard-sm">
+              <span className="text-xs font-bold text-soft uppercase tracking-wider">Podium Ranking</span>
+              <p className="text-5xl font-black text-ink my-1">#{lastAwarded?.rank ?? 1}</p>
+              <p className="text-xs font-bold text-mint-foreground">+{lastAwarded?.points ?? 240} points credited to OnePass</p>
+            </div>
+            <p className="text-xs font-semibold text-soft">
+              Outstanding performance! Look up at the big LED screen to watch the 3D Neobrutalist Podium awards ceremony.
+            </p>
+          </div>
+        </SuccessModal>
+      )}
     </div>
   );
 }

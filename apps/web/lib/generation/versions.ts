@@ -49,7 +49,12 @@ export function toSlug(title: string): string {
  */
 export async function addVersion(
   tx: Tx,
-  input: { creatorId: string; gameId: string | null; version: NewVersion },
+  input: {
+    creatorId: string;
+    gameId: string | null;
+    version: NewVersion;
+    settings?: { maxPoints?: number; theme?: string; coverImage?: string | null };
+  },
 ): Promise<{ gameId: string; versionId: string; versionNumber: number }> {
   const { version } = input;
   const meta = version.report.meta;
@@ -67,6 +72,9 @@ export async function addVersion(
         type: null,
         title: version.title,
         description: version.summary || meta.hint,
+        theme: input.settings?.theme ?? "neon",
+        maxPoints: input.settings?.maxPoints ?? 200,
+        coverImage: input.settings?.coverImage ?? null,
         creatorId: input.creatorId,
         status: "draft",
       })

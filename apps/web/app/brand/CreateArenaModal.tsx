@@ -2,6 +2,8 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { icon } from "@playloop/ui";
+import { SuccessModal } from "@/app/_components/SuccessModal";
 import { createVenueEvent } from "./eventActions";
 import type { EventRound } from "@/lib/events";
 
@@ -17,6 +19,7 @@ export function CreateArenaModal({ brandName }: { brandName: string }) {
   const [isOpen, setIsOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [createdEvent, setCreatedEvent] = useState<{ code: string; title: string; venueName: string } | null>(null);
   const router = useRouter();
 
   const [code, setCode] = useState("");
@@ -90,10 +93,9 @@ export function CreateArenaModal({ brandName }: { brandName: string }) {
           rounds,
         });
 
+        setCreatedEvent({ code: result.code, title, venueName });
         setIsOpen(false);
         router.refresh();
-        // Optional quick open
-        window.open(`/events?code=${result.code}`, "_blank");
       } catch (err: unknown) {
         setError(err instanceof Error ? err.message : "Failed to create arena activation");
       }
@@ -413,6 +415,42 @@ export function CreateArenaModal({ brandName }: { brandName: string }) {
             </form>
           </div>
         </div>
+      )}
+
+      {createdEvent && (
+        <SuccessModal
+          isOpen={Boolean(createdEvent)}
+          onClose={() => setCreatedEvent(null)}
+          title="Arena Live Activation Ready!"
+          badgeText="Host Console Ready"
+          iconHtml={icon("trophy")}
+          accentColor="lemon"
+          confetti={true}
+          soundEffect="victory"
+          primaryAction={{
+            label: "Launch Big-Screen Controller",
+            onClick: () => {
+              window.open(`/events?code=${encodeURIComponent(createdEvent.code)}`, "_blank");
+              setCreatedEvent(null);
+            },
+          }}
+          secondaryAction={{
+            label: "Done",
+            onClick: () => setCreatedEvent(null),
+          }}
+        >
+          <div className="flex flex-col gap-3 text-left">
+            <div className="rounded-2xl bg-paper p-3 border-2 border-ink shadow-hard-sm">
+              <span className="text-[10px] font-black uppercase tracking-wider text-soft">Event PIN</span>
+              <p className="font-mono text-2xl font-black tracking-widest text-ink">{createdEvent.code}</p>
+              <p className="text-sm font-extrabold text-ink mt-1">{createdEvent.title}</p>
+              <p className="text-xs font-semibold text-soft">{createdEvent.venueName}</p>
+            </div>
+            <p className="text-xs text-soft font-semibold text-center">
+              Audience players join at playloop.ae/events/join with PIN: <span className="font-mono font-bold text-ink">{createdEvent.code}</span>
+            </p>
+          </div>
+        </SuccessModal>
       )}
     </>
   );

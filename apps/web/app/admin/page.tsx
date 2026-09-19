@@ -53,6 +53,7 @@ export default async function AdminPage() {
       theme: schema.games.theme,
       difficulty: schema.games.difficulty,
       maxPoints: schema.games.maxPoints,
+      coverImage: schema.games.coverImage,
       config: schema.games.config,
       createdAt: schema.games.createdAt,
       creatorName: schema.profiles.name,
@@ -80,7 +81,7 @@ export default async function AdminPage() {
   }
 
   return (
-    <main className="mx-auto max-w-2xl p-6">
+    <main className="mx-auto max-w-4xl p-6">
       {unfunded.length > 0 ? (
         <section className="mb-8">
           <h2 className="text-xl font-extrabold">Campaigns awaiting funding</h2>
@@ -103,7 +104,14 @@ export default async function AdminPage() {
         </section>
       ) : null}
 
-      <h1 className="text-3xl font-extrabold tracking-tight">Moderation</h1>
+      <div className="flex items-center gap-3">
+        <h1 className="text-3xl font-extrabold tracking-tight">Moderation</h1>
+        {pending.length > 0 ? (
+          <span className="rounded-full bg-gum px-2.5 py-0.5 text-xs font-extrabold text-paper [border:var(--border-thick)]">
+            {pending.length}
+          </span>
+        ) : null}
+      </div>
       <p className="mt-1 text-sm font-bold text-soft">
         {pending.length === 0
           ? "Nothing waiting for review."
@@ -128,18 +136,29 @@ export default async function AdminPage() {
 
           return (
             <section key={g.id} className="card-hard overflow-hidden rounded-2xl bg-card [border:var(--border-thick)]">
-              <div className="flex gap-4 p-4">
-                <div
-                  className="h-24 w-32 shrink-0 overflow-hidden rounded-xl [border:var(--border-thick)]"
-                  dangerouslySetInnerHTML={{
-                    __html: artSVG(isCode ? null : (g.type as GameArtType), g.theme as ThemeName, config.item ?? "bean"),
-                  }}
-                />
+              <div className="flex flex-col gap-3 p-4 sm:flex-row sm:gap-4">
+                <div className="h-40 w-full sm:h-24 sm:w-32 shrink-0 overflow-hidden rounded-xl bg-black/10 [border:var(--border-thick)]">
+                  {g.coverImage ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={g.coverImage} alt="" className="h-full w-full object-cover" />
+                  ) : (
+                    <div
+                      className="h-full w-full"
+                      dangerouslySetInnerHTML={{
+                        __html: artSVG(isCode ? null : (g.type as GameArtType), g.theme as ThemeName, config.item ?? "bean"),
+                      }}
+                    />
+                  )}
+                </div>
                 <div className="min-w-0">
                   <h2 className="text-xl font-extrabold leading-tight">{g.title}</h2>
-                  <p className="text-xs font-bold text-soft">
-                    {isCode ? "Code game" : g.type} · {g.difficulty} · up to {g.maxPoints} pts
-                  </p>
+                  <div className="flex items-center gap-1 text-xs font-bold text-soft">
+                    <span>{isCode ? "Code game" : g.type} · {g.difficulty} · up to</span>
+                    <span className="inline-flex items-center gap-1 font-extrabold text-ink">
+                      <span className="coin sm" aria-hidden="true" />
+                      {g.maxPoints} pts
+                    </span>
+                  </div>
                   <p className="mt-1 text-xs font-bold text-soft">
                     by {g.creatorName ?? "unknown"} · {g.createdAt.toLocaleDateString("en-GB")}
                   </p>
@@ -155,7 +174,7 @@ export default async function AdminPage() {
               <div className="border-t-2 border-ink/10 p-4">
                 {isCode ? (
                   current && currentMeta ? (
-                    <div className="grid gap-4 sm:grid-cols-[200px_1fr]">
+                    <div className="grid gap-4 grid-cols-1 sm:grid-cols-[200px_1fr]">
                       <ReviewGamePreview code={current.code} runtimeVersion={current.runtimeVersion} meta={currentMeta} />
 
                       <div className="min-w-0">

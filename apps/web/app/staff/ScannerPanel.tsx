@@ -3,6 +3,8 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Spinner } from "@/app/_components/Spinner";
+import { icon } from "@playloop/ui";
+import { SuccessModal } from "@/app/_components/SuccessModal";
 import { lookupVoucher, redeemVoucher, undoRedemption, type LookupResult } from "./actions";
 import { QrScanner } from "./QrScanner";
 
@@ -66,22 +68,39 @@ export function ScannerPanel() {
 
   if (stage === "done" && done) {
     return (
-      <div className="card-hard pop-in mt-6 rounded-2xl bg-mint p-5 text-center [border:var(--border-thick)]">
-        <p className="text-xl font-extrabold">Redeemed</p>
-        <p className="mt-1 font-bold">Hand over: {done.rewardName}</p>
-        <button className="btn go mt-4" onClick={reset}>
-          Next voucher
-        </button>
-      </div>
+      <SuccessModal
+        isOpen={true}
+        onClose={reset}
+        title="VOUCHER CONFIRMED & CONSUMED"
+        badgeText="Redemption Verified"
+        iconHtml={icon("check")}
+        accentColor="mint"
+        confetti={true}
+        soundEffect="victory"
+        primaryAction={{
+          label: "Scan Next Customer",
+          onClick: reset,
+        }}
+      >
+        <div className="flex flex-col gap-3 text-center">
+          <div className="rounded-2xl bg-paper p-4 border-2 border-ink shadow-hard-sm">
+            <span className="text-[10px] font-black uppercase tracking-wider text-soft">Hand Over Item</span>
+            <p className="text-2xl font-black text-ink mt-1">{done.rewardName}</p>
+          </div>
+          <p className="text-xs text-soft font-semibold">
+            Voucher {code} successfully redeemed and recorded in the store ledger.
+          </p>
+        </div>
+      </SuccessModal>
     );
   }
 
   return (
-    <div className="mt-6">
+    <div className="mt-6 card-hard rounded-2xl bg-card p-4 [border:var(--border-thick)]">
       <label className="block text-sm font-extrabold" htmlFor="voucher-code">
-        Voucher code
+        Scan or Enter Voucher Code
       </label>
-      <p className="mb-2 text-xs font-bold text-soft">Type the code under the customer&apos;s QR.</p>
+      <p className="mb-3 text-xs font-bold text-soft">Type the code under the customer&apos;s QR, or scan it directly.</p>
       <div className="flex gap-2">
         <input
           id="voucher-code"

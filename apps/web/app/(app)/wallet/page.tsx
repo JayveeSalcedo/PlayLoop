@@ -70,8 +70,8 @@ export default async function WalletPage() {
       {/* Balance card — prototype's .wcard */}
       <div className="mt-4 rounded-3xl bg-violet p-5 text-white [border:var(--border-thick)] [box-shadow:var(--shadow-sm)]">
         <p className="text-sm font-bold opacity-90">Balance</p>
-        <div className="mt-1 flex items-center gap-2.5">
-          <span className="inline-block h-7 w-7 rounded-full bg-lemon [border:2.5px_solid_var(--ink)]" />
+        <div className="wbal mt-1 flex items-center gap-3">
+          <span className="coin lg" aria-hidden="true" />
           <p className="text-5xl font-extrabold tracking-tight">
             {profile.pointsBalance.toLocaleString("en-US")}
           </p>
@@ -151,7 +151,8 @@ export default async function WalletPage() {
           {ledgerRows.map((tx) => (
             <div key={tx.id} className="flex items-center justify-between border-b-2 border-ink/10 p-3 text-sm font-semibold last:border-b-0">
               <span>{tx.reason}</span>
-              <b className={tx.delta >= 0 ? "text-[#0B8F63]" : "text-[#D81B5B]"}>
+              <b className={`flex items-center gap-1.5 ${tx.delta >= 0 ? "text-[#0B8F63]" : "text-[#D81B5B]"}`}>
+                <span className="coin sm" aria-hidden="true" />
                 {tx.delta >= 0 ? "+" : ""}
                 {tx.delta.toLocaleString("en-US")}
               </b>

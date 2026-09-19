@@ -100,8 +100,8 @@ export default async function BrandPage() {
   const totalBudgetFils = campaigns.reduce((acc, c) => acc + c.budgetFils, 0);
 
   return (
-    <main className="mx-auto max-w-3xl p-6">
-      <div className="flex items-start justify-between gap-3">
+    <main className="mx-auto max-w-4xl p-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <p className="text-xs font-extrabold text-soft uppercase tracking-wider">Brand Console</p>
           <h1 className="text-3xl font-extrabold tracking-tight">{brand.name}</h1>
@@ -115,26 +115,37 @@ export default async function BrandPage() {
 
       {/* Brand-wide KPI Highlights */}
       <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <div className="card-hard rounded-2xl bg-card p-3.5 [border:var(--border-thick)]">
+        <div className="card-hard rounded-2xl bg-card p-4 [border:var(--border-thick)]">
           <p className="text-xs font-extrabold text-soft">Active Campaigns</p>
-          <p className="mt-0.5 text-2xl font-extrabold">{activeCampaigns.length}</p>
+          <p className="mt-1 text-3xl font-extrabold">{activeCampaigns.length}</p>
+          <p className="mt-0.5 text-[10px] font-bold text-soft">{campaigns.length} total</p>
         </div>
-        <div className="card-hard rounded-2xl bg-card p-3.5 [border:var(--border-thick)]">
+        <div className="card-hard rounded-2xl bg-card p-4 [border:var(--border-thick)]">
           <p className="text-xs font-extrabold text-soft">Store Footfall</p>
-          <p className="mt-0.5 text-2xl font-extrabold">{brandTotals.visits.toLocaleString("en-US")}</p>
+          <p className="mt-1 text-3xl font-extrabold">{brandTotals.visits.toLocaleString("en-US")}</p>
+          <p className="mt-0.5 text-[10px] font-bold text-soft">redemptions</p>
         </div>
-        <div className="card-hard rounded-2xl bg-card p-3.5 [border:var(--border-thick)]">
+        <div className="card-hard rounded-2xl bg-card p-4 [border:var(--border-thick)]">
           <p className="text-xs font-extrabold text-soft">Branches</p>
-          <p className="mt-0.5 text-2xl font-extrabold">{stores.length}</p>
+          <p className="mt-1 text-3xl font-extrabold">{stores.length}</p>
+          <p className="mt-0.5 text-[10px] font-bold text-soft">active locations</p>
         </div>
-        <div className="card-hard rounded-2xl bg-card p-3.5 [border:var(--border-thick)]">
+        <div className="card-hard rounded-2xl bg-card p-4 [border:var(--border-thick)]">
           <p className="text-xs font-extrabold text-soft">Total Committed</p>
-          <p className="mt-0.5 text-2xl font-extrabold">{formatAed(totalBudgetFils)}</p>
+          <p className="mt-1 text-3xl font-extrabold">{formatAed(totalBudgetFils)}</p>
+          <p className="mt-0.5 text-[10px] font-bold text-soft">budget deployed</p>
         </div>
       </div>
 
       <div className="mt-8 flex items-center justify-between">
-        <h2 className="text-xl font-extrabold tracking-tight">Campaigns</h2>
+        <div className="flex items-center gap-3">
+          <h2 className="text-xl font-extrabold tracking-tight">Campaigns</h2>
+          {campaigns.length > 0 ? (
+            <span className="rounded-full bg-card px-2 py-0.5 text-xs font-extrabold [border:var(--border-thick)]">
+              {campaigns.length}
+            </span>
+          ) : null}
+        </div>
         <Link href="/brand/new" className="btn go sm inline-flex">
           + New campaign
         </Link>
@@ -152,16 +163,16 @@ export default async function BrandPage() {
               <Link
                 key={c.id}
                 href={`/brand/campaigns/${c.id}`}
-                className="card-hard row-hard-hover flex items-center gap-3 rounded-2xl bg-card p-4 [border:var(--border-thick)]"
+                className="card-hard card-hard-hover flex flex-col gap-2 rounded-2xl bg-card p-4 [border:var(--border-thick)] sm:flex-row sm:items-center sm:gap-3"
               >
-                <div className="min-w-0">
+                <div className="min-w-0 flex-1">
                   <p className="font-extrabold">{c.gameTitle}</p>
                   <p className="text-xs font-bold text-soft">
                     {c.rewardName} · {formatAed(c.budgetFils)} · {c.startsOn} to {c.endsOn}
                   </p>
                 </div>
                 <span
-                  className={`ml-auto shrink-0 rounded-full px-2.5 py-1 text-xs font-extrabold [border:var(--border-thick)] ${STATUS_STYLE[status]}`}
+                  className={`self-start shrink-0 rounded-full px-2.5 py-1 text-xs font-extrabold [border:var(--border-thick)] sm:self-center ${STATUS_STYLE[status]}`}
                 >
                   {status}
                 </span>
@@ -175,21 +186,29 @@ export default async function BrandPage() {
       <BrandArenaSection brandName={brand.name} events={venueEvents} />
 
       {/* Connected Physical Branches */}
-      <h2 className="mt-8 text-xl font-extrabold tracking-tight">Store Branches</h2>
+      <div className="mt-8 flex items-center gap-3">
+        <h2 className="text-xl font-extrabold tracking-tight">Store Branches</h2>
+        {stores.length > 0 ? (
+          <span className="rounded-full bg-card px-2 py-0.5 text-xs font-extrabold [border:var(--border-thick)]">
+            {stores.length}
+          </span>
+        ) : null}
+      </div>
       {stores.length === 0 ? (
         <p className="mt-2 text-sm font-bold text-soft">No stores registered to this brand.</p>
       ) : (
-        <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
+        <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 md:grid-cols-3">
           {stores.map((s) => (
             <div
               key={s.id}
-              className="card-hard rounded-2xl bg-card p-3 [border:var(--border-thick)]"
+              className="card-hard rounded-2xl bg-card p-4 [border:var(--border-thick)]"
             >
               <p className="text-sm font-extrabold text-ink truncate">{s.name}</p>
               <p className="text-xs font-bold text-soft">{s.city}</p>
-              <span className="mt-2 inline-block text-[10px] font-extrabold text-mint">
-                ● Counter Active
-              </span>
+              <div className="mt-2 flex items-center gap-1.5">
+                <span className="inline-block h-2 w-2 rounded-full bg-mint"></span>
+                <span className="text-[10px] font-extrabold text-soft">Counter Active</span>
+              </div>
             </div>
           ))}
         </div>

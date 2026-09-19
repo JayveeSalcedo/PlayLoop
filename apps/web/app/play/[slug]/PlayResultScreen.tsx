@@ -5,6 +5,7 @@ import Link from "next/link";
 import { tier, perkForLevel } from "@playloop/economy";
 import { icon } from "@playloop/ui";
 import type { PlayResult } from "@/lib/creditPlay";
+import { SuccessModal } from "@/app/_components/SuccessModal";
 import { ChallengeShare } from "./ChallengeShare";
 import { useFriends } from "./useFriends";
 
@@ -34,8 +35,6 @@ export function PlayResultScreen({
   onPlayAgain: () => void;
 }) {
   const friends = useFriends();
-  const [dismissLevelUp, setDismissLevelUp] = useState(false);
-
   const cr = result.challengeResult;
   const totalEarned = result.payoutPoints + (cr?.bonusAwarded ?? 0);
 
@@ -47,7 +46,33 @@ export function PlayResultScreen({
   const targetRewardPoints = 500;
   const pointsToReward = targetRewardPoints - result.pointsBalance;
 
-  const showLevelUp = result.levelsGained > 0 && !dismissLevelUp;
+  type ActiveModal = "challenge" | "personalBest" | "levelUp" | null;
+  const [activeModal, setActiveModal] = useState<ActiveModal>(() => {
+    if (result.challengeResult) return "challenge";
+    if (result.isPersonalBest) return "personalBest";
+    if (result.levelsGained > 0) return "levelUp";
+    return null;
+  });
+
+  function dismissModal(current: ActiveModal) {
+    if (current === "challenge") {
+      if (result.isPersonalBest) {
+        setActiveModal("personalBest");
+      } else if (result.levelsGained > 0) {
+        setActiveModal("levelUp");
+      } else {
+        setActiveModal(null);
+      }
+    } else if (current === "personalBest") {
+      if (result.levelsGained > 0) {
+        setActiveModal("levelUp");
+      } else {
+        setActiveModal(null);
+      }
+    } else {
+      setActiveModal(null);
+    }
+  }
 
   return (
     <main className="mx-auto max-w-sm p-6 text-center">
@@ -110,10 +135,13 @@ export function PlayResultScreen({
         </div>
       ) : null}
 
-      {/* Points earned card */}
-      <div className="card-hard pop-in-2 mt-4 rounded-2xl bg-lemon p-4 [border:var(--border-thick)]">
-        <p className="text-4xl font-extrabold">+{result.payoutPoints}</p>
-        <p className="text-sm font-bold">points earned</p>
+      {/* Points earned card — prototype's .rearn */}
+      <div className="rearn card-hard pop-in-2 mt-4 flex items-center justify-center gap-3.5 rounded-2xl bg-lemon p-4 text-ink [border:var(--border-thick)]">
+        <span className="coin lg" aria-hidden="true" />
+        <div className="text-left">
+          <p className="text-4xl font-extrabold leading-none">+{result.payoutPoints}</p>
+          <p className="text-xs font-bold uppercase tracking-wider opacity-85 mt-1">points earned</p>
+        </div>
       </div>
 
       <p className="mt-3 text-sm font-bold text-soft">+{result.xpGain} XP</p>
@@ -137,31 +165,216 @@ export function PlayResultScreen({
         </div>
       </Link>
 
-      {/* Level-Up Modal Overlay */}
-      {showLevelUp && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/60 p-4 backdrop-blur-xs">
-          <div className="card-hard pop-in w-full max-w-xs rounded-3xl bg-lemon p-6 text-center text-ink [border:var(--border-thick)] [box-shadow:var(--shadow-lg)]">
-            <span className="text-4xl">🎉</span>
-            <h2 className="mt-2 text-2xl font-extrabold tracking-tight">Level Up!</h2>
-            <div className="mt-3 rounded-2xl bg-white/60 p-3 [border:2px_solid_var(--ink)]">
-              <p className="text-3xl font-extrabold">Level {result.level}</p>
-              <p className="text-sm font-extrabold text-violet">{tier(result.level)}</p>
-            </div>
-            <p className="mt-4 text-xs font-extrabold text-soft uppercase tracking-wide">
-              Perk Unlocked
-            </p>
-            <p className="mt-1 text-sm font-extrabold leading-snug">
-              {perkForLevel(result.level)}
-            </p>
-            <button
-              type="button"
-              onClick={() => setDismissLevelUp(true)}
-              className="btn go block mt-6 w-full"
+      {/* 1-on-1 Challenge Modal (Victory vs Defeat) */}
+      {activeModal === "challenge" && cr && (
+        (() => {
+          const isWin = cr.outcome === "recipient" || result.score > cr.opponentScore;
+          const isLoss = cr.outcome === "sender" || result.score < cr.opponentScore;
+          const deficit = Math.max(0, cr.opponentScore - result.score);
+
+          if (isWin) {
+            return (
+              <SuccessModal
+                isOpen={true}
+                onClose={() => dismissModal("challenge")}
+                title="⚔️ CHALLENGE WON!"
+                badgeText="Bounty Claimed"
+                iconHtml={icon("crown")}
+                accentColor="mint"
+                confetti={true}
+                soundEffect="victory"
+                primaryAction={{
+                  label: "Send Victory Brag (WhatsApp)",
+                  onClick: () => {
+                    const origin = typeof window !== "undefined" ? window.location.origin : "https://playloop.ae";
+                    const gameUrl = challengeCode
+                      ? `${origin}/c/${encodeURIComponent(challengeCode)}`
+                      : typeof window !== "undefined"
+                        ? window.location.href.split("?")[0]
+                        : `${origin}/feed`;
+                    const brag = `I just beat your score of ${cr.opponentScore.toLocaleString("en-US")} in ${title} on PlayLoop with ${result.score.toLocaleString("en-US")} points! 🏆 Can you take back the lead? ${gameUrl}`;
+                    window.open(`https://wa.me/?text=${encodeURIComponent(brag)}`, "_blank");
+                  },
+                }}
+                secondaryAction={{
+                  label: "Continue",
+                  onClick: () => dismissModal("challenge"),
+                }}
+              >
+                <div className="flex flex-col gap-3">
+                  <div className="grid grid-cols-2 gap-2 rounded-2xl bg-paper p-3 border-2 border-ink shadow-hard-sm">
+                    <div className="text-center">
+                      <span className="text-[10px] font-bold text-soft uppercase">Your Score</span>
+                      <p className="text-2xl font-black text-ink">{result.score.toLocaleString("en-US")}</p>
+                    </div>
+                    <div className="text-center border-l-2 border-ink/15">
+                      <span className="text-[10px] font-bold text-soft uppercase">Their Score</span>
+                      <p className="text-2xl font-black text-soft">{cr.opponentScore.toLocaleString("en-US")}</p>
+                    </div>
+                  </div>
+                  {cr.bonusAwarded > 0 && (
+                    <div className="flex items-center justify-center gap-2 rounded-xl bg-mint/30 p-2.5 border-2 border-ink font-extrabold text-ink text-sm">
+                      <span className="coin sm" aria-hidden="true" />
+                      <span>+{cr.bonusAwarded} Challenge Bounty points credited!</span>
+                    </div>
+                  )}
+                  <p className="text-xs text-soft font-medium">
+                    You knocked them off the top spot. Send a brag link so they can try to reclaim it!
+                  </p>
+                </div>
+              </SuccessModal>
+            );
+          }
+
+          if (isLoss) {
+            return (
+              <SuccessModal
+                isOpen={true}
+                onClose={() => dismissModal("challenge")}
+                title="⚔️ Close Match!"
+                badgeText="Defeat"
+                iconHtml={icon("spark")}
+                accentColor="lemon"
+                confetti={false}
+                soundEffect="tap"
+                primaryAction={{
+                  label: "Retry & Beat Score",
+                  onClick: onPlayAgain,
+                }}
+                secondaryAction={{
+                  label: "View Results",
+                  onClick: () => dismissModal("challenge"),
+                }}
+              >
+                <div className="flex flex-col gap-3">
+                  <div className="grid grid-cols-2 gap-2 rounded-2xl bg-paper p-3 border-2 border-ink shadow-hard-sm">
+                    <div className="text-center">
+                      <span className="text-[10px] font-bold text-soft uppercase">Your Score</span>
+                      <p className="text-2xl font-black text-ink">{result.score.toLocaleString("en-US")}</p>
+                    </div>
+                    <div className="text-center border-l-2 border-ink/15">
+                      <span className="text-[10px] font-bold text-soft uppercase">Leader Score</span>
+                      <p className="text-2xl font-black text-gum">{cr.opponentScore.toLocaleString("en-US")}</p>
+                    </div>
+                  </div>
+                  <div className="rounded-xl bg-lemon/30 p-2.5 border-2 border-ink font-bold text-ink text-xs">
+                    You were only {deficit.toLocaleString("en-US")} points behind!
+                  </div>
+                  <p className="text-xs text-soft font-medium">
+                    Don&apos;t let them hold the lead. Tap Retry to take another shot right now!
+                  </p>
+                </div>
+              </SuccessModal>
+            );
+          }
+
+          // Tie
+          return (
+            <SuccessModal
+              isOpen={true}
+              onClose={() => dismissModal("challenge")}
+              title="⚔️ Dead Heat Tie!"
+              badgeText="Tied Score"
+              iconHtml={icon("spark")}
+              accentColor="cyan"
+              confetti={false}
+              soundEffect="tap"
+              primaryAction={{
+                label: "Play Again to Break Tie",
+                onClick: onPlayAgain,
+              }}
+              secondaryAction={{
+                label: "View Results",
+                onClick: () => dismissModal("challenge"),
+              }}
             >
-              Keep playing
-            </button>
+              <div className="flex flex-col gap-2">
+                <p className="text-sm font-semibold">
+                  Both of you scored exactly {result.score.toLocaleString("en-US")} points!
+                </p>
+                <p className="text-xs text-soft">
+                  Play one more round to break the deadlock and claim the challenger bounty.
+                </p>
+              </div>
+            </SuccessModal>
+          );
+        })()
+      )}
+
+      {/* New Personal Record / High Score Modal */}
+      {activeModal === "personalBest" && result.isPersonalBest && (
+        <SuccessModal
+          isOpen={true}
+          onClose={() => dismissModal("personalBest")}
+          title="🏆 NEW PERSONAL RECORD!"
+          badgeText="All-Time High Score"
+          iconHtml={icon("trophy")}
+          accentColor="lemon"
+          confetti={true}
+          soundEffect="victory"
+          primaryAction={{
+            label: "Challenge Friends With This Score",
+            onClick: () => {
+              const origin = typeof window !== "undefined" ? window.location.origin : "https://playloop.ae";
+              const gameUrl = typeof window !== "undefined" ? window.location.href.split("?")[0] : `${origin}/feed`;
+              const text = `I just set a NEW PERSONAL RECORD of ${result.score.toLocaleString("en-US")} in ${title} on PlayLoop! Think you can beat me? ${gameUrl}`;
+              window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
+              dismissModal("personalBest");
+            },
+          }}
+          secondaryAction={{
+            label: "Collect Points",
+            onClick: () => dismissModal("personalBest"),
+          }}
+        >
+          <div className="flex flex-col items-center gap-3">
+            <div className="w-full rounded-2xl bg-paper p-4 border-2 border-ink shadow-hard-sm">
+              <span className="text-xs font-bold text-soft uppercase tracking-wider">New Best Score</span>
+              <p className="text-5xl font-black text-ink my-1">{result.score.toLocaleString("en-US")}</p>
+              <div className="mt-1 flex items-center justify-center gap-1.5 text-xs font-bold text-mint-foreground">
+                <span>⭐ {starCount} of 3 Stars</span>
+                <span>·</span>
+                <span className="inline-flex items-center gap-1">
+                  <span className="coin sm" aria-hidden="true" />
+                  +{result.payoutPoints} pts earned
+                </span>
+              </div>
+            </div>
+            <p className="text-xs font-semibold text-soft">
+              You beat your previous best run! Put your new record on the line by challenging your squad.
+            </p>
           </div>
-        </div>
+        </SuccessModal>
+      )}
+
+      {/* Level-Up & Season Pass Tier Modal */}
+      {activeModal === "levelUp" && result.levelsGained > 0 && (
+        <SuccessModal
+          isOpen={true}
+          onClose={() => dismissModal("levelUp")}
+          title="🏅 Level Up & Tier Unlocked!"
+          badgeText={`Level ${result.level}`}
+          iconHtml={icon("trophy")}
+          accentColor="lemon"
+          confetti={true}
+          soundEffect="victory"
+          primaryAction={{
+            label: "Keep Playing",
+            onClick: () => dismissModal("levelUp"),
+          }}
+        >
+          <div className="flex flex-col items-center gap-3">
+            <div className="w-full rounded-2xl bg-paper p-4 border-2 border-ink shadow-hard-sm">
+              <span className="text-xs font-bold text-soft uppercase tracking-wider">New Season Tier</span>
+              <p className="text-3xl font-black text-violet my-1">{tier(result.level)}</p>
+              <p className="text-sm font-extrabold text-ink">Level {result.level}</p>
+            </div>
+            <div className="w-full rounded-xl bg-mint/20 p-3 border-2 border-ink text-left">
+              <span className="text-[10px] font-black uppercase tracking-wider text-soft">Perk Unlocked</span>
+              <p className="text-sm font-extrabold text-ink mt-0.5">{perkForLevel(result.level)}</p>
+            </div>
+          </div>
+        </SuccessModal>
       )}
 
       {/* Guest save CTA vs Logged in share */}

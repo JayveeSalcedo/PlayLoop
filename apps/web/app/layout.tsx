@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { Bricolage_Grotesque } from "next/font/google";
+import { Suspense } from "react";
 import { ServiceWorkerRegister } from "./_components/pwa/ServiceWorkerRegister";
+import { NavigationProgress } from "./_components/NavigationProgress";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -40,6 +42,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
        */}
       <body suppressHydrationWarning>
         <ServiceWorkerRegister />
+        <Suspense fallback={null}>
+          <NavigationProgress />
+        </Suspense>
         {children}
       </body>
     </html>

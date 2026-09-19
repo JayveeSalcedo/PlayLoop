@@ -53,3 +53,171 @@
 .ico.fill {
   fill: currentColor;
 }
+
+/*
+ * Neobrutalist Coin / Points Badge, ported from the prototype
+ * (reference/playloop-prototype.html, lines 43-45, 121, 305, 426, 484).
+ *
+ * Characteristics:
+ * - Lemon / gold background with prominent dark ink border
+ * - Neobrutalist drop shadow
+ * - Concentric inner ring simulating a minted coin rim
+ * - Size variants: sm (18px), md / default (26px), lg (40px), xl (56px)
+ * - Prototype context rules (.pts-big, .gpts, .rcost, .rearn, .wbal)
+ */
+.coin {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--color-lemon, #ffdd3c);
+  border: 2.5px solid var(--color-ink, #18123f);
+  box-shadow: 1.5px 1.5px 0 var(--color-ink, #18123f);
+  position: relative;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  vertical-align: middle;
+  line-height: 1;
+  box-sizing: border-box;
+}
+.coin::after {
+  content: "";
+  position: absolute;
+  inset: 4px;
+  border-radius: 50%;
+  border: 1.8px solid rgba(24, 18, 63, 0.35);
+  pointer-events: none;
+  box-sizing: border-box;
+}
+
+.coin.sm {
+  width: 18px;
+  height: 18px;
+  border-width: 2px;
+  box-shadow: 1px 1px 0 var(--color-ink, #18123f);
+}
+.coin.sm::after {
+  inset: 2.5px;
+  border-width: 1.4px;
+}
+
+.coin.md {
+  width: 26px;
+  height: 26px;
+  border-width: 2.5px;
+  box-shadow: 1.5px 1.5px 0 var(--color-ink, #18123f);
+}
+.coin.md::after {
+  inset: 4px;
+  border-width: 1.8px;
+}
+
+.coin.lg {
+  width: 40px;
+  height: 40px;
+  border-width: 3px;
+  box-shadow: 2.5px 2.5px 0 var(--color-ink, #18123f);
+}
+.coin.lg::after {
+  inset: 6.5px;
+  border-width: 2.2px;
+}
+
+.coin.xl {
+  width: 56px;
+  height: 56px;
+  border-width: 3.5px;
+  box-shadow: 3.5px 3.5px 0 var(--color-ink, #18123f);
+}
+.coin.xl::after {
+  inset: 9px;
+  border-width: 2.8px;
+}
+
+.coin.fly {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 999;
+  pointer-events: none;
+  width: 22px;
+  height: 22px;
+  border-width: 2px;
+  box-shadow: 1px 1px 0 var(--color-ink, #18123f);
+}
+.coin.fly::after {
+  inset: 3px;
+  border-width: 1.5px;
+}
+
+/* Contextual prototype sizing rules */
+.pts-big .coin {
+  width: 64px;
+  height: 64px;
+  border-width: 3.5px;
+  box-shadow: 3.5px 3.5px 0 var(--color-ink, #18123f);
+}
+.pts-big .coin::after {
+  inset: 10px;
+  border-width: 3px;
+}
+
+.gpts .coin,
+.rcost .coin {
+  width: 18px;
+  height: 18px;
+  border-width: 2px;
+  box-shadow: 1px 1px 0 var(--color-ink, #18123f);
+}
+.gpts .coin::after,
+.rcost .coin::after {
+  inset: 2.5px;
+  border-width: 1.4px;
+}
+
+.rearn .coin {
+  width: 44px;
+  height: 44px;
+  border-width: 3px;
+  box-shadow: 2.5px 2.5px 0 var(--color-ink, #18123f);
+}
+.rearn .coin::after {
+  inset: 7.5px;
+  border-width: 2.2px;
+}
+
+.wbal .coin {
+  width: 40px;
+  height: 40px;
+  border-width: 3px;
+  box-shadow: 2.5px 2.5px 0 var(--color-ink, #18123f);
+}
+.wbal .coin::after {
+  inset: 6.5px;
+  border-width: 2.2px;
+}
+
+/* Coin SVG overrides when rendered inside .ico wrapper or as standalone SVG */
+.ico.ico-coin,
+.ico-coin {
+  width: 1.15em;
+  height: 1.15em;
+  fill: none;
+  stroke: none;
+  display: inline-block;
+  vertical-align: middle;
+  flex: none;
+}
+
+.coin-svg {
+  display: inline-block;
+  vertical-align: middle;
+  flex: none;
+  fill: none;
+  stroke: none;
+}
+.coin-svg:not([width]) {
+  width: 1.15em;
+  height: 1.15em;
+}

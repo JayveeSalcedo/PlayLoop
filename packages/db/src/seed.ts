@@ -16,8 +16,10 @@ config({ path: path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..
 async function main() {
   const db = getDb();
 
-  // Ensure leagues, league_members, and venue_events tables exist
+  // Ensure leagues, league_members, and venue_events tables exist, and games has cover_image
   await db.execute(sql`
+    ALTER TABLE games ADD COLUMN IF NOT EXISTS cover_image text;
+
     CREATE TABLE IF NOT EXISTS leagues (
       id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
       name text NOT NULL,

@@ -604,8 +604,9 @@ export function EventArenaClient({
 
                     <div className="bg-white/5 border border-white/15 rounded-2xl p-4">
                       <div className="text-[11px] font-bold uppercase text-white/60">Total Points Scored</div>
-                      <div className="text-3xl font-black text-yellow-300 font-mono">
-                        {crowdScoreTotal.toLocaleString()}
+                      <div className="flex items-center gap-2 text-3xl font-black text-yellow-300 font-mono mt-1">
+                        <span className="coin md" aria-hidden="true" />
+                        <span>{crowdScoreTotal.toLocaleString()}</span>
                       </div>
                     </div>
 
@@ -651,8 +652,9 @@ export function EventArenaClient({
                       <div className="font-black text-sm md:text-base text-white mt-2 truncate w-full">
                         {secondPlace.name}
                       </div>
-                      <div className="font-extrabold text-xs text-white/70 font-mono mb-2">
-                        {secondPlace.score} pts
+                      <div className="flex items-center gap-1 font-extrabold text-xs text-white/70 font-mono mb-2">
+                        <span className="coin sm" aria-hidden="true" />
+                        <span>{secondPlace.score} pts</span>
                       </div>
                       <div
                         className="w-full rounded-t-2xl border-4 border-b-0 border-ink flex flex-col items-center justify-start pt-3 font-black text-5xl md:text-6xl text-ink shadow-md"
@@ -677,8 +679,9 @@ export function EventArenaClient({
                       <div className="font-black text-base md:text-lg text-yellow-300 mt-2 truncate w-full">
                         {firstPlace.name}
                       </div>
-                      <div className="font-extrabold text-sm text-white font-mono mb-2">
-                        {firstPlace.score} pts
+                      <div className="flex items-center gap-1 font-extrabold text-sm text-white font-mono mb-2">
+                        <span className="coin sm" aria-hidden="true" />
+                        <span>{firstPlace.score} pts</span>
                       </div>
                       <div
                         className="w-full rounded-t-2xl border-4 border-b-0 border-ink flex flex-col items-center justify-start pt-3 font-black text-6xl md:text-7xl text-ink shadow-xl"
@@ -702,8 +705,9 @@ export function EventArenaClient({
                       <div className="font-black text-sm md:text-base text-white mt-2 truncate w-full">
                         {thirdPlace.name}
                       </div>
-                      <div className="font-extrabold text-xs text-white/70 font-mono mb-2">
-                        {thirdPlace.score} pts
+                      <div className="flex items-center gap-1 font-extrabold text-xs text-white/70 font-mono mb-2">
+                        <span className="coin sm" aria-hidden="true" />
+                        <span>{thirdPlace.score} pts</span>
                       </div>
                       <div
                         className="w-full rounded-t-2xl border-4 border-b-0 border-ink flex flex-col items-center justify-start pt-3 font-black text-5xl md:text-6xl text-ink shadow-md"
@@ -761,8 +765,9 @@ export function EventArenaClient({
 
                   <div className="bg-white/5 border border-white/15 rounded-2xl p-4">
                     <div className="text-xs font-bold text-white/60 uppercase">Points Issued</div>
-                    <div className="text-3xl md:text-4xl font-black text-emerald-400 font-mono mt-1">
-                      {(crowdScoreTotal * 1.5).toLocaleString()}
+                    <div className="flex items-center gap-2 text-3xl md:text-4xl font-black text-emerald-400 font-mono mt-1">
+                      <span className="coin md" aria-hidden="true" />
+                      <span>{(crowdScoreTotal * 1.5).toLocaleString()}</span>
                     </div>
                     <div className="text-[11px] text-white/60 mt-1">Sponsor pool funded</div>
                   </div>

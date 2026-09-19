@@ -23,6 +23,7 @@ export interface GameRow {
   maxPoints: number;
   config: unknown;
   status: "draft" | "pending_review" | "published" | "rejected";
+  coverImage?: string | null;
 }
 
 type Stage = "intro" | "starting" | "playing" | "result" | "submitting";
@@ -127,6 +128,7 @@ export function GamePlayer({ game, challengeCode }: { game: GameRow; challengeCo
       error={error}
       starting={stage === "starting"}
       onStart={start}
+      coverImage={game.coverImage}
     />
   );
 }

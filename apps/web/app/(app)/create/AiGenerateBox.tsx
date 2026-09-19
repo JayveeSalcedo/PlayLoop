@@ -13,6 +13,9 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Spinner } from "@/app/_components/Spinner";
+import { THEMES, type ThemeName } from "@playloop/ui";
+import { shrinkCoverImage } from "./shrink";
+import { CoverCropperModal } from "./CoverCropperModal";
 import type { JobView } from "@/lib/generation/jobs";
 
 const MAX_IDEA = 1_000;
@@ -27,6 +30,11 @@ const CHIPS = [
 export function AiGenerateBox({ providerLabel }: { providerLabel: string }) {
   const router = useRouter();
   const [idea, setIdea] = useState("");
+  const [maxPoints, setMaxPoints] = useState(200);
+  const [theme, setTheme] = useState<ThemeName>("neon");
+  const [coverImage, setCoverImage] = useState<string | null>(null);
+  const [coverError, setCoverError] = useState<string | null>(null);
+  const [croppingImage, setCroppingImage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -37,7 +45,13 @@ export function AiGenerateBox({ providerLabel }: { providerLabel: string }) {
       const res = await fetch("/api/studio/jobs", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ kind: "create", request: idea }),
+        body: JSON.stringify({
+          kind: "create",
+          request: idea,
+          maxPoints,
+          theme,
+          coverImage,
+        }),
       });
       const data = (await res.json()) as JobView & { error?: string };
       if (!res.ok) throw new Error(data.error ?? "Couldn't start that — try again.");
@@ -89,6 +103,116 @@ export function AiGenerateBox({ providerLabel }: { providerLabel: string }) {
           </button>
         ))}
       </div>
+
+      {/* Customise Cover & Payout (matches template wizard) */}
+      <div className="mt-1 flex flex-col gap-3 rounded-xl bg-white/5 p-3.5 [border:1.5px_solid_rgba(255,255,255,0.15)]">
+        <div>
+          <span className="block text-xs font-extrabold text-white">Cover photo & style</span>
+          <p className="mb-2 text-[11px] font-semibold text-white/70">
+            Upload a custom photo or choose a vibrant theme gradient.
+          </p>
+
+          <div className="flex items-center gap-3">
+            <div
+              className="relative h-16 w-24 shrink-0 overflow-hidden rounded-lg [border:var(--border-thick)] shadow"
+              style={{ background: coverImage ? "transparent" : `linear-gradient(135deg, ${THEMES[theme]?.[0] ?? "#7C3AED"}, ${THEMES[theme]?.[1] ?? "#06B6D4"})` }}
+            >
+              {coverImage ? (
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img src={coverImage} alt="Cover preview" className="h-full w-full object-cover" />
+              ) : null}
+            </div>
+
+            <div className="flex flex-1 flex-wrap items-center gap-2">
+              <label className="cursor-pointer rounded-xl bg-white px-3 py-1.5 text-xs font-extrabold text-ink hover:bg-lemon [border:var(--border-thick)]">
+                <span>📷 {coverImage ? "Change photo" : "Upload photo"}</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  disabled={busy}
+                  onChange={(e) => {
+                    setCoverError(null);
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    e.target.value = "";
+                    if (file.size > 25 * 1024 * 1024) {
+                      setCoverError("That image is over 25 MB. Pick a smaller one.");
+                      return;
+                    }
+                    const reader = new FileReader();
+                    reader.onerror = () => setCoverError("Couldn't read that file.");
+                    reader.onload = () => {
+                      setCroppingImage(String(reader.result));
+                    };
+                    reader.readAsDataURL(file);
+                  }}
+                />
+              </label>
+
+              {coverImage ? (
+                <>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => setCroppingImage(coverImage)}
+                    className="rounded-xl border border-white/30 bg-transparent px-2.5 py-1.5 text-xs font-extrabold text-white hover:border-white"
+                  >
+                    ✂️ Adjust crop
+                  </button>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => setCoverImage(null)}
+                    className="rounded-xl border border-white/30 bg-transparent px-2.5 py-1.5 text-xs font-extrabold text-white hover:border-white"
+                  >
+                    × Remove
+                  </button>
+                </>
+              ) : null}
+            </div>
+          </div>
+          {coverError ? <p className="mt-1 text-xs font-bold text-gum">{coverError}</p> : null}
+
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <span className="text-xs font-bold text-white/80">Theme:</span>
+            {Object.entries(THEMES).map(([key, [a, b]]) => (
+              <button
+                key={key}
+                type="button"
+                aria-label={key}
+                disabled={busy}
+                onClick={() => setTheme(key as ThemeName)}
+                className={`h-7 w-7 rounded-lg [border:var(--border-thick)] ${theme === key ? "ring-2 ring-white" : ""}`}
+                style={{ background: `linear-gradient(135deg, ${a}, ${b})` }}
+              />
+            ))}
+          </div>
+        </div>
+
+        <div className="border-t border-white/10 pt-2.5">
+          <div className="flex items-center justify-between text-xs font-extrabold text-white">
+            <span>Max points per play</span>
+            <span className="inline-flex items-center gap-1 rounded-md bg-lemon px-2 py-0.5 text-ink">
+              <span className="coin sm" aria-hidden="true" />
+              {maxPoints} pts
+            </span>
+          </div>
+          <p className="mt-0.5 mb-2 text-[11px] font-semibold text-white/70">
+            Top players beating the score target earn up to this many points.
+          </p>
+          <input
+            type="range"
+            className="w-full accent-lemon"
+            min={100}
+            max={400}
+            step={25}
+            value={maxPoints}
+            disabled={busy}
+            onChange={(e) => setMaxPoints(Number(e.target.value))}
+          />
+        </div>
+      </div>
       {error ? (
         <p role="alert" className="text-sm font-bold text-gum">
           {error}
@@ -98,7 +222,7 @@ export function AiGenerateBox({ providerLabel }: { providerLabel: string }) {
         <button type="button" className="btn go" disabled={!idea.trim() || busy} onClick={generate}>
           {busy ? (
             <>
-              <Spinner size={18} /> Starting…
+              <Spinner size={18} /> Generating…
             </>
           ) : (
             "⚡ Generate game"
@@ -106,6 +230,25 @@ export function AiGenerateBox({ providerLabel }: { providerLabel: string }) {
         </button>
         <span className="text-xs font-bold text-white/60">{providerLabel}</span>
       </div>
+
+      {busy ? (
+        <div className="rounded-2xl border-2 border-dashed border-white/30 bg-white/5 p-4 text-center text-white space-y-2 animate-pulse">
+          <p className="text-sm font-extrabold text-lemon">⚡ Creating your AI game…</p>
+          <p className="text-xs text-white/70">Connecting to model & preparing studio workspace</p>
+          <div className="skeleton h-2 w-3/4 mx-auto bg-white/20" />
+        </div>
+      ) : null}
+
+      {croppingImage ? (
+        <CoverCropperModal
+          imageSrc={croppingImage}
+          onCrop={(cropped) => {
+            setCoverImage(cropped);
+            setCroppingImage(null);
+          }}
+          onCancel={() => setCroppingImage(null)}
+        />
+      ) : null}
     </section>
   );
 }

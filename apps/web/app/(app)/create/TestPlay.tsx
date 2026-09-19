@@ -55,6 +55,12 @@ export function TestPlay({ draft, onClose }: { draft: GameDraft; onClose: () => 
       className="flex flex-col items-center justify-center gap-3 bg-paper p-6 text-center"
       style={{ position: "fixed", inset: 0, zIndex: 60 }}
     >
+      {draft.coverImage ? (
+        <div className="card-hard mb-1 h-20 w-32 overflow-hidden rounded-2xl [border:var(--border-thick)]">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={draft.coverImage} alt="" className="h-full w-full object-cover" />
+        </div>
+      ) : null}
       <p className="text-sm font-extrabold text-soft">Test score</p>
       <div className="text-7xl font-extrabold tracking-tight">{score.toLocaleString("en-US")}</div>
       <p className="max-w-xs font-bold text-soft">

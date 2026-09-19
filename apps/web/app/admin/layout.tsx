@@ -23,18 +23,20 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
   return (
     <>
-      <nav className="border-b-2 border-ink/10 bg-card">
-        <div className="mx-auto flex max-w-2xl items-center gap-2 p-3">
-          {TABS.map((t) => (
-            <Link
-              key={t.href}
-              href={t.href}
-              className="rounded-full bg-paper px-3 py-1 text-sm font-extrabold [border:var(--border-thick)]"
-            >
-              {t.label}
-            </Link>
-          ))}
-          <div className="ml-auto flex shrink-0 gap-2">
+      <nav className="sticky top-0 z-20 border-b-2 border-ink/10 bg-card">
+        <div className="mx-auto flex max-w-4xl items-center gap-2 px-4 py-2.5 sm:px-6">
+          <div className="flex min-w-0 flex-1 gap-1.5 overflow-x-auto scrollbar-hide">
+            {TABS.map((t) => (
+              <Link
+                key={t.href}
+                href={t.href}
+                className="shrink-0 rounded-full bg-paper px-3 py-1 text-xs font-extrabold [border:var(--border-thick)] transition-transform hover:scale-[1.04] active:scale-95 sm:text-sm"
+              >
+                {t.label}
+              </Link>
+            ))}
+          </div>
+          <div className="flex shrink-0 gap-2">
             <BackToFeed />
             <SignOut className="btn sm" />
           </div>

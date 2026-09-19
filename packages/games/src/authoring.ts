@@ -35,6 +35,7 @@ export const REFLEX_TARGETS: ReflexTarget[] = ["mint", "sky", "lemon"];
  * keeps a single row from growing unbounded.
  */
 export const IMAGE_MAX_BYTES = 60_000;
+export const COVER_IMAGE_MAX_BYTES = 80_000;
 export const CONFIG_MAX_BYTES = 400_000;
 
 /**
@@ -51,6 +52,7 @@ export interface GameDraft {
   difficulty: Difficulty;
   maxPoints: number;
   config: Record<string, unknown>;
+  coverImage?: string | null;
 }
 
 /** `field` matches the draft key (or `questions.2.a.0`) so the wizard can place the message inline. */
@@ -66,6 +68,11 @@ function isNonEmptyString(v: unknown, max: number): v is string {
 /** True for a value that is a valid, size-capped image data URL. */
 export function isValidImageDataUrl(v: unknown): v is string {
   return typeof v === "string" && v.length <= IMAGE_MAX_BYTES && IMAGE_DATA_URL.test(v);
+}
+
+/** True for a cover photo that is a valid, size-capped image data URL. */
+export function isValidCoverImageDataUrl(v: unknown): v is string {
+  return typeof v === "string" && v.length <= COVER_IMAGE_MAX_BYTES && IMAGE_DATA_URL.test(v);
 }
 
 /**
@@ -182,6 +189,10 @@ export function validateGameDraft(draft: GameDraft): DraftIssue[] {
     if (images.some((im) => im != null && !isValidImageDataUrl(im))) {
       issues.push({ field: "images", message: "One of those images couldn't be read — remove it and try again." });
     }
+  }
+
+  if (draft.coverImage != null && !isValidCoverImageDataUrl(draft.coverImage)) {
+    issues.push({ field: "coverImage", message: "Cover photo must be a valid image under 80 KB." });
   }
 
   if (JSON.stringify(config).length > CONFIG_MAX_BYTES) {

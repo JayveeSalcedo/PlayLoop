@@ -163,6 +163,9 @@ export async function createJob(input: {
   kind: JobKind;
   request?: string;
   versionId?: string;
+  maxPoints?: number;
+  theme?: string;
+  coverImage?: string | null;
 }): Promise<StartJobResult> {
   const db = getDb();
   const text = String(input.request ?? "").trim();
@@ -209,7 +212,15 @@ export async function createJob(input: {
   let request = text;
 
   if (input.kind === "create") {
-    state = createState(text);
+    const rawPoints = Number(input.maxPoints);
+    const maxPoints = Number.isInteger(rawPoints) && rawPoints >= 100 && rawPoints <= 400 && rawPoints % 25 === 0 ? rawPoints : 200;
+    const theme = typeof input.theme === "string" && input.theme ? input.theme : "neon";
+    const coverImage = typeof input.coverImage === "string" && input.coverImage.startsWith("data:image/") && input.coverImage.length <= 80_000 ? input.coverImage : null;
+
+    state = {
+      ...createState(text),
+      settings: { maxPoints, theme, coverImage },
+    } as unknown as PipelineState;
   } else {
     if (!input.versionId) return { ok: false, status: 400, error: "Pick a version to change." };
     const [base] = await db
@@ -413,11 +424,14 @@ async function saveResult(
   }
 
   const lastModel = [...result.attempts].reverse().find((a) => !a.error)?.model ?? result.attempts.at(-1)?.model ?? null;
+  const jobState = job.state as { settings?: { maxPoints?: number; theme?: string; coverImage?: string | null } } | null;
+  const settings = jobState?.settings;
 
   return db.transaction(async (tx) => {
     const saved = await addVersion(tx, {
       creatorId: job.profileId,
       gameId: job.gameId,
+      settings,
       version: {
         code: game.code,
         report: game.report,

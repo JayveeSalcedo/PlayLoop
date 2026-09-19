@@ -1,5 +1,5 @@
 import { getDb, schema } from "@playloop/db";
-import { and, eq, or, sql, desc } from "drizzle-orm";
+import { and, eq, inArray, or, sql, desc } from "drizzle-orm";
 import type { Tx } from "@playloop/db";
 
 /**
@@ -96,7 +96,7 @@ export async function getWeeklyLeaderboard(profileId: string): Promise<Leaderboa
     .from(schema.ledgerEntries)
     .where(
       and(
-        or(...allIds.map((id) => eq(schema.ledgerEntries.profileId, id))),
+        inArray(schema.ledgerEntries.profileId, allIds),
         sql`${schema.ledgerEntries.delta} > 0`,
         sql`${schema.ledgerEntries.createdAt} >= date_trunc('week', current_date)`,
       ),

@@ -28,9 +28,16 @@ export function GameCard({ game, sponsorName }: { game: LandingGame; sponsorName
           <p className="mb-1 text-[10px] font-extrabold uppercase tracking-wide text-soft">Sponsored by {sponsorName}</p>
         ) : null}
         <p className="font-extrabold leading-tight">{game.title}</p>
-        <p className="mt-1 text-xs font-bold text-soft">
-          {game.difficulty} · up to {game.maxPoints} pts · {game.playCount.toLocaleString("en-US")} plays
-        </p>
+        <div className="mt-1 flex items-center gap-1.5 text-xs font-bold text-soft">
+          <span>{game.difficulty}</span>
+          <span>·</span>
+          <span className="inline-flex items-center gap-1 font-extrabold text-ink">
+            <span className="coin sm" aria-hidden="true" />
+            {game.maxPoints} pts
+          </span>
+          <span>·</span>
+          <span>{game.playCount.toLocaleString("en-US")} plays</span>
+        </div>
       </div>
     </div>
   );

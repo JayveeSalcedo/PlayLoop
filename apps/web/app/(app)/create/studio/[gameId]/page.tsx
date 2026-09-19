@@ -3,6 +3,8 @@ import { and, desc, eq, inArray } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import { requireStudio } from "@/lib/generation/access";
 import { sweepStale, toView } from "@/lib/generation/jobs";
+import { getLeaguesForProfile } from "@/lib/leagues";
+import { type LeagueOption } from "@/app/(app)/create/LeaguePicker";
 import { StudioGame, type StudioVersion } from "./StudioGame";
 
 /**
@@ -25,16 +27,32 @@ export default async function StudioGamePage({
   const [game] = await db
     .select()
     .from(schema.games)
-    .where(and(eq(schema.games.id, gameId), eq(schema.games.creatorId, profile.id), eq(schema.games.gameKind, "code")));
+    .where(
+      and(
+        eq(schema.games.id, gameId),
+        eq(schema.games.creatorId, profile.id),
+        eq(schema.games.gameKind, "code"),
+      ),
+    );
   if (!game) notFound();
 
   await sweepStale(profile.id);
   const [versions, [openJob], tests] = await Promise.all([
-    db.select().from(schema.gameVersions).where(eq(schema.gameVersions.gameId, game.id)).orderBy(desc(schema.gameVersions.versionNumber)),
+    db
+      .select()
+      .from(schema.gameVersions)
+      .where(eq(schema.gameVersions.gameId, game.id))
+      .orderBy(desc(schema.gameVersions.versionNumber)),
     db
       .select()
       .from(schema.generationJobs)
-      .where(and(eq(schema.generationJobs.gameId, game.id), eq(schema.generationJobs.profileId, profile.id), inArray(schema.generationJobs.status, ["queued", "running"])))
+      .where(
+        and(
+          eq(schema.generationJobs.gameId, game.id),
+          eq(schema.generationJobs.profileId, profile.id),
+          inArray(schema.generationJobs.status, ["queued", "running"]),
+        ),
+      )
       .limit(1),
     db
       .select({
@@ -44,7 +62,10 @@ export default async function StudioGamePage({
         verifyReason: schema.playSessions.verifyReason,
       })
       .from(schema.playSessions)
-      .innerJoin(schema.gameVersions, eq(schema.playSessions.gameVersionId, schema.gameVersions.id))
+      .innerJoin(
+        schema.gameVersions,
+        eq(schema.playSessions.gameVersionId, schema.gameVersions.id),
+      )
       .where(
         and(
           eq(schema.playSessions.profileId, profile.id),
@@ -58,12 +79,18 @@ export default async function StudioGamePage({
 
   // Most recent finished test play per version.
   const lastTest = new Map<string, (typeof tests)[number]>();
-  for (const t of tests) if (t.versionId && !lastTest.has(t.versionId)) lastTest.set(t.versionId, t);
+  for (const t of tests)
+    if (t.versionId && !lastTest.has(t.versionId)) lastTest.set(t.versionId, t);
   // Any verified test play at all is what submitting requires.
-  const verified = new Set(tests.filter((t) => t.status === "completed").map((t) => t.versionId));
+  const verified = new Set(
+    tests.filter((t) => t.status === "completed").map((t) => t.versionId),
+  );
 
   const rows: StudioVersion[] = versions.map((ver) => {
-    const report = (ver.report ?? {}) as { checks?: { title: string; status: string; summary: string }[]; fixPrompt?: string | null };
+    const report = (ver.report ?? {}) as {
+      checks?: { title: string; status: string; summary: string }[];
+      fixPrompt?: string | null;
+    };
     const test = lastTest.get(ver.id);
     return {
       id: ver.id,
@@ -76,14 +103,38 @@ export default async function StudioGamePage({
       validation: ver.validation,
       scoreTarget: ver.scoreTarget,
       createdAt: ver.createdAt.toISOString(),
-      checks: (report.checks ?? []).map((c) => ({ title: c.title, status: c.status, summary: c.summary })),
+      checks: (report.checks ?? []).map((c) => ({
+        title: c.title,
+        status: c.status,
+        summary: c.summary,
+      })),
       fixable: ver.validation === "fail" && !!report.fixPrompt,
       verifiedTest: verified.has(ver.id),
-      lastTest: test ? { ok: test.status === "completed", score: test.verifiedScore, reason: test.verifyReason } : null,
+      lastTest: test
+        ? {
+            ok: test.status === "completed",
+            score: test.verifiedScore,
+            reason: test.verifyReason,
+          }
+        : null,
     };
   });
 
-  const selected = rows.find((r) => r.id === v) ?? rows.find((r) => r.id === game.currentVersionId) ?? rows[0] ?? null;
+  const selected =
+    rows.find((r) => r.id === v) ??
+    rows.find((r) => r.id === game.currentVersionId) ??
+    rows[0] ??
+    null;
+
+  const { joined } = await getLeaguesForProfile(profile.id);
+  const leagues: LeagueOption[] = joined.map((l) => ({
+    id: l.id,
+    name: l.name,
+    kind: l.kind,
+    icon: l.icon,
+    color: l.color,
+    memberCount: l.memberCount,
+  }));
 
   return (
     <StudioGame
@@ -95,10 +146,14 @@ export default async function StudioGamePage({
         currentVersionId: game.currentVersionId,
         sponsorReady: game.sponsorReady,
         playCount: game.playCount,
+        coverImage: game.coverImage,
+        theme: game.theme,
+        maxPoints: game.maxPoints,
       }}
       versions={rows}
       selectedId={selected?.id ?? null}
       openJob={openJob ? toView(openJob) : null}
+      leagues={leagues}
     />
   );
 }

@@ -14,5 +14,14 @@ self.addEventListener("activate", (event) => {
 });
 
 self.addEventListener("fetch", (event) => {
-  event.respondWith(fetch(event.request));
+  // Let navigation requests (page loads) pass through to the network
+  // without interception — returning Response.error() on failure would
+  // show an opaque network-error page instead of the browser's own.
+  if (event.request.mode === "navigate") return;
+
+  event.respondWith(
+    fetch(event.request).catch(() => {
+      return Response.error();
+    })
+  );
 });

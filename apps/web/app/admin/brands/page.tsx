@@ -32,7 +32,7 @@ export default async function AdminBrandsPage() {
   }
 
   return (
-    <main className="mx-auto max-w-2xl p-6">
+    <main className="mx-auto max-w-4xl p-6">
       <h1 className="text-3xl font-extrabold tracking-tight">Brands</h1>
       <p className="mt-1 text-sm font-bold text-soft">
         Create a brand, then add the people who should be able to sign in and run its console at{" "}

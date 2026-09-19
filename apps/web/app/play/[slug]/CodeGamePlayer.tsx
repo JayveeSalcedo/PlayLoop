@@ -16,10 +16,12 @@
  * the frame with that seed → on end, submit score + input log → result.
  */
 import { buildGameDocument, GAME_FRAME_SANDBOX, type GameMeta, type HostMessage } from "@playloop/runtime";
-import { artSVG, type ThemeName } from "@playloop/ui";
+import { artSVG, icon, type ThemeName } from "@playloop/ui";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Spinner } from "@/app/_components/Spinner";
+import { SuccessModal } from "@/app/_components/SuccessModal";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { startTestPlay } from "@/app/(app)/create/studio/actions";
 import type { PlayResult } from "@/lib/creditPlay";
 import { startChallengedPlay, startPlay } from "./actions";
@@ -35,6 +37,7 @@ export interface CodeGameRow {
   difficulty: "Easy" | "Medium" | "Hard";
   maxPoints: number;
   status: "draft" | "pending_review" | "published" | "rejected";
+  coverImage?: string | null;
 }
 
 /** The version the page loaded. startPlay refuses if the game has moved on since, rather than replaying a different version. */
@@ -77,10 +80,12 @@ export function CodeGamePlayer({
    */
   test?: { backHref: string };
 }) {
+  const router = useRouter();
   const [stage, setStage] = useState<Stage>({ name: "intro" });
   const [error, setError] = useState<string | null>(null);
   const [hud, setHud] = useState({ score: 0, lives: 0, timeLeft: 0 });
   const [attempt, setAttempt] = useState(0);
+  const [showVerifiedModal, setShowVerifiedModal] = useState(true);
 
   const frameRef = useRef<HTMLIFrameElement>(null);
   const sessionRef = useRef<string | null>(null);
@@ -94,6 +99,7 @@ export function CodeGamePlayer({
   const backToIntro = useCallback((message: string | null) => {
     post({ type: "quit" });
     sessionRef.current = null;
+    setShowVerifiedModal(true);
     setError(message);
     setStage({ name: "intro" });
   }, []);
@@ -214,6 +220,12 @@ export function CodeGamePlayer({
   if (stage.name === "tested" && test) {
     return (
       <main className="mx-auto max-w-sm p-6 text-center">
+        {game.coverImage ? (
+          <div className="card-hard mb-4 overflow-hidden rounded-2xl [border:var(--border-thick)] aspect-[16/9]">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={game.coverImage} alt={game.title} className="h-full w-full object-cover" />
+          </div>
+        ) : null}
         <p className="font-bold text-soft">Test play verified</p>
         <div className="my-2 text-7xl font-extrabold tracking-tight text-ink">{stage.score}</div>
         <p className="text-sm font-bold text-soft">The server replayed your inputs and got the same score. Test plays earn no points.</p>
@@ -225,6 +237,42 @@ export function CodeGamePlayer({
             Test again
           </button>
         </div>
+
+        <SuccessModal
+          isOpen={showVerifiedModal}
+          onClose={() => setShowVerifiedModal(false)}
+          title="⚡ Game Verified & Ready for Review!"
+          badgeText="Server Determinism Passed"
+          iconHtml={icon("check")}
+          accentColor="mint"
+          confetti={true}
+          soundEffect="victory"
+          primaryAction={{
+            label: "Submit for Review (Studio)",
+            onClick: () => {
+              router.push(test.backHref);
+            },
+          }}
+          secondaryAction={{
+            label: "Test Again",
+            onClick: () => backToIntro(null),
+          }}
+        >
+          <div className="flex flex-col gap-3 text-left">
+            <div className="rounded-2xl bg-paper p-3 border-2 border-ink shadow-hard-sm">
+              <div className="flex justify-between items-center text-xs font-bold text-soft">
+                <span>Verified Replay Score</span>
+                <span className="text-xl font-black text-ink">{stage.score}</span>
+              </div>
+              <p className="mt-1 text-xs text-soft font-medium">
+                Server deterministically reproduced your inputs with 0 desync errors.
+              </p>
+            </div>
+            <div className="rounded-2xl bg-mint/25 p-3 border-2 border-ink text-xs font-semibold text-ink">
+              🔓 <span className="font-extrabold">Review Gate Unlocked:</span> This version has satisfied the mandatory test play requirement and can now be submitted to moderation.
+            </div>
+          </div>
+        </SuccessModal>
       </main>
     );
   }
@@ -242,6 +290,7 @@ export function CodeGamePlayer({
         starting={false}
         onStart={start}
         testMode={!!test}
+        coverImage={game.coverImage}
       />
     );
   }

@@ -55,13 +55,23 @@ const ICONS: Record<string, string> = {
   heart: '<path d="M19 14c1.5-1.5 3-3.5 3-6a5.5 5.5 0 0 0-9.5-3.8L12 4.7l-.5-.5A5.5 5.5 0 0 0 2 8c0 2.5 1.5 4.5 3 6l7 7z"/>',
   crown: '<path d="m2 4 3 12h14l3-12-6 7-4-7-4 7z"/>',
   sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>',
+  coin: '<circle cx="12" cy="12" r="9.5" fill="#FFDD3C" stroke="#18123F" stroke-width="2.2"/><circle cx="12" cy="12" r="6" fill="none" stroke="#18123F" stroke-width="1.6" opacity="0.45"/><circle cx="12" cy="12" r="2.8" fill="#18123F" stroke="none" opacity="0.3"/>',
+  points: '<circle cx="12" cy="12" r="9.5" fill="#FFDD3C" stroke="#18123F" stroke-width="2.2"/><circle cx="12" cy="12" r="6" fill="none" stroke="#18123F" stroke-width="1.6" opacity="0.45"/><circle cx="12" cy="12" r="2.8" fill="#18123F" stroke="none" opacity="0.3"/>',
 };
 
 export type IconName = keyof typeof ICONS;
 
 /** Renders a named icon as an inline `<svg>` string. */
 export function icon(name: IconName, className = ""): string {
-  return `<svg class="ico ${className}" viewBox="0 0 24 24" aria-hidden="true">${ICONS[name] || ""}</svg>`;
+  const isCoin = name === "coin" || name === "points";
+  const classList = ["ico", className, isCoin ? "ico-coin" : ""].filter(Boolean).join(" ");
+  return `<svg class="${classList}" viewBox="0 0 24 24" aria-hidden="true">${ICONS[name] || ""}</svg>`;
+}
+
+/** Renders a vibrant neobrutalist coin badge as an inline `<svg>` string. */
+export function coinSVG(size = 24, className = ""): string {
+  const classList = ["coin-svg", className].filter(Boolean).join(" ");
+  return `<svg class="${classList}" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="9.5" fill="#FFDD3C" stroke="#18123F" stroke-width="2.2"/><circle cx="12" cy="12" r="6" fill="none" stroke="#18123F" stroke-width="1.6" opacity="0.45"/><circle cx="12" cy="12" r="2.8" fill="#18123F" stroke="none" opacity="0.3"/></svg>`;
 }
 
 interface AvatarSpec {

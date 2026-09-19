@@ -44,16 +44,27 @@ export default async function MyGamesPage() {
                 href={g.gameKind === "code" ? `/create/studio/${g.id}` : `/create/games/${g.id}`}
                 className="card-hard row-hard-hover flex items-center gap-3 overflow-hidden rounded-2xl bg-card p-3 [border:var(--border-thick)]"
               >
-                <div
-                  className="h-14 w-20 shrink-0 overflow-hidden rounded-xl [border:var(--border-thick)]"
-                  dangerouslySetInnerHTML={{
-                    __html: artSVG(g.type as GameArtType, g.theme as ThemeName, config.item ?? "bean"),
-                  }}
-                />
+                <div className="h-14 w-20 shrink-0 overflow-hidden rounded-xl [border:var(--border-thick)] bg-paper">
+                  {g.coverImage ? (
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img src={g.coverImage} alt="" className="h-full w-full object-cover" />
+                  ) : (
+                    <div
+                      className="h-full w-full"
+                      dangerouslySetInnerHTML={{
+                        __html: artSVG(g.type as GameArtType, g.theme as ThemeName, config.item ?? "bean"),
+                      }}
+                    />
+                  )}
+                </div>
                 <div className="min-w-0">
                   <p className="truncate font-extrabold">{g.title}</p>
-                  <p className="text-xs font-bold text-soft">
-                    {g.playCount.toLocaleString("en-US")} plays · up to {g.maxPoints} pts
+                  <p className="text-xs font-bold text-soft flex items-center gap-1">
+                    <span>{g.playCount.toLocaleString("en-US")} plays · up to</span>
+                    <span className="inline-flex items-center gap-1 font-extrabold text-ink">
+                      <span className="coin sm" aria-hidden="true" />
+                      {g.maxPoints} pts
+                    </span>
                   </p>
                 </div>
                 <span className={`ml-auto shrink-0 rounded-full px-2 py-1 text-xs font-extrabold [border:var(--border-thick)] ${badge.className}`}>

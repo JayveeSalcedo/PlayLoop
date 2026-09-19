@@ -21,7 +21,14 @@ export async function POST(request: Request) {
   const access = await studioProfileId();
   if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status });
 
-  const body = (await request.json().catch(() => null)) as { kind?: unknown; request?: unknown; versionId?: unknown } | null;
+  const body = (await request.json().catch(() => null)) as {
+    kind?: unknown;
+    request?: unknown;
+    versionId?: unknown;
+    maxPoints?: unknown;
+    theme?: unknown;
+    coverImage?: unknown;
+  } | null;
   const kind = body?.kind as JobKind;
   if (!KINDS.includes(kind)) return NextResponse.json({ error: "Unknown request." }, { status: 400 });
 
@@ -30,6 +37,9 @@ export async function POST(request: Request) {
     kind,
     request: typeof body?.request === "string" ? body.request : undefined,
     versionId: typeof body?.versionId === "string" ? body.versionId : undefined,
+    maxPoints: typeof body?.maxPoints === "number" ? body.maxPoints : undefined,
+    theme: typeof body?.theme === "string" ? body.theme : undefined,
+    coverImage: typeof body?.coverImage === "string" ? body.coverImage : undefined,
   });
   if (!started.ok) return NextResponse.json({ error: started.error }, { status: started.status });
   return NextResponse.json(started.job, { status: 201 });

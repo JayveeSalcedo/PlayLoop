@@ -1,10 +1,13 @@
 "use client";
 
 import { useState } from "react";
+import { icon } from "@playloop/ui";
+import { SuccessModal } from "@/app/_components/SuccessModal";
 import { toggleSponsorReady } from "../../actions";
 
 export function SponsorToggle({ gameId, initial }: { gameId: string; initial: boolean }) {
   const [on, setOn] = useState(initial);
+  const [showModal, setShowModal] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function toggle() {
@@ -14,6 +17,9 @@ export function SponsorToggle({ gameId, initial }: { gameId: string; initial: bo
     try {
       const r = await toggleSponsorReady(gameId, next);
       setOn(r.sponsorReady);
+      if (r.sponsorReady) {
+        setShowModal(true);
+      }
     } catch (e) {
       setOn(!next);
       setError(e instanceof Error ? e.message : "Couldn't save that — try again.");
@@ -40,6 +46,43 @@ export function SponsorToggle({ gameId, initial }: { gameId: string; initial: bo
         </span>
       </button>
       {error ? <p className="mt-1 text-xs font-bold text-gum">{error}</p> : null}
+
+      {showModal && (
+        <SuccessModal
+          isOpen={showModal}
+          onClose={() => setShowModal(false)}
+          title="Game Enrolled in Brand Sponsorship!"
+          badgeText="Sponsor Ready"
+          iconHtml={icon("spark")}
+          accentColor="mint"
+          confetti={true}
+          soundEffect="victory"
+          primaryAction={{
+            label: "Got It",
+            onClick: () => setShowModal(false),
+          }}
+        >
+          <div className="flex flex-col gap-3 text-left">
+            <div className="rounded-2xl bg-paper p-3 border-2 border-ink shadow-hard-sm space-y-2">
+              <div className="flex items-center gap-2 text-xs font-bold text-ink">
+                <span className="text-base">📢</span>
+                <span>Discoverable to brands looking for custom activations.</span>
+              </div>
+              <div className="flex items-center gap-2 text-xs font-bold text-ink">
+                <span className="text-base">💰</span>
+                <span>You earn 30% of any sponsored voucher budget placed on your game.</span>
+              </div>
+              <div className="flex items-center gap-2 text-xs font-bold text-ink">
+                <span className="text-base">🎮</span>
+                <span>Your standard creator play payout (AED 0.02/play) remains active.</span>
+              </div>
+            </div>
+            <p className="text-xs text-soft font-semibold text-center">
+              You can toggle sponsorship off at any time from your game dashboard.
+            </p>
+          </div>
+        </SuccessModal>
+      )}
     </div>
   );
 }

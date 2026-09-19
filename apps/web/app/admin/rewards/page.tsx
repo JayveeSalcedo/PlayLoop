@@ -34,7 +34,7 @@ export default async function AdminRewardsPage() {
   ]);
 
   return (
-    <main className="mx-auto max-w-2xl p-6">
+    <main className="mx-auto max-w-4xl p-6">
       <h1 className="text-3xl font-extrabold tracking-tight">Rewards</h1>
       <p className="mt-1 text-sm font-bold text-soft">
         The whole catalogue, including anything switched off. Deactivating hides a reward from players

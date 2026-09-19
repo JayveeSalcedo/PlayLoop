@@ -21,7 +21,13 @@ async function ownVersion(profileId: string, versionId: string) {
     .select({ version: schema.gameVersions, game: schema.games })
     .from(schema.gameVersions)
     .innerJoin(schema.games, eq(schema.gameVersions.gameId, schema.games.id))
-    .where(and(eq(schema.gameVersions.id, versionId), eq(schema.games.creatorId, profileId), eq(schema.games.gameKind, "code")));
+    .where(
+      and(
+        eq(schema.gameVersions.id, versionId),
+        eq(schema.games.creatorId, profileId),
+        eq(schema.games.gameKind, "code"),
+      ),
+    );
   if (!row) throw new Error("That version doesn't exist.");
   return row;
 }
@@ -32,7 +38,9 @@ async function ownVersion(profileId: string, versionId: string) {
  * records a real verdict and score target — examples are starting points, not
  * trusted exceptions.
  */
-export async function startFromExample(exampleId: string): Promise<{ gameId: string }> {
+export async function startFromExample(
+  exampleId: string,
+): Promise<{ gameId: string }> {
   const { profile } = await requireStudio();
   const example = EXAMPLE_GAMES.find((e) => e.id === exampleId);
   if (!example) throw new Error("That example doesn't exist.");
@@ -70,16 +78,24 @@ export async function startFromExample(exampleId: string): Promise<{ gameId: str
  * is_test, so it's never credited. A verified test play of a version is what
  * submitting that version requires.
  */
-export async function startTestPlay(versionId: string): Promise<{ sessionId: string; seed: string }> {
+export async function startTestPlay(
+  versionId: string,
+): Promise<{ sessionId: string; seed: string }> {
   const { profile } = await requireStudio();
   const { version, game } = await ownVersion(profile.id, versionId);
   // A version that failed its checks may not replay deterministically, so a
   // test play of it couldn't prove anything; fix it first.
-  if (version.validation !== "pass") throw new Error("Fix what the checks found before testing this version.");
+  if (version.validation !== "pass")
+    throw new Error("Fix what the checks found before testing this version.");
 
   const seed = randomBytes(16).toString("hex");
   const row = await getDb().transaction((tx) =>
-    insertStartedSession(tx, { profileId: profile.id, gameId: game.id, pin: { gameVersionId: version.id, seed }, isTest: true }),
+    insertStartedSession(tx, {
+      profileId: profile.id,
+      gameId: game.id,
+      pin: { gameVersionId: version.id, seed },
+      isTest: true,
+    }),
   );
   return { sessionId: row.id, seed };
 }
@@ -89,13 +105,106 @@ export async function makeVersionCurrent(versionId: string): Promise<void> {
   const { profile } = await requireStudio();
   const { version, game } = await ownVersion(profile.id, versionId);
   if (game.status !== "draft" && game.status !== "rejected") {
-    throw new Error("This game has been submitted, so what players get changes only through review.");
+    throw new Error(
+      "This game has been submitted, so what players get changes only through review.",
+    );
   }
   await getDb()
     .update(schema.games)
     .set({ currentVersionId: version.id })
-    .where(and(eq(schema.games.id, game.id), inArray(schema.games.status, ["draft", "rejected"])));
+    .where(
+      and(
+        eq(schema.games.id, game.id),
+        inArray(schema.games.status, ["draft", "rejected"]),
+      ),
+    );
   revalidatePath(`/create/studio/${game.id}`);
+}
+
+/** Updates cover photo, theme, and maxPoints on a draft or rejected code game. */
+export async function updateGameSettings(
+  gameId: string,
+  settings: {
+    coverImage?: string | null;
+    theme?: string;
+    maxPoints?: number;
+  },
+): Promise<{ coverImage: string | null; theme: string; maxPoints: number }> {
+  const { profile } = await requireStudio();
+  const db = getDb();
+
+  const [game] = await db
+    .select()
+    .from(schema.games)
+    .where(
+      and(
+        eq(schema.games.id, gameId),
+        eq(schema.games.creatorId, profile.id),
+        eq(schema.games.gameKind, "code"),
+      ),
+    );
+  if (!game) throw new Error("That game doesn't exist.");
+  if (game.status !== "draft" && game.status !== "rejected") {
+    throw new Error("Settings can only be changed on draft or rejected games.");
+  }
+
+  const patch: Partial<typeof schema.games.$inferInsert> = {};
+
+  if (settings.maxPoints !== undefined) {
+    const rawPoints = Number(settings.maxPoints);
+    if (
+      !Number.isInteger(rawPoints) ||
+      rawPoints < 100 ||
+      rawPoints > 400 ||
+      rawPoints % 25 !== 0
+    ) {
+      throw new Error("Max points must be between 100 and 400 in steps of 25.");
+    }
+    patch.maxPoints = rawPoints;
+  }
+
+  if (settings.theme !== undefined) {
+    if (!settings.theme || typeof settings.theme !== "string")
+      throw new Error("Pick a cover colour.");
+    patch.theme = settings.theme;
+  }
+
+  if (settings.coverImage !== undefined) {
+    if (settings.coverImage !== null) {
+      if (
+        typeof settings.coverImage !== "string" ||
+        !settings.coverImage.startsWith("data:image/") ||
+        settings.coverImage.length > 80_000
+      ) {
+        throw new Error("Cover photo must be a valid image under 80 KB.");
+      }
+      patch.coverImage = settings.coverImage;
+    } else {
+      patch.coverImage = null;
+    }
+  }
+
+  const [updated] = await db
+    .update(schema.games)
+    .set(patch)
+    .where(
+      and(eq(schema.games.id, gameId), eq(schema.games.creatorId, profile.id)),
+    )
+    .returning({
+      coverImage: schema.games.coverImage,
+      theme: schema.games.theme,
+      maxPoints: schema.games.maxPoints,
+    });
+
+  revalidatePath(`/create/studio/${gameId}`);
+  revalidatePath("/create/games");
+  revalidatePath("/feed");
+
+  return {
+    coverImage: updated!.coverImage,
+    theme: updated!.theme,
+    maxPoints: updated!.maxPoints,
+  };
 }
 
 /**
@@ -110,16 +219,23 @@ export async function makeVersionCurrent(versionId: string): Promise<void> {
  * while the live one stays in the feed, and the moderation queue reviews whole
  * games today, so that's refused rather than taking the live game down.
  */
-export async function submitVersion(versionId: string): Promise<void> {
+export async function submitVersion(
+  versionId: string,
+  leagueId?: string | null,
+): Promise<void> {
   const { profile } = await requireStudio();
   const db = getDb();
   const { version, game } = await ownVersion(profile.id, versionId);
 
-  if (game.status === "pending_review") throw new Error("This game is already waiting for review.");
+  if (game.status === "pending_review")
+    throw new Error("This game is already waiting for review.");
   if (game.status === "published") {
-    throw new Error("Updating a live game isn't possible yet — it needs version-by-version review, which is coming next.");
+    throw new Error(
+      "Updating a live game isn't possible yet — it needs version-by-version review, which is coming next.",
+    );
   }
-  if (version.validation !== "pass") throw new Error("This version hasn't passed its checks.");
+  if (version.validation !== "pass")
+    throw new Error("This version hasn't passed its checks.");
 
   const [tested] = await db
     .select({ id: schema.playSessions.id })
@@ -134,14 +250,24 @@ export async function submitVersion(versionId: string): Promise<void> {
     )
     .orderBy(desc(schema.playSessions.completedAt))
     .limit(1);
-  if (!tested) throw new Error("Test-play this version to the end first, so you know it works.");
+  if (!tested)
+    throw new Error(
+      "Test-play this version to the end first, so you know it works.",
+    );
 
   const [pending] = await db
     .select({ n: count() })
     .from(schema.games)
-    .where(and(eq(schema.games.creatorId, profile.id), eq(schema.games.status, "pending_review")));
+    .where(
+      and(
+        eq(schema.games.creatorId, profile.id),
+        eq(schema.games.status, "pending_review"),
+      ),
+    );
   if ((pending?.n ?? 0) >= PENDING_LIMIT) {
-    throw new Error(`You already have ${PENDING_LIMIT} games waiting for review. Hold off until those are through.`);
+    throw new Error(
+      `You already have ${PENDING_LIMIT} games waiting for review. Hold off until those are through.`,
+    );
   }
 
   const outcome = await db.transaction(async (tx) => {
@@ -153,13 +279,25 @@ export async function submitVersion(versionId: string): Promise<void> {
         currentVersionId: version.id,
         title: version.title,
         description: version.summary || game.description,
+        leagueId: leagueId ?? null,
       })
-      .where(and(eq(schema.games.id, game.id), inArray(schema.games.status, ["draft", "rejected"])))
+      .where(
+        and(
+          eq(schema.games.id, game.id),
+          inArray(schema.games.status, ["draft", "rejected"]),
+        ),
+      )
       .returning({ id: schema.games.id });
-    if (!moved) return { ok: false as const, error: "This game was just submitted." };
+    if (!moved)
+      return { ok: false as const, error: "This game was just submitted." };
 
-    await tx.update(schema.gameVersions).set({ status: "pending_review" }).where(eq(schema.gameVersions.id, version.id));
-    await tx.insert(schema.moderationReviews).values({ gameId: game.id, outcome: "pending" });
+    await tx
+      .update(schema.gameVersions)
+      .set({ status: "pending_review" })
+      .where(eq(schema.gameVersions.id, version.id));
+    await tx
+      .insert(schema.moderationReviews)
+      .values({ gameId: game.id, outcome: "pending" });
     return { ok: true as const };
   });
   if (!outcome.ok) throw new Error(outcome.error);

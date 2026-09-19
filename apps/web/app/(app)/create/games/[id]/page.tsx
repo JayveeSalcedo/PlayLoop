@@ -2,10 +2,11 @@ import { getDb, schema } from "@playloop/db";
 import { artSVG, type GameArtType, type ItemKind, type ThemeName } from "@playloop/ui";
 import { and, desc, eq } from "drizzle-orm";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { requireProfile } from "@/lib/profile";
 import { GameShare } from "./GameShare";
 import { SponsorToggle } from "./SponsorToggle";
+import { GameSubmittedModal } from "./GameSubmittedModal";
 
 const STATUS_COPY: Record<string, { title: string; body: string }> = {
   draft: {
@@ -44,6 +45,9 @@ export default async function CreatorGamePage({
     .where(and(eq(schema.games.id, id), eq(schema.games.creatorId, profile.id)))
     .then((r) => r[0]);
   if (!game) notFound();
+  if (game.gameKind === "code") {
+    redirect(`/create/studio/${game.id}`);
+  }
 
   const config = (game.config ?? {}) as { item?: ItemKind };
   const copy = STATUS_COPY[game.status] ?? STATUS_COPY.pending_review!;
@@ -62,19 +66,35 @@ export default async function CreatorGamePage({
 
   return (
     <main className="mx-auto max-w-md p-6">
-      {published ? <p className="mb-3 font-extrabold text-mint-foreground">Published — it&apos;s in the queue.</p> : null}
+      {published ? (
+        <>
+          <p className="mb-3 font-extrabold text-mint-foreground">Published — it&apos;s in the queue.</p>
+          <GameSubmittedModal gameTitle={game.title} slug={game.slug} />
+        </>
+      ) : null}
 
-      <div
-        className="card-hard overflow-hidden rounded-3xl [border:var(--border-thick)]"
-        dangerouslySetInnerHTML={{
-          __html: artSVG(game.type as GameArtType, game.theme as ThemeName, config.item ?? "bean"),
-        }}
-      />
+      <div className="card-hard overflow-hidden rounded-3xl [border:var(--border-thick)] aspect-[16/9]">
+        {game.coverImage ? (
+          /* eslint-disable-next-line @next/next/no-img-element */
+          <img src={game.coverImage} alt={game.title} className="h-full w-full object-cover" />
+        ) : (
+          <div
+            className="h-full w-full"
+            dangerouslySetInnerHTML={{
+              __html: artSVG(game.type as GameArtType, game.theme as ThemeName, config.item ?? "bean"),
+            }}
+          />
+        )}
+      </div>
 
       <h1 className="mt-4 text-3xl font-extrabold tracking-tight">{game.title}</h1>
-      <p className="mt-1 text-sm font-bold text-soft">
-        {game.difficulty} · up to {game.maxPoints} pts
-      </p>
+      <div className="mt-1 flex items-center gap-1 text-sm font-bold text-soft">
+        <span>{game.difficulty} · up to</span>
+        <span className="inline-flex items-center gap-1 font-extrabold text-ink">
+          <span className="coin sm" aria-hidden="true" />
+          {game.maxPoints} pts
+        </span>
+      </div>
 
       <div className="card-hard mt-4 rounded-2xl bg-card p-4 [border:var(--border-thick)]">
         <p className="font-extrabold">{copy.title}</p>

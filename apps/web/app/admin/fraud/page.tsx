@@ -62,8 +62,15 @@ export default async function FraudPage() {
   `)) as unknown as Row[];
 
   return (
-    <main className="mx-auto max-w-2xl p-6">
-      <h1 className="text-3xl font-extrabold tracking-tight">Fraud review</h1>
+    <main className="mx-auto max-w-4xl p-6">
+      <div className="flex items-center gap-3">
+        <h1 className="text-3xl font-extrabold tracking-tight">Fraud review</h1>
+        {rows.length > 0 ? (
+          <span className="rounded-full bg-lemon px-2.5 py-0.5 text-xs font-extrabold [border:var(--border-thick)]">
+            {rows.length}
+          </span>
+        ) : null}
+      </div>
       <p className="mt-1 text-sm font-bold text-soft">
         Accounts with {MIN_REJECTIONS}+ rejected plays in the last {WINDOW_DAYS} days, three or more
         referrals, or an existing suspension.

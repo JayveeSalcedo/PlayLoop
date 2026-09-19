@@ -66,6 +66,7 @@ export default async function PlayPage({
           difficulty: game.difficulty,
           maxPoints: game.maxPoints,
           status: game.status,
+          coverImage: game.coverImage,
         }}
         version={version ? { ...version, meta: version.meta as unknown as GameMeta } : null}
         challengeCode={challenge}
@@ -86,6 +87,7 @@ export default async function PlayPage({
         maxPoints: game.maxPoints,
         config: game.config,
         status: game.status,
+        coverImage: game.coverImage,
       }}
       challengeCode={challenge}
     />

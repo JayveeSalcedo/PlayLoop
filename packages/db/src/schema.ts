@@ -19,7 +19,12 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
-export const gameTypeEnum = pgEnum("game_type", ["quiz", "catch", "memory", "reflex"]);
+export const gameTypeEnum = pgEnum("game_type", [
+  "quiz",
+  "catch",
+  "memory",
+  "reflex",
+]);
 export const difficultyEnum = pgEnum("difficulty", ["Easy", "Medium", "Hard"]);
 export const playSessionStatusEnum = pgEnum("play_session_status", [
   "started",
@@ -27,8 +32,15 @@ export const playSessionStatusEnum = pgEnum("play_session_status", [
   "rejected",
   "abandoned",
 ]);
-export const rewardCategoryEnum = pgEnum("reward_category", ["Food and drink", "Fun", "Shopping"]);
-export const challengeStatusEnum = pgEnum("challenge_status", ["pending", "completed"]);
+export const rewardCategoryEnum = pgEnum("reward_category", [
+  "Food and drink",
+  "Fun",
+  "Shopping",
+]);
+export const challengeStatusEnum = pgEnum("challenge_status", [
+  "pending",
+  "completed",
+]);
 /**
  * 'draft' is a creator's game that hasn't been submitted: an AI generation in
  * progress, or versions they're still changing. Only its creator sees it; it is
@@ -36,8 +48,17 @@ export const challengeStatusEnum = pgEnum("challenge_status", ["pending", "compl
  * which read 'pending_review' — which keeps meaning "submitted, waiting on a
  * reviewer". Template games never use it: the template wizard submits in one go.
  */
-export const gameStatusEnum = pgEnum("game_status", ["draft", "pending_review", "published", "rejected"]);
-export const moderationOutcomeEnum = pgEnum("moderation_outcome", ["pending", "approved", "rejected"]);
+export const gameStatusEnum = pgEnum("game_status", [
+  "draft",
+  "pending_review",
+  "published",
+  "rejected",
+]);
+export const moderationOutcomeEnum = pgEnum("moderation_outcome", [
+  "pending",
+  "approved",
+  "rejected",
+]);
 
 /**
  * Which engine plays a game.
@@ -74,9 +95,17 @@ export const versionViaEnum = pgEnum("version_via", [
  * technical — it says nothing about whether the game is any *good*, and
  * nothing about its economy calibration (see gameVersions.scoreTarget).
  */
-export const versionValidationEnum = pgEnum("version_validation", ["pending", "pass", "fail"]);
+export const versionValidationEnum = pgEnum("version_validation", [
+  "pending",
+  "pass",
+  "fail",
+]);
 
-export const generationJobKindEnum = pgEnum("generation_job_kind", ["create", "change", "fix"]);
+export const generationJobKindEnum = pgEnum("generation_job_kind", [
+  "create",
+  "change",
+  "fix",
+]);
 export const generationJobStatusEnum = pgEnum("generation_job_status", [
   "queued",
   "running",
@@ -106,7 +135,9 @@ export const profiles = pgTable("profiles", {
    * Read later by submitPlay to decide whether this profile's first
    * *completed* play should credit the referrer's REFERRAL_JOIN_BONUS.
    */
-  referredByChallengeId: uuid("referred_by_challenge_id").references((): AnyPgColumn => challenges.id),
+  referredByChallengeId: uuid("referred_by_challenge_id").references(
+    (): AnyPgColumn => challenges.id,
+  ),
   /**
    * Set by an admin from the fraud queue; null means active. A timestamp
    * rather than a boolean so it records *when*, matching fundedAt/cancelledAt/
@@ -135,7 +166,9 @@ export const profiles = pgTable("profiles", {
    * merged onto it instead and this row is left suspended and orphaned.
    */
   isGuest: boolean("is_guest").notNull().default(false),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
 });
 
 /**
@@ -149,7 +182,9 @@ export const otpCodes = pgTable("otp_codes", {
   expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
   consumedAt: timestamp("consumed_at", { withTimezone: true }),
   attempts: integer("attempts").notNull().default(0),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
 });
 
 /**
@@ -180,7 +215,10 @@ export const games = pgTable("games", {
   difficulty: difficultyEnum("difficulty").notNull().default("Medium"),
   maxPoints: integer("max_points").notNull().default(200),
   /** Template-specific content: quiz questions, catch item/theme, etc. Unused ({}) for a code game. */
-  config: jsonb("config").$type<Record<string, unknown>>().notNull().default({}),
+  config: jsonb("config")
+    .$type<Record<string, unknown>>()
+    .notNull()
+    .default({}),
   /**
    * For a code game: the version players get right now. Null until a version
    * passes its checks and is published; always null for a template game.
@@ -194,14 +232,21 @@ export const games = pgTable("games", {
    * session. Nothing resolves it at submit time, which is what lets a creator
    * publish a new version without disturbing plays already in progress.
    */
-  currentVersionId: uuid("current_version_id").references((): AnyPgColumn => gameVersions.id),
+  currentVersionId: uuid("current_version_id").references(
+    (): AnyPgColumn => gameVersions.id,
+  ),
   creatorId: uuid("creator_id").references(() => profiles.id),
   brandOriginal: boolean("brand_original").notNull().default(false),
   status: gameStatusEnum("status").notNull().default("pending_review"),
   /** Creator opt-in: lists the game for brand sponsorship in the (Phase 5) brand console. */
   sponsorReady: boolean("sponsor_ready").notNull().default(false),
+  /** League this game was published to (null = public, visible to everyone). */
+  leagueId: uuid("league_id").references((): AnyPgColumn => leagues.id),
   playCount: integer("play_count").notNull().default(0),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  coverImage: text("cover_image"),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
 });
 
 /**
@@ -255,7 +300,9 @@ export const gameVersions = pgTable(
     summary: text("summary").notNull().default(""),
     notes: text("notes").notNull().default(""),
     /** Technical validity only — the gate on publishing. Never about content or economy. */
-    validation: versionValidationEnum("validation").notNull().default("pending"),
+    validation: versionValidationEnum("validation")
+      .notNull()
+      .default("pending"),
     /** The whole LabReport: per-check results, bot runs, replay cost, fix prompt. */
     report: jsonb("report").$type<Record<string, unknown>>(),
     /**
@@ -271,7 +318,9 @@ export const gameVersions = pgTable(
      * already approved can go live without a second review.
      */
     status: gameStatusEnum("status").notNull().default("pending_review"),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
   },
   (table) => [
     index("game_versions_game_id_idx").on(table.gameId, table.versionNumber),
@@ -308,8 +357,13 @@ export const adminActions = pgTable(
     targetId: uuid("target_id"),
     /** Human-readable summary, shown in the activity list. */
     summary: text("summary").notNull().default(""),
-    details: jsonb("details").$type<Record<string, unknown>>().notNull().default({}),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    details: jsonb("details")
+      .$type<Record<string, unknown>>()
+      .notNull()
+      .default({}),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
   },
   (table) => [index("admin_actions_created_at_idx").on(table.createdAt)],
 );
@@ -330,7 +384,9 @@ export const moderationReviews = pgTable(
     outcome: moderationOutcomeEnum("outcome").notNull().default("pending"),
     reviewerId: uuid("reviewer_id").references(() => profiles.id),
     notes: text("notes"),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
     decidedAt: timestamp("decided_at", { withTimezone: true }),
   },
   (table) => [index("moderation_reviews_game_id_idx").on(table.gameId)],
@@ -432,15 +488,22 @@ export const playSessions = pgTable(
     payoutPoints: integer("payout_points"),
     xpAwarded: integer("xp_awarded"),
     rejectReason: text("reject_reason"),
-    challengeId: uuid("challenge_id").references((): AnyPgColumn => challenges.id),
-    startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
+    challengeId: uuid("challenge_id").references(
+      (): AnyPgColumn => challenges.id,
+    ),
+    startedAt: timestamp("started_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
     completedAt: timestamp("completed_at", { withTimezone: true }),
   },
   // The fraud queue filters by profile, and by status over a date window; this
   // is also the largest table by row count.
   (table) => [
     index("play_sessions_profile_id_idx").on(table.profileId),
-    index("play_sessions_status_started_at_idx").on(table.status, table.startedAt),
+    index("play_sessions_status_started_at_idx").on(
+      table.status,
+      table.startedAt,
+    ),
   ],
 );
 
@@ -471,7 +534,9 @@ export const playInputLogs = pgTable("play_input_logs", {
   logBytes: integer("log_bytes").notNull(),
   /** What the client claimed alongside this log, kept even when the replay disagreed. */
   claimedScore: integer("claimed_score"),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
 });
 
 /**
@@ -515,7 +580,9 @@ export const generationJobs = pgTable(
     state: jsonb("state").$type<Record<string, unknown>>(),
     /** ProgressEvent[] from the pipeline — what the studio renders while it waits. */
     events: jsonb("events").$type<unknown[]>().notNull().default([]),
-    resultVersionId: uuid("result_version_id").references((): AnyPgColumn => gameVersions.id),
+    resultVersionId: uuid("result_version_id").references(
+      (): AnyPgColumn => gameVersions.id,
+    ),
     /** Why it failed, in words a creator can act on. */
     problem: text("problem"),
     calls: integer("calls").notNull().default(0),
@@ -525,13 +592,21 @@ export const generationJobs = pgTable(
     promptVersion: text("prompt_version"),
     /** Refreshed by the running job; stale means the invocation died. */
     heartbeatAt: timestamp("heartbeat_at", { withTimezone: true }),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
     finishedAt: timestamp("finished_at", { withTimezone: true }),
   },
   (table) => [
-    index("generation_jobs_profile_created_idx").on(table.profileId, table.createdAt),
+    index("generation_jobs_profile_created_idx").on(
+      table.profileId,
+      table.createdAt,
+    ),
     // The stale sweeper's query: running rows that have gone quiet.
-    index("generation_jobs_status_heartbeat_idx").on(table.status, table.heartbeatAt),
+    index("generation_jobs_status_heartbeat_idx").on(
+      table.status,
+      table.heartbeatAt,
+    ),
   ],
 );
 
@@ -539,17 +614,26 @@ export const generationJobs = pgTable(
  * Immutable append-only ledger. A profile's balance is always
  * SUM(delta) for that profile — never edit or delete a row here.
  */
-export const ledgerEntries = pgTable("ledger_entries", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  profileId: uuid("profile_id")
-    .notNull()
-    .references(() => profiles.id),
-  delta: integer("delta").notNull(),
-  reason: text("reason").notNull(),
-  refType: text("ref_type"),
-  refId: uuid("ref_id"),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+export const ledgerEntries = pgTable(
+  "ledger_entries",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    profileId: uuid("profile_id")
+      .notNull()
+      .references(() => profiles.id),
+    delta: integer("delta").notNull(),
+    reason: text("reason").notNull(),
+    refType: text("ref_type"),
+    refId: uuid("ref_id"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index("ledger_entries_profile_id_idx").on(table.profileId),
+    index("ledger_entries_profile_created_idx").on(table.profileId, table.createdAt),
+  ],
+);
 
 /**
  * A sponsor: whoever funds the reward pools and runs campaigns. Rewards and
@@ -562,7 +646,9 @@ export const brands = pgTable("brands", {
   name: text("name").notNull(),
   description: text("description").notNull().default(""),
   theme: text("theme").notNull().default("neon"),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
 });
 
 /**
@@ -580,7 +666,9 @@ export const brandMembers = pgTable("brand_members", {
     .notNull()
     .unique()
     .references(() => profiles.id),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
 });
 
 /**
@@ -615,7 +703,9 @@ export const campaigns = pgTable(
     endsOn: date("ends_on").notNull(),
     fundedAt: timestamp("funded_at", { withTimezone: true }),
     cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
   },
   (table) => [index("campaigns_brand_id_idx").on(table.brandId)],
 );
@@ -641,7 +731,9 @@ export const rewards = pgTable("rewards", {
   poolTotal: integer("pool_total"),
   poolRemaining: integer("pool_remaining"),
   active: boolean("active").notNull().default(true),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
 });
 
 /**
@@ -673,7 +765,9 @@ export const vouchers = pgTable(
     costPoints: integer("cost_points").notNull(), // snapshot at redemption time
     redeemedAt: timestamp("redeemed_at", { withTimezone: true }),
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
   },
   (table) => [index("vouchers_profile_id_idx").on(table.profileId)],
 );
@@ -708,10 +802,14 @@ export const challenges = pgTable(
       .references(() => playSessions.id),
     senderScore: integer("sender_score").notNull(),
     recipientId: uuid("recipient_id").references(() => profiles.id),
-    recipientPlaySessionId: uuid("recipient_play_session_id").references(() => playSessions.id),
+    recipientPlaySessionId: uuid("recipient_play_session_id").references(
+      () => playSessions.id,
+    ),
     status: challengeStatusEnum("status").notNull().default("pending"),
     winnerId: uuid("winner_id").references(() => profiles.id),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
     completedAt: timestamp("completed_at", { withTimezone: true }),
   },
   (table) => [
@@ -739,7 +837,9 @@ export const friendships = pgTable(
     profileBId: uuid("profile_b_id")
       .notNull()
       .references(() => profiles.id),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
   },
   (table) => [
     index("friendships_profile_a_id_idx").on(table.profileAId),
@@ -762,7 +862,9 @@ export const stores = pgTable("stores", {
   name: text("name").notNull(),
   city: text("city").notNull(),
   active: boolean("active").notNull().default(true),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
 });
 
 /**
@@ -783,7 +885,9 @@ export const storeStaff = pgTable("store_staff", {
     .notNull()
     .unique()
     .references(() => profiles.id),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
 });
 
 /**
@@ -811,9 +915,13 @@ export const voucherRedemptions = pgTable(
     staffProfileId: uuid("staff_profile_id")
       .notNull()
       .references(() => profiles.id),
-    redeemedAt: timestamp("redeemed_at", { withTimezone: true }).notNull().defaultNow(),
+    redeemedAt: timestamp("redeemed_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
     reversedAt: timestamp("reversed_at", { withTimezone: true }),
-    reversedByProfileId: uuid("reversed_by_profile_id").references(() => profiles.id),
+    reversedByProfileId: uuid("reversed_by_profile_id").references(
+      () => profiles.id,
+    ),
   },
   (table) => [
     index("voucher_redemptions_store_id_idx").on(table.storeId),
@@ -834,7 +942,9 @@ export const leagues = pgTable("leagues", {
   icon: text("icon").notNull().default("trophy"),
   color: text("color").notNull().default("#3FC8FF"),
   creatorId: uuid("creator_id").references(() => profiles.id),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
 });
 
 /**
@@ -853,10 +963,15 @@ export const leagueMembers = pgTable(
       .references(() => profiles.id, { onDelete: "cascade" }),
     role: text("role").notNull().default("member"),
     teamName: text("team_name"),
-    joinedAt: timestamp("joined_at", { withTimezone: true }).notNull().defaultNow(),
+    joinedAt: timestamp("joined_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
   },
   (table) => [
-    uniqueIndex("league_members_league_profile_idx").on(table.leagueId, table.profileId),
+    uniqueIndex("league_members_league_profile_idx").on(
+      table.leagueId,
+      table.profileId,
+    ),
     index("league_members_league_id_idx").on(table.leagueId),
     index("league_members_profile_id_idx").on(table.profileId),
   ],
@@ -881,22 +996,26 @@ export const venueEvents = pgTable(
     accentColor: text("accent_color").notNull().default("#FFDD3C"),
     prizePoolPoints: integer("prize_pool_points").notNull().default(5000),
     status: text("status").notNull().default("live"),
-    rounds: jsonb("rounds").$type<Array<{
-      number: number;
-      title: string;
-      arabicTitle: string;
-      gameType: "tap" | "reflex" | "catch";
-      durationSeconds: number;
-      targetScore: number;
-      maxPoints: number;
-    }>>().notNull(),
+    rounds: jsonb("rounds")
+      .$type<
+        Array<{
+          number: number;
+          title: string;
+          arabicTitle: string;
+          gameType: "tap" | "reflex" | "catch";
+          durationSeconds: number;
+          targetScore: number;
+          maxPoints: number;
+        }>
+      >()
+      .notNull(),
     creatorId: uuid("creator_id").references(() => profiles.id),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
   },
   (table) => [
     index("venue_events_brand_id_idx").on(table.brandId),
     index("venue_events_code_idx").on(table.code),
   ],
 );
-
-

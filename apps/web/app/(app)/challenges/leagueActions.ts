@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireProfile } from "@/lib/profile";
 import { createCustomLeague, joinLeagueByCode } from "@/lib/leagues";
 
-export async function joinLeagueAction(formData: FormData): Promise<{ ok: boolean; error?: string }> {
+export async function joinLeagueAction(formData: FormData): Promise<{ ok: boolean; error?: string; league?: any }> {
   const code = String(formData.get("code") || "").trim();
   const teamName = String(formData.get("teamName") || "").trim() || undefined;
 
@@ -15,10 +15,10 @@ export async function joinLeagueAction(formData: FormData): Promise<{ ok: boolea
     revalidatePath("/challenges");
   }
 
-  return { ok: result.ok, error: result.error };
+  return { ok: result.ok, error: result.error, league: result.league };
 }
 
-export async function createLeagueAction(formData: FormData): Promise<{ ok: boolean; error?: string }> {
+export async function createLeagueAction(formData: FormData): Promise<{ ok: boolean; error?: string; league?: any }> {
   const name = String(formData.get("name") || "").trim();
   const kind = String(formData.get("kind") || "community").trim();
   const code = String(formData.get("code") || "").trim() || undefined;
@@ -38,5 +38,5 @@ export async function createLeagueAction(formData: FormData): Promise<{ ok: bool
     revalidatePath("/challenges");
   }
 
-  return { ok: result.ok, error: result.error };
+  return { ok: result.ok, error: result.error, league: result.league };
 }

@@ -19,6 +19,7 @@ export function PlayIntro({
   starting,
   onStart,
   testMode = false,
+  coverImage,
 }: {
   artHtml: string;
   title: string;
@@ -31,6 +32,7 @@ export function PlayIntro({
   onStart: () => void;
   /** A creator's studio test play: playable whatever the game's status, and says it pays nothing. */
   testMode?: boolean;
+  coverImage?: string | null;
 }) {
   // Only the creator can reach an unpublished game (the page 404s for everyone
   // else), so this banner is always addressed to them.
@@ -38,11 +40,23 @@ export function PlayIntro({
 
   return (
     <main className="mx-auto max-w-sm p-6">
-      <div className="card-hard overflow-hidden rounded-3xl [border:var(--border-thick)]" dangerouslySetInnerHTML={{ __html: artHtml }} />
+      <div className="card-hard overflow-hidden rounded-3xl [border:var(--border-thick)] aspect-[16/9]">
+        {coverImage ? (
+          /* eslint-disable-next-line @next/next/no-img-element */
+          <img src={coverImage} alt={title} className="h-full w-full object-cover" />
+        ) : (
+          <div className="h-full w-full" dangerouslySetInnerHTML={{ __html: artHtml }} />
+        )}
+      </div>
       <h1 className="mt-4 text-3xl font-extrabold tracking-tight">{title}</h1>
-      <p className="mt-2 text-sm font-bold text-soft">
-        {difficulty} · win up to {maxPoints} pts
-      </p>
+      <div className="mt-2 flex items-center justify-center gap-1.5 text-sm font-bold text-soft">
+        <span>{difficulty}</span>
+        <span>·</span>
+        <span className="inline-flex items-center gap-1 font-extrabold text-ink">
+          <span className="coin sm" aria-hidden="true" />
+          win up to {maxPoints} pts
+        </span>
+      </div>
       <p className="mt-3 text-soft">{description}</p>
       {awaitingReview ? (
         <div className="card-hard mt-4 rounded-2xl bg-card p-4 [border:var(--border-thick)]">

@@ -10,7 +10,7 @@ export function CreateJobRunner({ initial }: { initial: JobView }) {
   const { job, error } = useJobRunner(initial, (ended) => {
     // A game exists whenever a version was stored — even one that failed its
     // checks, which the studio can fix.
-    if (ended.gameId) router.replace(`/create/studio/${ended.gameId}`);
+    if (ended.gameId) router.replace(`/create/studio/${ended.gameId}?justCreated=true`);
   });
 
   return (

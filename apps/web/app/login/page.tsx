@@ -44,7 +44,11 @@ export default async function LoginPage({
       {guestProfile && (
         <div className="card-hard mt-4 rounded-2xl bg-lemon p-3 text-xs font-extrabold text-ink [border:var(--border-thick)]">
           ✨ Currently playing as guest with{" "}
-          <span className="font-black">{guestProfile.pointsBalance.toLocaleString("en-US")} pts</span> (Level {guestProfile.level}).
+          <span className="inline-flex items-center gap-1 font-black">
+            <span className="coin sm" aria-hidden="true" />
+            {guestProfile.pointsBalance.toLocaleString("en-US")} pts
+          </span>{" "}
+          (Level {guestProfile.level}).
           Enter your email below to permanently save your progress.
         </div>
       )}
@@ -94,8 +98,13 @@ export default async function LoginPage({
               🎮 Play now, no sign-up
             </SubmitButton>
           </form>
-          <p className="mt-2 text-center text-xs text-soft">
-            Instant access · Earn up to 2,000 pts · Save anytime
+          <p className="mt-2 text-center text-xs text-soft flex items-center justify-center gap-1">
+            <span>Instant access · Earn up to</span>
+            <span className="inline-flex items-center gap-1 font-bold text-ink">
+              <span className="coin sm" aria-hidden="true" />
+              2,000 pts
+            </span>
+            <span>· Save anytime</span>
           </p>
         </>
       )}

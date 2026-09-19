@@ -6,7 +6,10 @@ export type Db = ReturnType<typeof drizzle<typeof schema>>;
 /** The `tx` parameter type inside `db.transaction(async (tx) => ...)` — for helpers shared between a top-level Db and a transaction. */
 export type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
 
-let cached: Db | null = null;
+declare global {
+  // eslint-disable-next-line no-var
+  var __playloop_db__: Db | undefined;
+}
 
 /**
  * Lazily creates a singleton Drizzle client from DATABASE_URL. Point this at
@@ -25,14 +28,21 @@ let cached: Db | null = null;
  * Supabase project + data migration — not something to do casually).
  */
 export function getDb(): Db {
-  if (cached) return cached;
+  if (globalThis.__playloop_db__) return globalThis.__playloop_db__;
   const url = process.env.DATABASE_URL;
   if (!url) {
     throw new Error(
       "DATABASE_URL is not set. Copy .env.example to .env and point it at your Supabase (or local) Postgres connection string.",
     );
   }
-  const client = postgres(url, { prepare: false });
-  cached = drizzle(client, { schema });
-  return cached;
+  const client = postgres(url, {
+    prepare: false,
+    max: 5,
+    idle_timeout: 10,
+    connect_timeout: 10,
+  });
+  const db = drizzle(client, { schema });
+  globalThis.__playloop_db__ = db;
+  return db;
 }
+

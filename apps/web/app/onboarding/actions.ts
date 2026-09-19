@@ -18,5 +18,5 @@ export async function completeOnboarding(formData: FormData) {
     .set({ name, avatarIndex, interests, onboardedAt: new Date() })
     .where(eq(schema.profiles.id, session.sub));
 
-  redirect(challenge ? `/c/${encodeURIComponent(challenge)}` : "/feed");
+  redirect(challenge ? `/c/${encodeURIComponent(challenge)}` : "/feed?accountSecured=true");
 }

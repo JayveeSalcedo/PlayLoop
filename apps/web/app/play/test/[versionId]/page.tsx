@@ -33,6 +33,7 @@ export default async function TestPlayPage({ params }: { params: Promise<{ versi
         difficulty: game.difficulty,
         maxPoints: game.maxPoints,
         status: game.status,
+        coverImage: game.coverImage,
       }}
       version={
         version.validation === "pass"
