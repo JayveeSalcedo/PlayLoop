@@ -6,15 +6,42 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { config } from "dotenv";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { getDb } from "./client";
-import { brandMembers, brands, games, profiles, rewards, storeStaff, stores } from "./schema.js";
+import { brandMembers, brands, games, leagueMembers, leagues, profiles, rewards, storeStaff, stores } from "./schema.js";
 
 // Load the monorepo root .env regardless of CWD (see apps/web/next.config.ts for the same pattern).
 config({ path: path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../.env") });
 
 async function main() {
   const db = getDb();
+
+  // Ensure leagues and league_members tables exist
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS leagues (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      name text NOT NULL,
+      kind text NOT NULL,
+      code text NOT NULL UNIQUE,
+      description text,
+      icon text NOT NULL DEFAULT 'trophy',
+      color text NOT NULL DEFAULT '#3FC8FF',
+      creator_id uuid REFERENCES profiles(id),
+      created_at timestamp with time zone NOT NULL DEFAULT now()
+    );
+
+    CREATE TABLE IF NOT EXISTS league_members (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      league_id uuid NOT NULL REFERENCES leagues(id) ON DELETE CASCADE,
+      profile_id uuid NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+      role text NOT NULL DEFAULT 'member',
+      team_name text,
+      joined_at timestamp with time zone NOT NULL DEFAULT now(),
+      CONSTRAINT league_members_league_profile_unique UNIQUE (league_id, profile_id)
+    );
+    CREATE INDEX IF NOT EXISTS league_members_league_id_idx ON league_members(league_id);
+    CREATE INDEX IF NOT EXISTS league_members_profile_id_idx ON league_members(profile_id);
+  `);
 
   await db
     .insert(games)
@@ -189,6 +216,75 @@ async function main() {
     }
   }
 
+  // Seed demo leagues matching the prototype
+  await db
+    .insert(leagues)
+    .values([
+      {
+        code: "HORIZON-8B",
+        name: "Schools Cup",
+        kind: "school",
+        icon: "cap",
+        color: "#3FC8FF",
+        description: "Horizon Academy Grade 8. Class vs class, teacher-built quizzes.",
+      },
+      {
+        code: "OASIS-MALL",
+        name: "Oasis Mall Players",
+        kind: "mall",
+        icon: "bag",
+        color: "#FFDD3C",
+        description: "Individual ranking at your mall. Shoppers compete for tenant rewards.",
+      },
+      {
+        code: "FAMILY-NOVA",
+        name: "Year of Family: Growing in Unity",
+        kind: "family",
+        icon: "heart",
+        color: "#FF5FA2",
+        description: "Parents and kids play as one team. Team Nova.",
+      },
+      {
+        code: "ACME-TECH",
+        name: "Acme Tech Hub",
+        kind: "company",
+        icon: "briefcase",
+        color: "#22D39B",
+        description: "Engineering & Design department competition.",
+      },
+    ])
+    .onConflictDoNothing({ target: leagues.code });
+
+  const seededLeagues = await db.select().from(leagues);
+  const familyLeague = seededLeagues.find((l) => l.code === "FAMILY-NOVA");
+  const mallLeague = seededLeagues.find((l) => l.code === "OASIS-MALL");
+
+  for (const p of allProfiles) {
+    if (familyLeague) {
+      await db
+        .insert(leagueMembers)
+        .values({
+          leagueId: familyLeague.id,
+          profileId: p.id,
+          teamName: "Team Nova",
+          role: "admin",
+        })
+        .onConflictDoNothing();
+    }
+    if (mallLeague) {
+      await db
+        .insert(leagueMembers)
+        .values({
+          leagueId: mallLeague.id,
+          profileId: p.id,
+          teamName: "Mall Shoppers",
+          role: "member",
+        })
+        .onConflictDoNothing();
+    }
+  }
+
+  console.log("Seeded leagues: HORIZON-8B, OASIS-MALL, FAMILY-NOVA, ACME-TECH");
   console.log("Seeded brands: beanhouse, glow-arcade, nomad-books");
   console.log("Seeded games: bean-catcher, desert-genius, neon-pairs, tap-frenzy");
   console.log("Seeded rewards: free-flat-white, any-pastry, arcade-pass, nomad-books-voucher");

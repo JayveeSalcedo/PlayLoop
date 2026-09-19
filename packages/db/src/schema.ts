@@ -15,6 +15,7 @@ import {
   pgTable,
   text,
   timestamp,
+  uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
 
@@ -819,3 +820,45 @@ export const voucherRedemptions = pgTable(
     index("voucher_redemptions_voucher_id_idx").on(table.voucherId),
   ],
 );
+
+/**
+ * A community league or tournament group (School, Company, Mall, Family).
+ * Players join using a unique code (e.g. HORIZON-8B, OASIS-MALL).
+ */
+export const leagues = pgTable("leagues", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  name: text("name").notNull(),
+  kind: text("kind").notNull(), // 'school' | 'company' | 'mall' | 'family' | 'community'
+  code: text("code").notNull().unique(),
+  description: text("description"),
+  icon: text("icon").notNull().default("trophy"),
+  color: text("color").notNull().default("#3FC8FF"),
+  creatorId: uuid("creator_id").references(() => profiles.id),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/**
+ * A profile's membership in a league. Includes optional team/sub-team name
+ * (e.g. "Grade 8B", "Engineering", "The Novas") and role ('admin' | 'member').
+ */
+export const leagueMembers = pgTable(
+  "league_members",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    leagueId: uuid("league_id")
+      .notNull()
+      .references(() => leagues.id, { onDelete: "cascade" }),
+    profileId: uuid("profile_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    role: text("role").notNull().default("member"),
+    teamName: text("team_name"),
+    joinedAt: timestamp("joined_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("league_members_league_profile_idx").on(table.leagueId, table.profileId),
+    index("league_members_league_id_idx").on(table.leagueId),
+    index("league_members_profile_id_idx").on(table.profileId),
+  ],
+);
+
