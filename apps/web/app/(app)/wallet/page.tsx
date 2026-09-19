@@ -6,6 +6,7 @@ import { SurfaceLinks } from "@/app/_components/SurfaceLinks";
 import { requireProfile } from "@/lib/profile";
 import { voucherQrSvg } from "@/lib/qr";
 import { getStreak } from "@/lib/streak";
+import { surfacesFor } from "@/lib/surfaces";
 import { StreakCard } from "./StreakCard";
 import { RotatingVoucher } from "./RotatingVoucher";
 import { ProfileCard } from "./ProfileCard";
@@ -15,7 +16,7 @@ export default async function WalletPage() {
   const { profile } = await requireProfile();
   const db = getDb();
 
-  const [playedRow, winsRow, voucherRows, ledgerRows, streakData] = await Promise.all([
+  const [playedRow, winsRow, voucherRows, ledgerRows, streakData, surfaces] = await Promise.all([
     db
       .select({ n: count() })
       .from(schema.playSessions)
@@ -47,6 +48,7 @@ export default async function WalletPage() {
       .orderBy(desc(schema.ledgerEntries.createdAt))
       .limit(20),
     getStreak(profile.id),
+    surfacesFor(profile),
   ]);
 
   const need = xpNeed(profile.level);
@@ -63,7 +65,7 @@ export default async function WalletPage() {
       <h1 className="text-3xl font-extrabold tracking-tight">Wallet</h1>
 
       {/* Profile Card & Editor */}
-      <ProfileCard profile={profile} />
+      <ProfileCard profile={profile} surfaces={surfaces} />
 
       {/* Balance card — prototype's .wcard */}
       <div className="mt-4 rounded-3xl bg-violet p-5 text-white [border:var(--border-thick)] [box-shadow:var(--shadow-sm)]">

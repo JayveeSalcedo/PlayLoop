@@ -21,6 +21,7 @@ interface RewardOption {
 }
 
 const DURATIONS = [7, 14, 30];
+const CITIES = ["Dubai", "Abu Dhabi", "Sharjah", "Ajman", "Ras Al Khaimah", "Al Ain"];
 
 /** Today and today+n as YYYY-MM-DD, in the viewer's own calendar. */
 function isoDay(offsetDays = 0): string {
@@ -36,17 +37,32 @@ export function CampaignForm({ games, rewards }: { games: GameOption[]; rewards:
   const [budgetAed, setBudgetAed] = useState("5000");
   const [startsOn, setStartsOn] = useState(isoDay());
   const [days, setDays] = useState(14);
+  const [selectedCities, setSelectedCities] = useState<string[]>(["Dubai", "Abu Dhabi"]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const endsOn = (() => {
     const d = new Date(`${startsOn}T00:00:00`);
     if (Number.isNaN(d.getTime())) return startsOn;
-    d.setDate(d.getDate() + days - 1); // inclusive of the start day
+    d.setDate(d.getDate() + days - 1);
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   })();
 
   const budgetFils = Math.round(Number(budgetAed) * 100);
+
+  // Dynamic forecast calculator based on prototype formulas
+  const numBudget = Math.max(0, Number(budgetAed) || 0);
+  const estPlays = Math.round(numBudget * 2.8);
+  const estNewUsers = Math.round(estPlays * 0.38);
+  const estMinutes = Math.round(estPlays * 0.5);
+  const estVisits = Math.round(estPlays * 0.18);
+  const estCpp = estPlays > 0 ? (numBudget / estPlays).toFixed(2) : "0.36";
+
+  function toggleCity(city: string) {
+    setSelectedCities((prev) =>
+      prev.includes(city) ? prev.filter((c) => c !== city) : [...prev, city],
+    );
+  }
 
   async function submit() {
     setSaving(true);
@@ -90,6 +106,29 @@ export function CampaignForm({ games, rewards }: { games: GameOption[]; rewards:
         ))}
       </select>
 
+      {/* City Geotargeting */}
+      <label className="mt-5 block text-sm font-extrabold">
+        Target Cities
+      </label>
+      <p className="mb-2 text-xs font-bold text-soft">Focus your campaign on specific markets.</p>
+      <div className="flex flex-wrap gap-1.5">
+        {CITIES.map((c) => {
+          const on = selectedCities.includes(c);
+          return (
+            <button
+              key={c}
+              type="button"
+              onClick={() => toggleCity(c)}
+              className={`rounded-full px-3 py-1 text-xs font-bold transition-colors [border:1.5px_solid_var(--ink)] ${
+                on ? "bg-ink text-white" : "bg-card text-ink"
+              }`}
+            >
+              {c}
+            </button>
+          );
+        })}
+      </div>
+
       <label className="mt-5 block text-sm font-extrabold" htmlFor="budget">
         Budget (AED)
       </label>
@@ -125,6 +164,7 @@ export function CampaignForm({ games, rewards }: { games: GameOption[]; rewards:
         {DURATIONS.map((d) => (
           <button
             key={d}
+            type="button"
             onClick={() => setDays(d)}
             className={`flex-1 rounded-xl p-2 text-sm font-extrabold [border:var(--border-thick)] ${
               days === d ? "bg-lemon" : "bg-card"
@@ -138,9 +178,37 @@ export function CampaignForm({ games, rewards }: { games: GameOption[]; rewards:
         Runs {startsOn} to {endsOn}, inclusive.
       </p>
 
+      {/* Live Forecast Box — prototype's .fc */}
+      <div className="card-hard mt-6 rounded-2xl bg-lemon/20 p-4 [border:var(--border-thick)]">
+        <div className="flex items-baseline justify-between">
+          <b className="text-sm font-extrabold text-ink">Campaign Forecast</b>
+          <span className="text-xs font-bold text-soft">
+            {days} days · AED {numBudget.toLocaleString("en-US")}
+          </span>
+        </div>
+        <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+          <div className="rounded-xl bg-card p-2 [border:1.5px_solid_var(--ink)]">
+            <span className="font-bold text-soft">Est. Plays</span>
+            <p className="text-base font-extrabold">{estPlays.toLocaleString("en-US")}</p>
+          </div>
+          <div className="rounded-xl bg-card p-2 [border:1.5px_solid_var(--ink)]">
+            <span className="font-bold text-soft">Est. Attention</span>
+            <p className="text-base font-extrabold">{estMinutes.toLocaleString("en-US")} mins</p>
+          </div>
+          <div className="rounded-xl bg-card p-2 [border:1.5px_solid_var(--ink)]">
+            <span className="font-bold text-soft">Store Footfall</span>
+            <p className="text-base font-extrabold">~{estVisits.toLocaleString("en-US")} visits</p>
+          </div>
+          <div className="rounded-xl bg-card p-2 [border:1.5px_solid_var(--ink)]">
+            <span className="font-bold text-soft">Est. Cost Per Play</span>
+            <p className="text-base font-extrabold">AED {estCpp}</p>
+          </div>
+        </div>
+      </div>
+
       {error ? <p className="mt-4 text-sm font-bold text-gum">{error}</p> : null}
 
-      <button className="btn go block mt-6" onClick={submit} disabled={saving || !gameId || !rewardId}>
+      <button className="btn go block mt-6 w-full" onClick={submit} disabled={saving || !gameId || !rewardId}>
         {saving ? (
           <>
             <Spinner size={22} /> Creating…

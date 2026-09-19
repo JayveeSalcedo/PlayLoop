@@ -18,6 +18,7 @@ const AVAILABLE_INTERESTS = [
 
 export function ProfileCard({
   profile,
+  surfaces,
 }: {
   profile: {
     id: string;
@@ -28,6 +29,7 @@ export function ProfileCard({
     interests: string[];
     level: number;
   };
+  surfaces?: { href: string; label: string; detail: string }[];
 }) {
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(profile.name ?? "Player");
@@ -92,6 +94,19 @@ export function ProfileCard({
             <p className="text-xs font-bold text-soft truncate max-w-[180px]">
               {profile.isGuest ? "Unclaimed account" : profile.email}
             </p>
+            {surfaces && surfaces.length > 0 && (
+              <div className="mt-1 flex flex-wrap gap-1">
+                {surfaces.map((s) => (
+                  <a
+                    key={s.href}
+                    href={s.href}
+                    className="rounded-md bg-ink px-1.5 py-0.5 text-[10px] font-extrabold text-lemon [border:1px_solid_var(--ink)] hover:opacity-90"
+                  >
+                    {s.label} &rarr;
+                  </a>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 

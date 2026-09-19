@@ -4,7 +4,7 @@ import type { NextConfig } from "next";
 
 // Load the monorepo root .env (not apps/web/.env) so one file configures
 // both this app and packages/db's CLI scripts. See .env.example.
-config({ path: path.resolve(__dirname, "../../.env") });
+config({ path: path.resolve(__dirname, "../../.env"), override: true });
 
 /**
  * Server-only packages Node must load directly instead of webpack bundling

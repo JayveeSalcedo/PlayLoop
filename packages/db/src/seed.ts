@@ -6,8 +6,9 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { config } from "dotenv";
+import { eq } from "drizzle-orm";
 import { getDb } from "./client";
-import { brands, games, rewards, stores } from "./schema";
+import { brandMembers, brands, games, profiles, rewards, storeStaff, stores } from "./schema.js";
 
 // Load the monorepo root .env regardless of CWD (see apps/web/next.config.ts for the same pattern).
 config({ path: path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../.env") });
@@ -165,6 +166,28 @@ async function main() {
       { slug: "glow-arcade-yas", brandId: brandId("glow-arcade"), name: "Yas Bay", city: "Abu Dhabi" },
     ])
     .onConflictDoNothing({ target: stores.slug });
+
+  // Attach all existing profiles to Beanhouse brand & Marina store for testing
+  const allProfiles = await db.select({ id: profiles.id }).from(profiles);
+  const marinaStore = await db
+    .select({ id: stores.id })
+    .from(stores)
+    .where(eq(stores.slug, "beanhouse-marina"))
+    .then((r) => r[0]);
+
+  for (const p of allProfiles) {
+    await db
+      .insert(brandMembers)
+      .values({ brandId: brandId("beanhouse"), profileId: p.id })
+      .onConflictDoNothing();
+
+    if (marinaStore) {
+      await db
+        .insert(storeStaff)
+        .values({ storeId: marinaStore.id, profileId: p.id })
+        .onConflictDoNothing();
+    }
+  }
 
   console.log("Seeded brands: beanhouse, glow-arcade, nomad-books");
   console.log("Seeded games: bean-catcher, desert-genius, neon-pairs, tap-frenzy");

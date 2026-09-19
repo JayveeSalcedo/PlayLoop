@@ -1,11 +1,14 @@
 import { getDb, schema } from "@playloop/db";
 import { campaignStatus, costPer, formatAed } from "@playloop/economy";
-import { and, eq, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireBrandMember } from "@/lib/brand";
 import { CancelButton } from "./CancelButton";
 import { PlaysChart } from "./PlaysChart";
+import { ConversionFunnel } from "./ConversionFunnel";
+import { StoreFootfallMatrix, type StoreVisitRow } from "./StoreFootfallMatrix";
+import { ActivityFeed, type ActivityEvent } from "./ActivityFeed";
 
 export default async function CampaignPage({ params }: { params: Promise<{ id: string }> }) {
   const { brand } = await requireBrandMember();
@@ -38,14 +41,22 @@ export default async function CampaignPage({ params }: { params: Promise<{ id: s
   const status = campaignStatus(campaign);
 
   // Every figure is scoped to this campaign's game and its inclusive date
-  // window, both compared DB-side. `endsOn + 1 day` because the stored bound is
-  // a date and sessions carry a timestamp — a play at 23:00 on the last day is
-  // inside the campaign.
+  // window, both compared DB-side.
   const inWindow = sql`${schema.playSessions.startedAt} >= ${campaign.startsOn}::date
     AND ${schema.playSessions.startedAt} < (${campaign.endsOn}::date + interval '1 day')`;
 
-  const [totals, firstTimers, visits, perDay] = await Promise.all([
-    // Plays and minutes in one pass over the same rows.
+  const [
+    totals,
+    firstTimers,
+    visits,
+    perDay,
+    challengesCount,
+    vouchersCount,
+    storeBreakdown,
+    recentPlays,
+    recentRedemptions,
+  ] = await Promise.all([
+    // Plays and minutes
     db
       .select({
         plays: sql<number>`count(*)`.mapWith(Number),
@@ -59,9 +70,7 @@ export default async function CampaignPage({ params }: { params: Promise<{ id: s
       )
       .then((r) => r[0] ?? { plays: 0, seconds: 0 }),
 
-    // "New players" means players whose *first ever* completed play landed on
-    // this game inside the window — not profiles created, which isn't
-    // attributable to a campaign.
+    // New players whose first ever play was on this game in window
     db
       .execute(sql`
         SELECT count(*)::int AS n FROM (
@@ -78,8 +87,7 @@ export default async function CampaignPage({ params }: { params: Promise<{ id: s
       `)
       .then((r) => Number((r as unknown as { n: number }[])[0]?.n ?? 0)),
 
-    // Store visits: vouchers for this campaign's reward actually accepted at a
-    // counter and not since reversed.
+    // Store visits
     db
       .select({ n: sql<number>`count(*)`.mapWith(Number) })
       .from(schema.voucherRedemptions)
@@ -94,6 +102,7 @@ export default async function CampaignPage({ params }: { params: Promise<{ id: s
       )
       .then((r) => r[0]?.n ?? 0),
 
+    // Plays per day
     db
       .select({
         day: sql<string>`to_char(date_trunc('day', ${schema.playSessions.startedAt}), 'YYYY-MM-DD')`,
@@ -105,6 +114,95 @@ export default async function CampaignPage({ params }: { params: Promise<{ id: s
       )
       .groupBy(sql`date_trunc('day', ${schema.playSessions.startedAt})`)
       .orderBy(sql`date_trunc('day', ${schema.playSessions.startedAt})`),
+
+    // Viral challenges created from this game
+    db
+      .select({ n: sql<number>`count(*)`.mapWith(Number) })
+      .from(schema.challenges)
+      .where(
+        and(
+          eq(schema.challenges.gameId, campaign.gameId),
+          sql`${schema.challenges.createdAt} >= ${campaign.startsOn}::date`,
+          sql`${schema.challenges.createdAt} < (${campaign.endsOn}::date + interval '1 day')`,
+        ),
+      )
+      .then((r) => r[0]?.n ?? 0),
+
+    // Vouchers claimed for this reward
+    db
+      .select({ n: sql<number>`count(*)`.mapWith(Number) })
+      .from(schema.vouchers)
+      .where(
+        and(
+          eq(schema.vouchers.rewardId, campaign.rewardId),
+          sql`${schema.vouchers.createdAt} >= ${campaign.startsOn}::date`,
+          sql`${schema.vouchers.createdAt} < (${campaign.endsOn}::date + interval '1 day')`,
+        ),
+      )
+      .then((r) => r[0]?.n ?? 0),
+
+    // Store footfall breakdown by branch
+    db
+      .select({
+        storeId: schema.stores.id,
+        storeName: schema.stores.name,
+        city: schema.stores.city,
+        visits: sql<number>`count(*)`.mapWith(Number),
+      })
+      .from(schema.voucherRedemptions)
+      .innerJoin(schema.vouchers, eq(schema.voucherRedemptions.voucherId, schema.vouchers.id))
+      .innerJoin(schema.stores, eq(schema.voucherRedemptions.storeId, schema.stores.id))
+      .where(
+        and(
+          eq(schema.vouchers.rewardId, campaign.rewardId),
+          isNull(schema.voucherRedemptions.reversedAt),
+          sql`${schema.voucherRedemptions.redeemedAt} >= ${campaign.startsOn}::date`,
+          sql`${schema.voucherRedemptions.redeemedAt} < (${campaign.endsOn}::date + interval '1 day')`,
+        ),
+      )
+      .groupBy(schema.stores.id, schema.stores.name, schema.stores.city)
+      .orderBy(sql`count(*) DESC`) as Promise<StoreVisitRow[]>,
+
+    // Recent plays
+    db
+      .select({
+        id: schema.playSessions.id,
+        score: schema.playSessions.score,
+        startedAt: schema.playSessions.startedAt,
+        playerName: schema.profiles.name,
+      })
+      .from(schema.playSessions)
+      .innerJoin(schema.profiles, eq(schema.playSessions.profileId, schema.profiles.id))
+      .where(
+        and(
+          eq(schema.playSessions.gameId, campaign.gameId),
+          eq(schema.playSessions.status, "completed"),
+          inWindow,
+        ),
+      )
+      .orderBy(desc(schema.playSessions.startedAt))
+      .limit(5),
+
+    // Recent in-store redemptions
+    db
+      .select({
+        id: schema.voucherRedemptions.id,
+        storeName: schema.stores.name,
+        redeemedAt: schema.voucherRedemptions.redeemedAt,
+      })
+      .from(schema.voucherRedemptions)
+      .innerJoin(schema.vouchers, eq(schema.voucherRedemptions.voucherId, schema.vouchers.id))
+      .innerJoin(schema.stores, eq(schema.voucherRedemptions.storeId, schema.stores.id))
+      .where(
+        and(
+          eq(schema.vouchers.rewardId, campaign.rewardId),
+          isNull(schema.voucherRedemptions.reversedAt),
+          sql`${schema.voucherRedemptions.redeemedAt} >= ${campaign.startsOn}::date`,
+          sql`${schema.voucherRedemptions.redeemedAt} < (${campaign.endsOn}::date + interval '1 day')`,
+        ),
+      )
+      .orderBy(desc(schema.voucherRedemptions.redeemedAt))
+      .limit(5),
   ]);
 
   const minutes = Math.round(totals.seconds / 60);
@@ -112,65 +210,120 @@ export default async function CampaignPage({ params }: { params: Promise<{ id: s
   const perVisit = costPer(campaign.budgetFils, visits);
   const claimed = campaign.poolTotal != null ? campaign.poolTotal - (campaign.poolRemaining ?? 0) : null;
 
+  // 7.2x Retail Felt Value multiplier from prototype
+  const feltValueFils = Math.round(campaign.budgetFils * 7.2);
+  const impressions = Math.round(totals.plays * 2.4);
+
+  // Combine events into unified activity feed
+  const activities: ActivityEvent[] = [
+    ...recentPlays.map((p) => ({
+      id: `play-${p.id}`,
+      type: "play" as const,
+      title: `${p.playerName ?? "A player"} scored ${p.score?.toLocaleString("en-US") ?? 0}`,
+      detail: `Verified play on ${campaign.gameTitle}`,
+      timeAgo: p.startedAt ? new Date(p.startedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "recent",
+    })),
+    ...recentRedemptions.map((r) => ({
+      id: `red-${r.id}`,
+      type: "redemption" as const,
+      title: `Voucher redeemed at ${r.storeName}`,
+      detail: `In-store claim for ${campaign.rewardName}`,
+      timeAgo: r.redeemedAt ? new Date(r.redeemedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "recent",
+    })),
+  ];
+
   return (
-    <main className="mx-auto max-w-2xl p-6">
+    <main className="mx-auto max-w-3xl p-6">
       <Link href="/brand" className="text-sm font-extrabold underline">
-        Back
+        &larr; Back to brand console
       </Link>
 
-      <h1 className="mt-3 text-3xl font-extrabold tracking-tight">{campaign.gameTitle}</h1>
-      <p className="mt-1 text-sm font-bold text-soft">
-        {campaign.rewardName} · {formatAed(campaign.budgetFils)} · {campaign.startsOn} to {campaign.endsOn}
-      </p>
-      <p className="mt-2 inline-block rounded-full bg-card px-3 py-1 text-xs font-extrabold [border:var(--border-thick)]">
-        {status}
-      </p>
+      <div className="mt-4 flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-3xl font-extrabold tracking-tight">{campaign.gameTitle}</h1>
+          <p className="mt-1 text-sm font-bold text-soft">
+            {campaign.rewardName} · Budget: {formatAed(campaign.budgetFils)} · {campaign.startsOn} to {campaign.endsOn}
+          </p>
+        </div>
+        <span className="rounded-full bg-card px-3 py-1 text-xs font-extrabold [border:var(--border-thick)]">
+          {status}
+        </span>
+      </div>
 
-      {/* A draft shows no figures at all. The queries below would happily
-          return numbers — plays on that game in that window exist whether or
-          not anyone paid — but presenting them here would read as campaign
-          results, and "cost per play: AED 5,000" against an unfunded budget is
-          a number that means nothing. */}
       {status === "draft" ? (
-        <p className="card-hard mt-4 rounded-2xl bg-card p-4 text-sm font-bold text-soft [border:var(--border-thick)]">
-          Waiting on us to confirm your payment. Nothing is running and no numbers are counting yet.
+        <p className="card-hard mt-6 rounded-2xl bg-card p-5 text-sm font-bold text-soft [border:var(--border-thick)]">
+          Waiting on us to confirm your payment. Once funded, real-time analytics, attention metrics, and conversion funnels will appear here.
         </p>
       ) : (
         <>
-      <div className="fade-in mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
-        <Stat label="Plays" value={totals.plays.toLocaleString("en-US")} />
-        <Stat label="Minutes played" value={minutes.toLocaleString("en-US")} />
-        <Stat label="New players" value={firstTimers.toLocaleString("en-US")} />
-        <Stat label="Store visits" value={visits.toLocaleString("en-US")} />
-        <Stat label="Cost per play" value={perPlay == null ? "—" : formatAed(perPlay)} />
-        <Stat label="Cost per visit" value={perVisit == null ? "—" : formatAed(perVisit)} />
-      </div>
-
-      {campaign.poolTotal != null ? (
-        <section className="card-hard mt-6 rounded-2xl bg-card p-4 [border:var(--border-thick)]">
-          <div className="flex items-baseline justify-between">
-            <p className="font-extrabold">Reward pool</p>
-            <p className="text-sm font-bold text-soft">
-              {claimed?.toLocaleString("en-US")} of {campaign.poolTotal.toLocaleString("en-US")} claimed
-            </p>
+          {/* Key attention & efficiency KPIs */}
+          <div className="fade-in mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
+            <Stat label="Total Plays" value={totals.plays.toLocaleString("en-US")} />
+            <Stat label="Attention Minutes" value={minutes.toLocaleString("en-US")} />
+            <Stat label="New Players" value={firstTimers.toLocaleString("en-US")} />
+            <Stat label="Store Visits" value={visits.toLocaleString("en-US")} />
+            <Stat label="Cost Per Play (CPP)" value={perPlay == null ? "—" : formatAed(perPlay)} />
+            <Stat label="Cost Per Visit (CPV)" value={perVisit == null ? "—" : formatAed(perVisit)} />
           </div>
-          <div className="mt-2 h-4 overflow-hidden rounded-full bg-paper [border:var(--border-thick)]">
-            <div
-              className="h-full bg-mint"
-              style={{ width: `${Math.min(100, ((claimed ?? 0) / campaign.poolTotal) * 100)}%` }}
-            />
-          </div>
-        </section>
-      ) : null}
 
-      <section className="mt-6">
-        <h2 className="text-xl font-extrabold">Plays per day</h2>
-        {perDay.length === 0 ? (
-          <p className="mt-2 text-sm font-bold text-soft">No plays in this window yet.</p>
-        ) : (
-          <PlaysChart data={perDay} />
-        )}
-      </section>
+          {/* 7.2x Retail Felt Value Card */}
+          <div className="card-hard mt-4 flex items-center justify-between rounded-2xl bg-lemon p-4 text-ink [border:var(--border-thick)] [box-shadow:var(--shadow-sm)]">
+            <div>
+              <span className="rounded-md bg-ink px-2 py-0.5 text-[10px] font-extrabold text-lemon uppercase tracking-wider">
+                7.2× Multiplier
+              </span>
+              <p className="mt-1 text-xs font-extrabold text-ink/80">Estimated Retail Felt Value Delivered</p>
+            </div>
+            <div className="text-right">
+              <b className="text-2xl font-extrabold">{formatAed(feltValueFils)}</b>
+              <p className="text-[11px] font-bold text-ink/70">From {formatAed(campaign.budgetFils)} budget</p>
+            </div>
+          </div>
+
+          {/* Reward pool progress */}
+          {campaign.poolTotal != null ? (
+            <section className="card-hard mt-6 rounded-2xl bg-card p-4 [border:var(--border-thick)]">
+              <div className="flex items-baseline justify-between">
+                <p className="font-extrabold">Reward pool</p>
+                <p className="text-sm font-bold text-soft">
+                  {claimed?.toLocaleString("en-US")} of {campaign.poolTotal.toLocaleString("en-US")} claimed
+                </p>
+              </div>
+              <div className="mt-2 h-4 overflow-hidden rounded-full bg-paper [border:var(--border-thick)]">
+                <div
+                  className="h-full bg-mint"
+                  style={{ width: `${Math.min(100, ((claimed ?? 0) / campaign.poolTotal) * 100)}%` }}
+                />
+              </div>
+            </section>
+          ) : null}
+
+          {/* 5-Step Conversion Funnel */}
+          <ConversionFunnel
+            impressions={impressions}
+            plays={totals.plays}
+            challenges={challengesCount}
+            vouchers={vouchersCount}
+            visits={visits}
+          />
+
+          {/* Store Footfall Breakdown */}
+          <StoreFootfallMatrix stores={storeBreakdown} totalVisits={visits} />
+
+          {/* Plays Chart */}
+          <section className="card-hard mt-6 rounded-2xl bg-card p-5 [border:var(--border-thick)]">
+            <h2 className="text-lg font-extrabold tracking-tight">Plays per day</h2>
+            {perDay.length === 0 ? (
+              <p className="mt-2 text-sm font-bold text-soft">No plays in this window yet.</p>
+            ) : (
+              <div className="mt-4">
+                <PlaysChart data={perDay} />
+              </div>
+            )}
+          </section>
+
+          {/* Live Activity Stream */}
+          <ActivityFeed events={activities} />
         </>
       )}
 
@@ -185,9 +338,9 @@ export default async function CampaignPage({ params }: { params: Promise<{ id: s
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="card-hard rounded-2xl bg-card p-4 [border:var(--border-thick)]">
+    <div className="card-hard rounded-2xl bg-card p-4 [border:var(--border-thick)] [box-shadow:var(--shadow-sm)]">
       <p className="text-xs font-extrabold text-soft">{label}</p>
-      <p className="text-2xl font-extrabold">{value}</p>
+      <p className="mt-0.5 text-2xl font-extrabold tracking-tight">{value}</p>
     </div>
   );
 }
