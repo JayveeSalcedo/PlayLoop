@@ -5,30 +5,28 @@ import { SignOut } from "@/app/_components/SignOut";
 import { SurfaceLinks } from "@/app/_components/SurfaceLinks";
 import { requireProfile } from "@/lib/profile";
 import { voucherQrSvg } from "@/lib/qr";
-
-/**
- * No streak card yet, on purpose. It needs day-boundary/timezone bookkeeping
- * plus streak-break forgiveness (the level-3 "Streak shield" perk in
- * @playloop/economy's PERKS implies logic that doesn't exist yet either).
- * When it's built, it needs no schema change: derive it from distinct
- * calendar dates with a completed play_sessions row for this profile,
- * counting consecutive days back from today/yesterday — no lastPlayedAt
- * column required. Naturally pairs with the Challenges phase, since the
- * brief pairs "streak at risk" push notifications with that engagement loop.
- */
+import { getStreak } from "@/lib/streak";
+import { StreakCard } from "./StreakCard";
+import { RotatingVoucher } from "./RotatingVoucher";
 
 export default async function WalletPage() {
   const { profile } = await requireProfile();
   const db = getDb();
 
-  const [playedRow, voucherRows, ledgerRows] = await Promise.all([
+  const [playedRow, winsRow, voucherRows, ledgerRows, streakData] = await Promise.all([
     db
       .select({ n: count() })
       .from(schema.playSessions)
       .where(eq(schema.playSessions.profileId, profile.id))
       .then((r) => r[0]!.n),
     db
+      .select({ n: count() })
+      .from(schema.challenges)
+      .where(eq(schema.challenges.winnerId, profile.id))
+      .then((r) => r[0]!.n),
+    db
       .select({
+        id: schema.vouchers.id,
         code: schema.vouchers.code,
         redeemedAt: schema.vouchers.redeemedAt,
         expiresAt: schema.vouchers.expiresAt,
@@ -46,6 +44,7 @@ export default async function WalletPage() {
       .where(eq(schema.ledgerEntries.profileId, profile.id))
       .orderBy(desc(schema.ledgerEntries.createdAt))
       .limit(20),
+    getStreak(profile.id),
   ]);
 
   const need = xpNeed(profile.level);
@@ -61,9 +60,15 @@ export default async function WalletPage() {
     <main className="mx-auto max-w-sm p-6">
       <h1 className="text-3xl font-extrabold tracking-tight">Wallet</h1>
 
-      <div className="card-hard mt-4 rounded-3xl bg-violet p-5 text-white [border:var(--border-thick)]">
+      {/* Balance card — prototype's .wcard */}
+      <div className="mt-4 rounded-3xl bg-violet p-5 text-white [border:var(--border-thick)] [box-shadow:var(--shadow-sm)]">
         <p className="text-sm font-bold opacity-90">Balance</p>
-        <p className="text-5xl font-extrabold tracking-tight">{profile.pointsBalance.toLocaleString("en-US")}</p>
+        <div className="mt-1 flex items-center gap-2.5">
+          <span className="inline-block h-7 w-7 rounded-full bg-lemon [border:2.5px_solid_var(--ink)]" />
+          <p className="text-5xl font-extrabold tracking-tight">
+            {profile.pointsBalance.toLocaleString("en-US")}
+          </p>
+        </div>
         <div className="mt-3 h-2.5 overflow-hidden rounded-full border-2 border-white/60 bg-white/20">
           <div className="h-full bg-lemon" style={{ width: `${Math.min(100, (profile.xp / need) * 100)}%` }} />
         </div>
@@ -75,10 +80,26 @@ export default async function WalletPage() {
         </p>
       </div>
 
-      <p className="card-hard mt-4 rounded-2xl bg-card p-3 text-center text-sm font-bold [border:var(--border-thick)]">
-        {playedRow} game{playedRow === 1 ? "" : "s"} played
-      </p>
+      {/* Stats row — prototype's .wstats */}
+      <div className="mt-3 grid grid-cols-3 gap-2">
+        <div className="rounded-2xl bg-card p-3 text-center [border:var(--border-thick)]">
+          <b className="text-xl font-extrabold">{playedRow}</b>
+          <p className="text-[11px] font-bold text-soft">games played</p>
+        </div>
+        <div className="rounded-2xl bg-card p-3 text-center [border:var(--border-thick)]">
+          <b className="text-xl font-extrabold">{winsRow}</b>
+          <p className="text-[11px] font-bold text-soft">challenges won</p>
+        </div>
+        <div className="rounded-2xl bg-card p-3 text-center [border:var(--border-thick)]">
+          <b className="text-xl font-extrabold">{0}</b>
+          <p className="text-[11px] font-bold text-soft">friends invited</p>
+        </div>
+      </div>
 
+      {/* Streak card */}
+      <StreakCard streak={streakData.streak} playedToday={streakData.playedToday} />
+
+      {/* Vouchers */}
       <h2 className="mt-6 text-sm font-extrabold text-soft">My vouchers</h2>
       {vouchers.length === 0 ? (
         <p className="mt-2 rounded-2xl border-2 border-dashed border-ink/30 p-4 text-center text-sm text-soft">
@@ -86,8 +107,8 @@ export default async function WalletPage() {
         </p>
       ) : (
         <div className="fade-in mt-2 flex flex-col gap-2">
-          {vouchers.map((v, i) => (
-            <div key={i} className="card-hard rounded-2xl bg-card p-3 [border:var(--border-thick)]">
+          {vouchers.map((v) => (
+            <div key={v.id} className="rounded-2xl bg-card p-3 [border:var(--border-thick)] [box-shadow:var(--shadow-sm)]">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-xs font-bold text-soft">{v.brandName}</p>
@@ -101,26 +122,24 @@ export default async function WalletPage() {
                   {v.status}
                 </span>
               </div>
-              {v.qrSvg ? (
-                <div className="mt-3 flex items-center gap-3">
-                  <div className="h-20 w-20 shrink-0 rounded-lg bg-white p-1 [border:var(--border-thick)]" dangerouslySetInnerHTML={{ __html: v.qrSvg }} />
-                  <p className="text-lg font-extrabold tracking-widest">{v.code}</p>
-                </div>
+              {v.status === "active" && v.qrSvg ? (
+                <RotatingVoucher voucherId={v.id} initialQrSvg={v.qrSvg} code={v.code} />
               ) : (
-                <p className="mt-1 text-sm font-mono text-soft">{v.code}</p>
+                <p className="mt-1 font-mono text-sm text-soft">{v.code}</p>
               )}
             </div>
           ))}
         </div>
       )}
 
+      {/* History — prototype's .txl */}
       <h2 className="mt-6 text-sm font-extrabold text-soft">History</h2>
       {ledgerRows.length === 0 ? (
         <p className="mt-2 rounded-2xl border-2 border-dashed border-ink/30 p-4 text-center text-sm text-soft">
           No points yet. Play a game to start earning.
         </p>
       ) : (
-        <div className="card-hard fade-in mt-2 overflow-hidden rounded-2xl bg-card [border:var(--border-thick)]">
+        <div className="fade-in mt-2 overflow-hidden rounded-2xl bg-card [border:var(--border-thick)] [box-shadow:var(--shadow-sm)]">
           {ledgerRows.map((tx) => (
             <div key={tx.id} className="flex items-center justify-between border-b-2 border-ink/10 p-3 text-sm font-semibold last:border-b-0">
               <span>{tx.reason}</span>

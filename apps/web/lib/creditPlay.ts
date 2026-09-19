@@ -38,9 +38,57 @@ export interface PlayResult {
   pointsBalance: number;
   /** Set only if this play fulfilled a challenge (started via startChallengedPlay). */
   challengeResult?: { outcome: ChallengeOutcome; opponentScore: number; bonusAwarded: number };
+  /**
+   * True when the profile that just earned this is still an unclaimed guest
+   * (see profiles.isGuest) — the result screen uses this to show "log in to
+   * claim your reward" instead of the normal share/home actions.
+   */
+  isGuest: boolean;
 }
 
 export type CreditOutcome = ({ ok: true } & PlayResult) | { ok: false; error: string };
+
+/**
+ * Credits REFERRAL_JOIN_BONUS to whoever's challenge link brought `profile`
+ * in, the first time `profile` ever completes a play — at most once per
+ * profile, ever.
+ *
+ * Split out of creditVerifiedPlay so login/verify/actions.ts can call it
+ * again, unchanged, at the moment a guest profile claims a real email: a
+ * guest's first completed play does NOT pay this out (creditVerifiedPlay
+ * skips it while isGuest is true) specifically so nobody can farm it by
+ * spamming challenge links and never verifying an email — it only fires once
+ * a human has actually proven the referral by claiming the account.
+ */
+export async function maybeAwardReferralBonus(tx: Tx, profile: { id: string; referredByChallengeId: string | null }) {
+  if (!profile.referredByChallengeId) return;
+
+  const completedRows = await tx
+    .select({ n: count() })
+    .from(schema.playSessions)
+    .where(and(eq(schema.playSessions.profileId, profile.id), eq(schema.playSessions.status, "completed")));
+  const completedCount = completedRows[0]?.n ?? 0;
+  if (completedCount !== 1) return;
+
+  const referralChallenge = await tx
+    .select({ senderId: schema.challenges.senderId })
+    .from(schema.challenges)
+    .where(eq(schema.challenges.id, profile.referredByChallengeId))
+    .then((r) => r[0]);
+  if (!referralChallenge) return;
+
+  await tx.insert(schema.ledgerEntries).values({
+    profileId: referralChallenge.senderId,
+    delta: REFERRAL_JOIN_BONUS,
+    reason: "Friend joined from your challenge",
+    refType: "profile",
+    refId: profile.id,
+  });
+  await tx
+    .update(schema.profiles)
+    .set({ pointsBalance: sql`${schema.profiles.pointsBalance} + ${REFERRAL_JOIN_BONUS}` })
+    .where(eq(schema.profiles.id, referralChallenge.senderId));
+}
 
 export async function creditVerifiedPlay(
   tx: Tx,
@@ -72,6 +120,29 @@ export async function creditVerifiedPlay(
   if (profile.suspendedAt) {
     return { ok: false, error: "This account is suspended, so that play earned nothing." };
   }
+
+  // Guest daily earning cap — prevents farming before account verification.
+  // Matches the prototype's DAY_CAP = 2000.
+  if (profile.isGuest) {
+    const { GUEST_DAILY_CAP } = await import("@playloop/economy");
+    const earnedRows = await tx
+      .select({
+        earned: sql<number>`coalesce(sum(${schema.ledgerEntries.delta}), 0)`,
+      })
+      .from(schema.ledgerEntries)
+      .where(
+        and(
+          eq(schema.ledgerEntries.profileId, profile.id),
+          sql`${schema.ledgerEntries.createdAt}::date = current_date`,
+          sql`${schema.ledgerEntries.delta} > 0`,
+        ),
+      );
+    const earned = earnedRows[0]?.earned ?? 0;
+    if (earned >= GUEST_DAILY_CAP) {
+      return { ok: false, error: "Daily limit reached. Save your progress to keep earning." };
+    }
+  }
+
   const xpResult = addXp({ xp: profile.xp, level: profile.level }, xpGain);
 
   await tx
@@ -149,37 +220,18 @@ export async function creditVerifiedPlay(
       }
 
       challengeResult = { outcome: result, opponentScore: challenge.senderScore, bonusAwarded };
+
+      // Auto-add as friends after completing a challenge together.
+      const { ensureFriendship } = await import("@/lib/friends");
+      await ensureFriendship(tx, challenge.senderId, profileId);
     }
   }
 
-  // Referral bonus — fires at most once per profile, the first time they ever complete a play.
-  if (profile.referredByChallengeId) {
-    const completedRows = await tx
-      .select({ n: count() })
-      .from(schema.playSessions)
-      .where(and(eq(schema.playSessions.profileId, profile.id), eq(schema.playSessions.status, "completed")));
-    const completedCount = completedRows[0]?.n ?? 0;
-
-    if (completedCount === 1) {
-      const referralChallenge = await tx
-        .select({ senderId: schema.challenges.senderId })
-        .from(schema.challenges)
-        .where(eq(schema.challenges.id, profile.referredByChallengeId))
-        .then((r) => r[0]);
-      if (referralChallenge) {
-        await tx.insert(schema.ledgerEntries).values({
-          profileId: referralChallenge.senderId,
-          delta: REFERRAL_JOIN_BONUS,
-          reason: "Friend joined from your challenge",
-          refType: "profile",
-          refId: profile.id,
-        });
-        await tx
-          .update(schema.profiles)
-          .set({ pointsBalance: sql`${schema.profiles.pointsBalance} + ${REFERRAL_JOIN_BONUS}` })
-          .where(eq(schema.profiles.id, referralChallenge.senderId));
-      }
-    }
+  // Referral bonus — skipped for a still-unclaimed guest (see
+  // maybeAwardReferralBonus's doc comment); awarded instead the moment they
+  // claim the account in login/verify/actions.ts.
+  if (!profile.isGuest) {
+    await maybeAwardReferralBonus(tx, profile);
   }
 
   return {
@@ -191,5 +243,6 @@ export async function creditVerifiedPlay(
     levelsGained: xpResult.levelsGained,
     pointsBalance,
     challengeResult,
+    isGuest: profile.isGuest,
   };
 }

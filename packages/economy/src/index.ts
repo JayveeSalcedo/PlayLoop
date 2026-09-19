@@ -96,6 +96,9 @@ export const CHALLENGE_WIN_BONUS = 50;
 /** Points granted on first onboarding, as a welcome gift. */
 export const WELCOME_GIFT_BONUS = 300;
 
+/** Maximum points a guest (unverified) account can earn per calendar day. */
+export const GUEST_DAILY_CAP = 2_000;
+
 export type GameType = "quiz" | "catch" | "memory" | "reflex";
 
 /** Score needed to earn the full maxPoints payout, per game type. */
