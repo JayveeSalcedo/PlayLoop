@@ -1,4 +1,4 @@
-import { getEventConfig, getOrCreateEventPlayer } from "./actions";
+import { getEventConfig, getOrCreateEventPlayer } from "@/lib/eventsServer";
 import { EventArenaClient } from "./EventArenaClient";
 
 export const metadata = {

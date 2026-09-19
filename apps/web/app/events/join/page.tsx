@@ -1,5 +1,5 @@
 import { VENUE_EVENTS } from "@/lib/events";
-import { getOrCreateEventPlayer } from "../actions";
+import { getOrCreateEventPlayer } from "@/lib/eventsServer";
 import { EventMobileClient } from "./EventMobileClient";
 
 export const metadata = {
