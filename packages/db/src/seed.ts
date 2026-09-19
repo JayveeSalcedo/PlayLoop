@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 import { config } from "dotenv";
 import { eq, sql } from "drizzle-orm";
 import { getDb } from "./client";
-import { brandMembers, brands, games, leagueMembers, leagues, profiles, rewards, storeStaff, stores } from "./schema.js";
+import { brandMembers, brands, games, leagueMembers, leagues, profiles, rewards, storeStaff, stores, venueEvents } from "./schema.js";
 
 // Load the monorepo root .env regardless of CWD (see apps/web/next.config.ts for the same pattern).
 config({ path: path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../.env") });
@@ -16,7 +16,7 @@ config({ path: path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..
 async function main() {
   const db = getDb();
 
-  // Ensure leagues and league_members tables exist
+  // Ensure leagues, league_members, and venue_events tables exist
   await db.execute(sql`
     CREATE TABLE IF NOT EXISTS leagues (
       id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -41,6 +41,26 @@ async function main() {
     );
     CREATE INDEX IF NOT EXISTS league_members_league_id_idx ON league_members(league_id);
     CREATE INDEX IF NOT EXISTS league_members_profile_id_idx ON league_members(profile_id);
+
+    CREATE TABLE IF NOT EXISTS venue_events (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      brand_id uuid REFERENCES brands(id),
+      code text NOT NULL UNIQUE,
+      title text NOT NULL,
+      arabic_title text,
+      venue_name text NOT NULL,
+      location text NOT NULL,
+      sponsor_name text NOT NULL,
+      sponsor_tagline text NOT NULL,
+      accent_color text NOT NULL DEFAULT '#FFDD3C',
+      prize_pool_points integer NOT NULL DEFAULT 5000,
+      status text NOT NULL DEFAULT 'live',
+      rounds jsonb NOT NULL DEFAULT '[]'::jsonb,
+      creator_id uuid REFERENCES profiles(id),
+      created_at timestamp with time zone NOT NULL DEFAULT now()
+    );
+    CREATE INDEX IF NOT EXISTS venue_events_brand_id_idx ON venue_events(brand_id);
+    CREATE INDEX IF NOT EXISTS venue_events_code_idx ON venue_events(code);
   `);
 
   await db
@@ -284,6 +304,104 @@ async function main() {
     }
   }
 
+  // Seed default live arena venue events
+  await db
+    .insert(venueEvents)
+    .values([
+      {
+        code: "OASIS-LIVE",
+        brandId: brandId("beanhouse"),
+        title: "Oasis Mall National Day Live",
+        arabicTitle: "أمسية اليوم الوطني في أوايسس مول",
+        venueName: "Oasis Mall Arena",
+        location: "Central Atrium LED Wall, Ground Floor",
+        sponsorName: "Beanhouse Specialty Coffee",
+        sponsorTagline: "Presented by Beanhouse",
+        accentColor: "#FFDD3C",
+        prizePoolPoints: 5000,
+        status: "live",
+        rounds: [
+          {
+            number: 1,
+            title: "Speed Bean Rush",
+            arabicTitle: "سباق حبات القهوة السريع",
+            gameType: "tap",
+            durationSeconds: 30,
+            targetScore: 240,
+            maxPoints: 300,
+          },
+          {
+            number: 2,
+            title: "National Day Reflex",
+            arabicTitle: "تحدي سرعة البديهة لليوم الوطني",
+            gameType: "reflex",
+            durationSeconds: 30,
+            targetScore: 280,
+            maxPoints: 400,
+          },
+        ],
+      },
+      {
+        code: "DUBAI-LIVE",
+        brandId: brandId("beanhouse"),
+        title: "Dubai Mall Ice Rink Showdown",
+        arabicTitle: "تحدي شاشة حلبة التزلج بدبي مول",
+        venueName: "Dubai Mall Mega LED Arena",
+        location: "Ice Rink Giant Screen, Level G",
+        sponsorName: "Level Shoes",
+        sponsorTagline: "Presented by Level Shoes",
+        accentColor: "#3FC8FF",
+        prizePoolPoints: 7500,
+        status: "live",
+        rounds: [
+          {
+            number: 1,
+            title: "Speed Run Sprint",
+            arabicTitle: "سباق الجري السريع",
+            gameType: "tap",
+            durationSeconds: 30,
+            targetScore: 250,
+            maxPoints: 350,
+          },
+          {
+            number: 2,
+            title: "Sneaker Drop Reflex",
+            arabicTitle: "التقاط الأحذية الرياضية",
+            gameType: "reflex",
+            durationSeconds: 30,
+            targetScore: 300,
+            maxPoints: 450,
+          },
+        ],
+      },
+      {
+        code: "GLOW-LIVE",
+        brandId: brandId("glow-arcade"),
+        title: "Glow Arcade Championship",
+        arabicTitle: "بطولة غلو آركيد الكبرى",
+        venueName: "Glow Arcade Arena",
+        location: "Main Stage Esports LED, City Centre Deira",
+        sponsorName: "VOX Cinemas & Magic Planet",
+        sponsorTagline: "Presented by VOX Cinemas",
+        accentColor: "#FF5FA2",
+        prizePoolPoints: 6000,
+        status: "live",
+        rounds: [
+          {
+            number: 1,
+            title: "Neon Pulse Tap",
+            arabicTitle: "نبض النيون السريع",
+            gameType: "tap",
+            durationSeconds: 30,
+            targetScore: 260,
+            maxPoints: 350,
+          },
+        ],
+      },
+    ])
+    .onConflictDoNothing({ target: venueEvents.code });
+
+  console.log("Seeded venue events: OASIS-LIVE, DUBAI-LIVE, GLOW-LIVE");
   console.log("Seeded leagues: HORIZON-8B, OASIS-MALL, FAMILY-NOVA, ACME-TECH");
   console.log("Seeded brands: beanhouse, glow-arcade, nomad-books");
   console.log("Seeded games: bean-catcher, desert-genius, neon-pairs, tap-frenzy");

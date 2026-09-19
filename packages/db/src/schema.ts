@@ -862,3 +862,41 @@ export const leagueMembers = pgTable(
   ],
 );
 
+/**
+ * A live venue activation event for LED walls and arena gameplay.
+ * Created by brand managers or system presets.
+ */
+export const venueEvents = pgTable(
+  "venue_events",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    brandId: uuid("brand_id").references(() => brands.id),
+    code: text("code").notNull().unique(),
+    title: text("title").notNull(),
+    arabicTitle: text("arabic_title"),
+    venueName: text("venue_name").notNull(),
+    location: text("location").notNull(),
+    sponsorName: text("sponsor_name").notNull(),
+    sponsorTagline: text("sponsor_tagline").notNull(),
+    accentColor: text("accent_color").notNull().default("#FFDD3C"),
+    prizePoolPoints: integer("prize_pool_points").notNull().default(5000),
+    status: text("status").notNull().default("live"),
+    rounds: jsonb("rounds").$type<Array<{
+      number: number;
+      title: string;
+      arabicTitle: string;
+      gameType: "tap" | "reflex" | "catch";
+      durationSeconds: number;
+      targetScore: number;
+      maxPoints: number;
+    }>>().notNull(),
+    creatorId: uuid("creator_id").references(() => profiles.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("venue_events_brand_id_idx").on(table.brandId),
+    index("venue_events_code_idx").on(table.code),
+  ],
+);
+
+

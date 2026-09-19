@@ -46,4 +46,57 @@ describe("Venue Events & Arena Simulation", () => {
     expect(payout3rd).toBe(round.maxPoints + 30);
     expect(payout4th).toBe(round.maxPoints);
   });
+
+  it("handles arena audio controller safely in test/ssr environment", async () => {
+    const { arenaAudio } = await import("./arenaAudio");
+    expect(arenaAudio.isMuted()).toBe(false);
+
+    // Toggle mute
+    const nowMuted = arenaAudio.toggleMute();
+    expect(nowMuted).toBe(true);
+    expect(arenaAudio.isMuted()).toBe(true);
+
+    // Unmute
+    arenaAudio.setMuted(false);
+    expect(arenaAudio.isMuted()).toBe(false);
+
+    // Should not throw even when Web Audio is not present in Node/vitest
+    expect(() => {
+      arenaAudio.playCountdown(false);
+      arenaAudio.playCountdown(true);
+      arenaAudio.playTap();
+      arenaAudio.playCombo(5);
+      arenaAudio.playVictory();
+    }).not.toThrow();
+  });
+
+  it("validates round configuration structures for custom venue creators", () => {
+    const customRounds = [
+      {
+        number: 1,
+        title: "Speed Tap Rush",
+        arabicTitle: "سباق السرعة",
+        gameType: "tap" as const,
+        durationSeconds: 30,
+        targetScore: 240,
+        maxPoints: 300,
+      },
+      {
+        number: 2,
+        title: "Reflex Challenge",
+        arabicTitle: "تحدي البديهة",
+        gameType: "reflex" as const,
+        durationSeconds: 45,
+        targetScore: 300,
+        maxPoints: 400,
+      },
+    ];
+
+    expect(customRounds).toHaveLength(2);
+    expect(customRounds[0]!.gameType).toBe("tap");
+    expect(customRounds[1]!.gameType).toBe("reflex");
+    expect(customRounds[0]!.durationSeconds).toBeGreaterThanOrEqual(15);
+    expect(customRounds[1]!.durationSeconds).toBeLessThanOrEqual(120);
+  });
 });
+

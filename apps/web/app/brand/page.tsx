@@ -5,6 +5,9 @@ import Link from "next/link";
 import { BackToFeed } from "@/app/_components/BackToFeed";
 import { SignOut } from "@/app/_components/SignOut";
 import { requireBrandMember } from "@/lib/brand";
+import { getBrandVenueEvents } from "@/lib/eventsServer";
+import type { EventRound } from "@/lib/events";
+import { BrandArenaSection, type BrandVenueEventItem } from "./BrandArenaSection";
 
 const STATUS_STYLE: Record<string, string> = {
   draft: "bg-paper text-soft",
@@ -18,7 +21,7 @@ export default async function BrandPage() {
   const { brand } = await requireBrandMember();
   const db = getDb();
 
-  const [campaigns, stores, brandTotals] = await Promise.all([
+  const [campaigns, stores, brandTotals, rawVenueEvents] = await Promise.all([
     // All campaigns for this brand
     db
       .select({
@@ -64,7 +67,30 @@ export default async function BrandPage() {
         ),
       )
       .then((r) => r[0] ?? { visits: 0 }),
+
+    // Live arena activations for this brand
+    getBrandVenueEvents(brand.id),
   ]);
+
+  const venueEvents: BrandVenueEventItem[] = rawVenueEvents.map((evt) => {
+    const rounds = (evt.rounds || []) as EventRound[];
+    const roundGames = rounds.map((r) =>
+      r.gameType === "reflex" ? "Reflex Matrix" : r.gameType === "catch" ? "Bean Catch" : "Speed Tap",
+    );
+    return {
+      id: evt.id,
+      code: evt.code,
+      title: evt.title,
+      venueName: evt.venueName,
+      location: evt.location,
+      sponsorName: evt.sponsorName,
+      accentColor: evt.accentColor,
+      prizePoolPoints: evt.prizePoolPoints,
+      status: evt.status,
+      roundsCount: rounds.length,
+      roundGames,
+    };
+  });
 
   const activeCampaigns = campaigns.filter((c) => {
     const st = campaignStatus(c);
@@ -144,6 +170,9 @@ export default async function BrandPage() {
           })}
         </div>
       )}
+
+      {/* Live Arena Activations for Big Screens */}
+      <BrandArenaSection brandName={brand.name} events={venueEvents} />
 
       {/* Connected Physical Branches */}
       <h2 className="mt-8 text-xl font-extrabold tracking-tight">Store Branches</h2>

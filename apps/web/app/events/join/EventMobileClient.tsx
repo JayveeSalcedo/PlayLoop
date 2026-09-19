@@ -4,6 +4,7 @@ import { useEffect, useState, useRef, useCallback } from "react";
 import Link from "next/link";
 import { avatar } from "@playloop/ui";
 import type { VenueEventConfig } from "@/lib/events";
+import { arenaAudio } from "@/lib/arenaAudio";
 import { creditEventRoundPoints } from "../actions";
 
 interface PlayerData {
@@ -41,6 +42,7 @@ export function EventMobileClient({
   const [lastAwarded, setLastAwarded] = useState<{ points: number; rank: number; newBalance: number } | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [floaters, setFloaters] = useState<{ id: number; text: string; x: number; y: number }[]>([]);
+  const [soundMuted, setSoundMuted] = useState(() => arenaAudio.isMuted());
 
   const round = event.rounds[roundIdx] ?? event.rounds[0]!;
   const targetIdRef = useRef(0);
@@ -90,6 +92,8 @@ export function EventMobileClient({
           rank: calculatedRank,
         });
 
+        arenaAudio.playVictory();
+
         if (res.ok) {
           setLastAwarded({
             points: res.pointsAwarded,
@@ -99,6 +103,7 @@ export function EventMobileClient({
           setPlayer((prev) => ({ ...prev, pointsBalance: res.newBalance }));
         }
       } catch {
+        arenaAudio.playVictory();
         setLastAwarded({
           points: Math.max(25, Math.floor(finalScore * 0.8)),
           rank: calculatedRank,
@@ -134,6 +139,7 @@ export function EventMobileClient({
     setCombo(0);
     setTimeLeft(round.durationSeconds || 30);
     setTargets([]);
+    arenaAudio.playCountdown(true);
     setStatus("playing");
   };
 
@@ -143,6 +149,11 @@ export function EventMobileClient({
     const added = target.points * multiplier;
     setScore((s) => s + added);
     setCombo((c) => c + 1);
+
+    arenaAudio.playTap();
+    if (multiplier > 1) {
+      arenaAudio.playCombo(combo + 1);
+    }
 
     // Remove hit target
     setTargets((prev) => prev.filter((t) => t.id !== target.id));
@@ -185,9 +196,21 @@ export function EventMobileClient({
           <span className="h-3 w-3 rounded-full bg-emerald-400 animate-pulse" />
           <span className="font-extrabold tracking-tight text-sm text-yellow-300">PLAYLOOP LIVE</span>
         </div>
-        <div className="text-right">
-          <div className="text-xs font-bold text-white/90">{event.venueName}</div>
-          <div className="text-[10px] text-white/60">{event.sponsorTagline}</div>
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => {
+              const muted = arenaAudio.toggleMute();
+              setSoundMuted(muted);
+            }}
+            className="rounded-lg bg-white/10 px-2 py-1 text-[10px] font-extrabold text-white hover:bg-white/20 transition-colors"
+          >
+            {!soundMuted ? "🔊 ON" : "🔇 OFF"}
+          </button>
+          <div className="text-right">
+            <div className="text-xs font-bold text-white/90">{event.venueName}</div>
+            <div className="text-[10px] text-white/60">{event.sponsorTagline}</div>
+          </div>
         </div>
       </header>
 

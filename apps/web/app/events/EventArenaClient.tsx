@@ -9,6 +9,7 @@ import {
   type CrowdPlayer,
   type VenueEventConfig,
 } from "@/lib/events";
+import { arenaAudio } from "@/lib/arenaAudio";
 import { EventMobileClient } from "./join/EventMobileClient";
 
 type ArenaState = "idle" | "lobby" | "round" | "results" | "recap";
@@ -29,8 +30,13 @@ export function EventArenaClient({
     isGuest: boolean;
   };
 }) {
+  const availableEvents: Record<string, VenueEventConfig> = {
+    ...VENUE_EVENTS,
+    [initialEvent.code]: initialEvent,
+  };
+
   const [selectedEventCode, setSelectedEventCode] = useState(initialEvent.code);
-  const currentEvent = VENUE_EVENTS[selectedEventCode] ?? initialEvent;
+  const currentEvent = availableEvents[selectedEventCode] ?? initialEvent;
 
   const [state, setState] = useState<ArenaState>("idle");
   const [roundIndex, setRoundIndex] = useState(0);
@@ -41,6 +47,7 @@ export function EventArenaClient({
   const [showCompanion, setShowCompanion] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [autoSimulate, setAutoSimulate] = useState(true);
+  const [soundMuted, setSoundMuted] = useState(() => arenaAudio.isMuted());
 
   const currentRound = currentEvent.rounds[roundIndex] ?? currentEvent.rounds[0]!;
 
@@ -140,9 +147,19 @@ export function EventArenaClient({
     setTimeLeft(currentRound.durationSeconds);
     setState("round");
     setCountdownNum("3");
-    setTimeout(() => setCountdownNum("2"), 700);
-    setTimeout(() => setCountdownNum("1"), 1400);
-    setTimeout(() => setCountdownNum("GO!"), 2100);
+    arenaAudio.playCountdown(false);
+    setTimeout(() => {
+      setCountdownNum("2");
+      arenaAudio.playCountdown(false);
+    }, 700);
+    setTimeout(() => {
+      setCountdownNum("1");
+      arenaAudio.playCountdown(false);
+    }, 1400);
+    setTimeout(() => {
+      setCountdownNum("GO!");
+      arenaAudio.playCountdown(true);
+    }, 2100);
     setTimeout(() => setCountdownNum(null), 2700);
   }, [currentRound.durationSeconds]);
 
@@ -158,6 +175,7 @@ export function EventArenaClient({
     );
 
     setState("results");
+    arenaAudio.playVictory();
     setTimeout(() => {
       triggerConfetti();
     }, 300);
@@ -169,6 +187,7 @@ export function EventArenaClient({
       handleStartRound();
     } else {
       setState("recap");
+      arenaAudio.playVictory();
       setTimeout(() => {
         triggerConfetti();
       }, 300);
@@ -311,10 +330,10 @@ export function EventArenaClient({
           </span>
         </div>
 
-        {/* Venue Preset Selector & Companion Toggle */}
+        {/* Venue Preset Selector, Audio Toggle & Companion Toggle */}
         <div className="flex items-center gap-3 flex-wrap">
           <div className="flex items-center bg-white/5 border border-white/15 rounded-xl p-1 gap-1">
-            {Object.values(VENUE_EVENTS).map((ev) => (
+            {Object.values(availableEvents).map((ev) => (
               <button
                 key={ev.code}
                 onClick={() => {
@@ -331,6 +350,20 @@ export function EventArenaClient({
               </button>
             ))}
           </div>
+
+          <button
+            onClick={() => {
+              const isMuted = arenaAudio.toggleMute();
+              setSoundMuted(isMuted);
+            }}
+            className={`px-3 py-1.5 rounded-xl font-extrabold text-xs border transition-colors ${
+              !soundMuted
+                ? "bg-yellow-400 border-yellow-300 text-ink shadow-sm"
+                : "bg-white/5 border-white/15 text-white/70 hover:text-white"
+            }`}
+          >
+            {!soundMuted ? "🔊 Sound: ON" : "🔇 Sound: OFF"}
+          </button>
 
           <button
             onClick={() => setShowCompanion((s) => !s)}

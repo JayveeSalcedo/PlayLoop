@@ -1,5 +1,4 @@
-import { VENUE_EVENTS } from "@/lib/events";
-import { getOrCreateEventPlayer } from "@/lib/eventsServer";
+import { getEventConfig, getOrCreateEventPlayer } from "@/lib/eventsServer";
 import { EventMobileClient } from "./EventMobileClient";
 
 export const metadata = {
@@ -14,8 +13,10 @@ export default async function EventJoinPage({
 }) {
   const { code } = await searchParams;
   const eventCode = code?.toUpperCase() || "OASIS-LIVE";
-  const event = VENUE_EVENTS[eventCode] ?? VENUE_EVENTS["OASIS-LIVE"]!;
-  const player = await getOrCreateEventPlayer();
+  const [{ event }, player] = await Promise.all([
+    getEventConfig(eventCode),
+    getOrCreateEventPlayer(),
+  ]);
 
   return <EventMobileClient initialPlayer={player} event={event} />;
 }

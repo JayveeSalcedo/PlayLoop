@@ -13,3 +13,5 @@ coverage/
 .vercel/
 npm-debug.log*
 pnpm-debug.log*
+playloop_*.html
+
