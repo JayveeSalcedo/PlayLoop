@@ -28,24 +28,28 @@
  * The provider comes from @playloop/ai's env-driven registry; nothing here knows
  * which one it is.
  */
-import {
-  advance,
-  changeState,
-  configuredProviderId,
-  createState,
-  finish,
-  getProvider,
-  type AiProvider,
-  type PipelineResult,
-  type PipelineState,
-  type ProgressEvent,
-} from "@playloop/ai";
+import type { advance, AiProvider, PipelineResult, PipelineState, ProgressEvent } from "@playloop/ai";
 import { getDb, schema } from "@playloop/db";
 import { and, count, desc, eq, gte, inArray, lt, sql } from "drizzle-orm";
 import { addVersion } from "./versions";
 
+/**
+ * @playloop/ai builds as pure ESM (it imports @playloop/replay, which must
+ * stay unbundled for its worker + WASM-by-path loading — see the comment on
+ * NODE_LOADED in next.config.ts). Next's server bundle is CommonJS, and
+ * Node's require() can't load an ES module, so every value from this
+ * package is loaded dynamically here — a static import would compile to a
+ * require() that crashes at runtime with ERR_REQUIRE_ESM. Cached because
+ * stepJob can call this more than once per request lifetime in tests.
+ */
+let aiModule: Promise<typeof import("@playloop/ai")> | undefined;
+function loadAi() {
+  return (aiModule ??= import("@playloop/ai"));
+}
+
 /** A short label for whichever provider/model is configured, or why it isn't. Shown in the studio, never load-bearing. */
-export function providerLabel(): string {
+export async function providerLabel(): Promise<string> {
+  const { getProvider, configuredProviderId } = await loadAi();
   try {
     const provider = getProvider();
     return `${provider.id} · ${provider.model("create")}`;
@@ -162,6 +166,7 @@ export async function createJob(input: {
 }): Promise<StartJobResult> {
   const db = getDb();
   const text = String(input.request ?? "").trim();
+  const { getProvider, createState, changeState } = await loadAi();
 
   if (input.kind !== "fix") {
     if (!text) return { ok: false, status: 400, error: input.kind === "create" ? "Describe the game you want first." : "Describe the change you want first." };
@@ -308,6 +313,7 @@ export interface StepOptions {
 export async function stepJob(jobId: string, profileId: string, options: StepOptions = {}): Promise<JobView | null> {
   const db = getDb();
   await sweepStale(profileId);
+  const { getProvider, advance, finish } = await loadAi();
 
   const [claimed] = await db
     .update(schema.generationJobs)

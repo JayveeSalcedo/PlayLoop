@@ -39,7 +39,7 @@
  * invoked it.
  */
 import { getDb, schema } from "@playloop/db";
-import { verifyPlay, type VerifyResult } from "@playloop/replay";
+import type { VerifyResult } from "@playloop/replay";
 import { and, eq, isNotNull, isNull, sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { precheckSubmission, rejectionMessage } from "@/lib/codePlay";
@@ -75,6 +75,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ ses
   } catch {
     return NextResponse.json({ error: "That submission wasn't valid JSON." }, { status: 400 });
   }
+
+  // @playloop/replay is pure ESM and must stay unbundled (its worker script
+  // and QuickJS WASM load by relative path) — a static import here would
+  // compile to a require() and crash with ERR_REQUIRE_ESM. See next.config.ts.
+  const { verifyPlay } = await import("@playloop/replay");
 
   const db = getDb();
 

@@ -6,7 +6,6 @@
  * generation itself runs through /api/studio/jobs (see lib/generation/jobs.ts).
  */
 import { getDb, schema } from "@playloop/db";
-import { checkGame } from "@playloop/replay";
 import { EXAMPLE_GAMES } from "@playloop/runtime";
 import { and, count, desc, eq, inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
@@ -38,6 +37,10 @@ export async function startFromExample(exampleId: string): Promise<{ gameId: str
   const example = EXAMPLE_GAMES.find((e) => e.id === exampleId);
   if (!example) throw new Error("That example doesn't exist.");
 
+  // @playloop/replay is pure ESM and must stay unbundled (its worker script
+  // and QuickJS WASM load by relative path) — a static import here would
+  // compile to a require() and crash with ERR_REQUIRE_ESM. See next.config.ts.
+  const { checkGame } = await import("@playloop/replay");
   const report = await checkGame(example.code);
   const meta = report.meta;
   if (!meta) throw new Error("That example didn't load. Try another one.");

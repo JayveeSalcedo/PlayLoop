@@ -15,7 +15,7 @@ export default async function CreatePage() {
 
   return (
     <>
-      <CreatorWizard aiProviderLabel={providerLabel()} />
+      <CreatorWizard aiProviderLabel={await providerLabel()} />
       <div className="mx-auto max-w-md px-6 pb-6">
         <Link href="/create/games" className="text-sm font-extrabold underline">
           My games
