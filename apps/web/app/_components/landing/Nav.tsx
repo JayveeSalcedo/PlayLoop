@@ -1,4 +1,5 @@
 import { InstallPrompt } from "@/app/_components/pwa/InstallPrompt";
+import { startGuestSession } from "@/app/login/actions";
 
 const LINKS = [
   { href: "#top", label: "How it works" },
@@ -30,7 +31,12 @@ export function Nav() {
           </a>
         ))}
       </nav>
-      <div className="ml-auto shrink-0">
+      <div className="ml-auto flex items-center gap-2 shrink-0">
+        <form action={startGuestSession}>
+          <button type="submit" className="btn go sm">
+            Play now
+          </button>
+        </form>
         <InstallPrompt />
       </div>
     </header>

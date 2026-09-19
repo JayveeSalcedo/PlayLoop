@@ -23,8 +23,9 @@ export default async function FeedPage() {
       <div className="mb-6 flex items-center gap-3">
         <div dangerouslySetInnerHTML={{ __html: avatar(profile.avatarIndex, 48) }} />
         <div>
-          <p className="text-xs font-bold text-soft">Hey</p>
-          <p className="text-xl font-extrabold leading-none">{profile.name}</p>
+          <p className="text-xl font-extrabold leading-none">
+            {profile.name ?? (profile.isGuest ? "Guest Player" : "Player")}
+          </p>
         </div>
         <div className="ml-auto rounded-full bg-card px-3 py-1 text-sm font-extrabold [border:var(--border-thick)]">
           {profile.pointsBalance.toLocaleString("en-US")} pts

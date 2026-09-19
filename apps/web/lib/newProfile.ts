@@ -16,11 +16,16 @@ export type Profile = typeof schema.profiles.$inferSelect;
  */
 export async function createNewProfile(
   tx: Tx,
-  args: { email: string; isGuest?: boolean; referredByChallengeId?: string },
+  args: { email: string; isGuest?: boolean; referredByChallengeId?: string; name?: string | null },
 ): Promise<Profile> {
   const [created] = await tx
     .insert(schema.profiles)
-    .values({ email: args.email, isGuest: args.isGuest ?? false, referredByChallengeId: args.referredByChallengeId })
+    .values({
+      email: args.email,
+      isGuest: args.isGuest ?? false,
+      referredByChallengeId: args.referredByChallengeId,
+      name: args.name !== undefined ? args.name : (args.isGuest ? "Guest Player" : null),
+    })
     .returning();
   await tx.insert(schema.ledgerEntries).values({
     profileId: created!.id,

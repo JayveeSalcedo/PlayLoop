@@ -170,15 +170,23 @@ export function PlayResultScreen({
           <div className="card-hard pop-in-3 mt-4 rounded-2xl bg-violet/10 p-4 [border:var(--border-thick)]">
             <p className="font-extrabold">🔥 Nice run — don&apos;t lose this!</p>
             <p className="mt-1 text-sm font-bold text-soft">
-              Log in to lock in your {totalEarned.toLocaleString("en-US")} points before they slip away.
+              Save your progress to lock in your {result.pointsBalance.toLocaleString("en-US")} points before they slip away.
             </p>
           </div>
           <a
             href={`/login${challengeCode ? `?challenge=${encodeURIComponent(challengeCode)}` : ""}`}
             className="btn go lg block mt-3"
           >
-            Log in to claim your reward
+            Save progress with OnePass
           </a>
+          <div className="mt-3 flex gap-3">
+            <Link href="/feed" className="btn flex-1">
+              Home
+            </Link>
+            <button onClick={onPlayAgain} className="btn card-hard flex-1 bg-card">
+              Play again
+            </button>
+          </div>
         </>
       ) : (
         <>

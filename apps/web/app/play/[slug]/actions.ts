@@ -73,7 +73,7 @@ export async function startPlay(gameId: string, expectedVersionId?: string): Pro
   // Both round-trips at once — they don't depend on each other, and against a
   // ~90ms Seoul round-trip that's the difference between 90ms and 180ms.
   const [{ session }, game] = await Promise.all([
-    requireActiveProfile(),
+    requireActiveProfile({ allowGuest: true }),
     db
       .select(selectGameForStart)
       .from(schema.games)

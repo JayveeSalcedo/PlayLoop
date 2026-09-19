@@ -189,7 +189,16 @@ export function RewardsBoard({ pointsBalance, rewards }: { pointsBalance: number
                     <b>{Math.abs(balance - selected.costPoints).toLocaleString("en-US")} pts</b>
                   </div>
                 </div>
-                {error ? <p className="mt-3 text-sm font-bold text-gum">{error}</p> : null}
+                {error ? (
+                  <div className="mt-3">
+                    <p className="text-sm font-bold text-gum">{error}</p>
+                    {error.includes("Log in to claim") && (
+                      <a href="/login" className="btn gum sm block mt-2 text-center">
+                        Save to OnePass to redeem &rarr;
+                      </a>
+                    )}
+                  </div>
+                ) : null}
                 {balance >= selected.costPoints ? (
                   <button onClick={confirmRedeem} disabled={stage === "redeeming"} className="btn go lg block mt-4">
                     {stage === "redeeming" ? (
