@@ -18,6 +18,9 @@ Comprehensive guide to all 8 completed development phases of the **PlayLoop** om
 | **Phase 8** | **Live Arena Polish & Custom Venue Creator** | PostgreSQL `venue_events` persistence, `/brand` activation builder, Web Audio API sound effects synthesizer | ✅ Production |
 | **Phase 9** | **AI Create Custom Cover & Points Parity** | Client-side 4:3 canvas crop, `games.cover_image` storage, max points slider (100–400 pts), AI & Wizard creation parity, Studio settings editor, Feed/Intro/Admin rendering | ✅ Production |
 | **Phase 10** | **Omnichannel Shimmering Skeletons & Zero-Freeze Navigation** | Shimmering neobrutalist skeletons across all 11 routes, instant top navigation progress bar, optimistic TabBar active feedback, in-flight AI generation status cards | ✅ Production |
+| **Phase 11** | **Comprehensive Success & Celebration Modals** | Unified `<SuccessModal />` primitive, 14 celebration/confirmation modals across leagues, rewards, challenges, AI creation, brand, staff, and fraud flows | ✅ Production |
+| **Phase 12** | **Performance & Mobile UX Polish** | Service worker navigation fix, `ledger_entries` dual-index for sub-second leaderboards, `inArray()` query optimization, mobile overflow fixes across 6 screens, league picker card redesign | ✅ Production |
+| **Phase 13** | **Real Multiplayer Arena & QR Scanner** | `arena_sessions` + `arena_players` tables, polling-based host/player sync, real game play with score writeback, live leaderboard + podium, floating QR scan FAB with `BarcodeDetector` API | ✅ Production |
 
 ---
 
@@ -482,3 +485,195 @@ Phase 11 introduces a unified neobrutalist celebration and confirmation modal ar
   ```
   `Compiled all 31 Next.js App Router routes with 0 errors.`
 
+---
+
+## Phase 12: Performance & Mobile UX Polish
+
+Phase 12 addresses critical performance bottlenecks and mobile layout issues that degraded the experience on real devices.
+
+### 1. Implemented Fixes
+
+#### A. Service Worker Navigation Fix (`apps/web/public/sw.js`)
+- **Problem**: `FetchEvent` for navigation requests was catching all requests and returning `Response.error()`, causing blank page loads.
+- **Fix**: Added early return for navigation requests — `if (event.request.mode === "navigate") return;` — before `event.respondWith`, letting the browser handle page navigations natively.
+
+#### B. /challenges Performance — Database Index Optimization
+- **Problem**: `/challenges` page took 30–120 seconds to load. Root cause: `ledger_entries` table had **zero indexes**, forcing full table scans on the weekly leaderboard query.
+- **Schema Changes** (`packages/db/src/schema.ts`):
+  - Added `ledger_entries_profile_id_idx` on `(profile_id)`.
+  - Added `ledger_entries_profile_created_idx` on `(profile_id, created_at)`.
+- **Migration**: Indexes created in production via direct Supabase connection (port 5432) using `CREATE INDEX CONCURRENTLY` to avoid statement timeouts.
+- **Query Optimization** (`apps/web/lib/friends.ts`):
+  - Replaced `or(...allIds.map(id => eq(...)))` with `inArray(...)` for the weekly leaderboard query — single SQL `IN` clause instead of N chained `OR` conditions.
+- **Result**: Page load dropped from 30–120s to **sub-second**.
+
+#### C. Mobile Horizontal Overflow Fixes (6 Files)
+Eliminated horizontal scrolling caused by long usernames, league names, and points badges overflowing on narrow screens:
+
+| File | Fix Applied |
+|------|-------------|
+| `apps/web/app/globals.css` | `overflow-x: hidden` on `html, body` |
+| `apps/web/app/(app)/_components/TopBar.tsx` | `min-w-0` on left section, `shrink-0` on role badges and points pill |
+| `apps/web/app/(app)/feed/page.tsx` | `shrink-0` on avatar, `min-w-0 truncate` on player name |
+| `apps/web/app/(app)/challenges/CompeteTabs.tsx` | `min-w-0 truncate` on friend names, `shrink-0` on points |
+| `apps/web/app/(app)/challenges/LeaguesView.tsx` | `min-w-0` on league header, `truncate` on league name, `shrink-0` on rank badge |
+| `apps/web/app/(app)/wallet/StreakCard.tsx` | `flex-wrap gap-1` on streak header row |
+
+#### D. League Picker Card Redesign (`apps/web/app/(app)/create/LeaguePicker.tsx`)
+- **Before**: Simple dropdown selector.
+- **After**: 2-column grid of always-visible cards matching user-provided reference design.
+  - Yellow background + hard shadow on selected card, light violet on unselected.
+  - Icon per league kind: `home` (public), `book` (school), `briefcase` (company), `bag` (mall), `heart` (family), `trophy` (community).
+  - Heading: *"Where should it go?"* with descriptive subtitles per league type.
+
+#### E. Admin Nav Links Theme Match (`apps/web/app/admin/layout.tsx`)
+- Restored admin navigation as thick-bordered `bg-paper` pills matching PlayLoop's neobrutalist design system: `[border:var(--border-thick)]`, `font-extrabold`, scale hover/active transitions.
+
+---
+
+## Phase 13: Real Multiplayer Arena & QR Scanner
+
+Phase 13 replaces the Phase 7/8 **simulated** arena (fake crowd, client-side only) with a **real multiplayer** system where actual players join from their phones, play real games, and compete on a live leaderboard displayed on the big screen.
+
+### 1. Architecture & Data Flow
+
+```mermaid
+flowchart TD
+  subgraph HostScreen["Host / Big Screen (/events)"]
+    GamePicker["Pick a Published Game"]
+    CreateSession["createArenaSession() → 6-char join code"]
+    QRLobby["QR Code + Join Code Display"]
+    Countdown["5-Second Countdown"]
+    LiveBoard["Live Leaderboard (polling /api/arena/[code]/status every 2s)"]
+    Podium["Podium: 1st / 2nd / 3rd + Full Standings"]
+  end
+
+  subgraph PlayerPhone["Player Phones (/events/join)"]
+    ScanQR["Scan QR or Enter Code"]
+    JoinLobby["joinArenaSession() → join lobby"]
+    WaitScreen["Waiting for host to start..."]
+    PlayGame["Auto-redirect to /play/[slug]?arena=..."]
+    ScoreSubmit["submitArenaScore() → leaderboard update"]
+  end
+
+  subgraph PlayFlow["Existing Play System"]
+    RealGame["Real Game Engine (template or code)"]
+    SubmitPlay["submitPlay() → points + XP"]
+  end
+
+  GamePicker --> CreateSession
+  CreateSession --> QRLobby
+  QRLobby -->|"Players scan"| ScanQR
+  ScanQR --> JoinLobby
+  JoinLobby -->|"Avatar pops in on big screen"| QRLobby
+  QRLobby -->|"Host clicks Start"| Countdown
+  Countdown -->|"State → playing"| LiveBoard
+  Countdown -->|"Phones detect playing state"| WaitScreen
+  WaitScreen --> PlayGame
+  PlayGame --> RealGame
+  RealGame --> SubmitPlay
+  SubmitPlay --> ScoreSubmit
+  ScoreSubmit -->|"Score appears on big screen"| LiveBoard
+  LiveBoard -->|"Host clicks End Game"| Podium
+```
+
+### 2. Database Schema (2 New Tables)
+
+#### `arena_sessions`
+| Column | Type | Notes |
+|--------|------|-------|
+| id | uuid | PK |
+| code | text | Unique 6-char uppercase join code |
+| game_id | uuid | FK → games |
+| host_profile_id | uuid | FK → profiles |
+| state | enum | `lobby` → `countdown` → `playing` → `results` |
+| started_at | timestamptz | When the host pressed Start |
+| created_at | timestamptz | |
+
+#### `arena_players`
+| Column | Type | Notes |
+|--------|------|-------|
+| id | uuid | PK |
+| session_id | uuid | FK → arena_sessions |
+| profile_id | uuid | FK → profiles |
+| name | text | Snapshot of player name at join time |
+| avatar_index | integer | Player avatar |
+| score | integer | Updated when player finishes (default 0) |
+| finished_at | timestamptz | When player completed the game |
+| joined_at | timestamptz | |
+| **unique** | | (session_id, profile_id) |
+
+### 3. Implemented Features
+
+#### A. Server Actions (`apps/web/app/events/actions.ts`)
+5 new server actions appended to the existing event actions:
+1. **`createArenaSession(gameId)`** — generates 6-char code, inserts session with state `lobby`.
+2. **`joinArenaSession(code)`** — looks up session (must be `lobby`), inserts player with `onConflictDoNothing()`, returns `{ sessionId, gameSlug }`.
+3. **`startArenaGame(sessionId)`** — verifies host ownership, updates state to `countdown`, sets `startedAt`.
+4. **`advanceArenaState(sessionId, newState)`** — verifies host, advances to `playing` or `results`.
+5. **`submitArenaScore(sessionId, score)`** — updates player's score and `finishedAt`.
+
+#### B. Polling API Routes
+- **`/api/arena/[code]/status`** (host): Returns session state, all players with scores (sorted by score desc), game title/slug. Polled every 2s.
+- **`/api/arena/[code]/state`** (players): Returns session state and game slug for navigation. Polled every 2s.
+- Both marked `force-dynamic` to prevent caching.
+
+#### C. Host Big Screen (`apps/web/app/events/ArenaHost.tsx`)
+~400-line client component with 5 visual states:
+1. **Setup**: Game picker dropdown + "Create Arena" button.
+2. **Lobby**: Giant yellow join code (`text-8xl`), join URL, player avatar grid (animated `@keyframes pop` on join), player count badge, "Start Game" button.
+3. **Countdown**: Full-screen 5→0 countdown timer, then auto-advances to playing.
+4. **Playing**: Live leaderboard sorted by score desc, animated yellow score bars (`transition-all duration-500`), finished/total counter, "End Game & Show Results" button.
+5. **Results**: 3-height podium (1st center 52h, 2nd left 40h, 3rd right 32h) with avatars and scores, full final standings table, "New Game" button.
+- Dark theme `bg-[#070414]` optimized for LED walls.
+- Accepts `?code=` param to jump directly into an existing session.
+
+#### D. Player Phone Screen (`apps/web/app/events/join/ArenaPlayer.tsx`)
+~130-line client component with 3 phases:
+1. **Join**: Code input (`text-2xl font-extrabold uppercase tracking-widest`) + "Join" button. Auto-joins on mount if `?code=` param provided.
+2. **Waiting**: "You're in! 🎉" with game title, animated pulsing mint dot, polls `/api/arena/[code]/state` every 2s. Auto-navigates to `/play/{slug}?arena={sessionId}&arenaCode={code}` when state becomes `playing`.
+3. **Error**: Error message + "Try Again" button.
+- Styled with PlayLoop mobile theme: `bg-paper`, `card-hard`, `[border:var(--border-thick)]`, `bg-lemon` buttons.
+
+#### E. Play Flow Integration (3 Modified Files)
+- **`apps/web/app/play/[slug]/page.tsx`**: Accepts `?arena=` and `?arenaCode=` search params, passes to both `GamePlayer` and `CodeGamePlayer`.
+- **`apps/web/app/play/[slug]/GamePlayer.tsx`**: After `submitPlay()`, calls `submitArenaScore()` if in arena mode (non-blocking `.catch(() => {})`).
+- **`apps/web/app/play/[slug]/CodeGamePlayer.tsx`**: Same arena score writeback via dynamic `import()` of `submitArenaScore`.
+- **`apps/web/app/play/[slug]/PlayResultScreen.tsx`**: Arena-specific result UI: "✅ Score submitted to the arena!" banner with "Back to Arena" link instead of "Play Again".
+
+#### F. Floating QR Scan Button (`apps/web/app/(app)/_components/ArenaScanButton.tsx`)
+- **Floating action button** (bottom-right, above tab bar) visible on all tabbed app screens.
+- Opens a fullscreen dark overlay with two scan modes:
+  - **Camera scan**: Uses native `BarcodeDetector` API (Chrome/Edge/Samsung) — tap "Start Camera" → point at QR → auto-joins arena.
+  - **Manual fallback**: Code text input for unsupported browsers (iOS Safari).
+- Custom **QR scanner SVG icon** (three corner squares + scan area).
+- Extracts arena code from both full URLs (`/events/join?code=A3F1B2`) and raw codes (`A3F1B2`).
+- Added to `apps/web/app/(app)/layout.tsx` so it renders on all tabbed screens.
+
+#### G. Deleted Files
+- `apps/web/app/events/EventArenaClient.tsx` (957-line simulated arena — replaced by `ArenaHost.tsx`)
+- `apps/web/app/events/join/EventMobileClient.tsx` (replaced by `ArenaPlayer.tsx`)
+- `apps/web/app/events/loading.tsx`
+- `apps/web/app/events/join/loading.tsx`
+
+### 4. Verification & Quality Gates
+
+- **TypeScript Typecheck**:
+  ```bash
+  npx tsc --noEmit
+  ```
+  `0 errors.`
+- **Production Build**:
+  ```bash
+  pnpm --filter web build
+  ```
+  `✓ Compiled successfully. All routes compiled including /events (8.93 kB), /events/join (1.73 kB), /api/arena/[code]/state, /api/arena/[code]/status. 0 errors.`
+
+### 5. How to Test
+
+1. **Host** → `http://localhost:3000/events` → pick game → "Create Arena" → get join code.
+2. **Player** → `http://localhost:3000/events/join?code=XXXXXX` (or scan QR via the floating button on any app screen).
+3. Player joins lobby → avatar appears on host screen.
+4. Host clicks "Start Game" → 5s countdown → player phone auto-redirects to play the real game.
+5. Player finishes → score appears on host leaderboard in real-time.
+6. Host clicks "End Game & Show Results" → podium celebration.
