@@ -21,6 +21,7 @@ Comprehensive guide to all 8 completed development phases of the **PlayLoop** om
 | **Phase 11** | **Comprehensive Success & Celebration Modals** | Unified `<SuccessModal />` primitive, 14 celebration/confirmation modals across leagues, rewards, challenges, AI creation, brand, staff, and fraud flows | ✅ Production |
 | **Phase 12** | **Performance & Mobile UX Polish** | Service worker navigation fix, `ledger_entries` dual-index for sub-second leaderboards, `inArray()` query optimization, mobile overflow fixes across 6 screens, league picker card redesign | ✅ Production |
 | **Phase 13** | **Real Multiplayer Arena & QR Scanner** | `arena_sessions` + `arena_players` tables, polling-based host/player sync, real game play with score writeback, live leaderboard + podium, floating QR scan FAB with `BarcodeDetector` API | ✅ Production |
+| **Phase 14** | **Communities & Group Chat** | Nav restructure (Create → FAB, Community tab), group chat with text/images/reactions, Supabase Realtime delivery, game shares & challenges in chat, group weekly leaderboard, public/private groups with search & invite codes, Supabase Storage for media | 📋 Planned |
 
 ---
 
@@ -677,3 +678,121 @@ flowchart TD
 4. Host clicks "Start Game" → 5s countdown → player phone auto-redirects to play the real game.
 5. Player finishes → score appears on host leaderboard in real-time.
 6. Host clicks "End Game & Show Results" → podium celebration.
+
+---
+
+## Phase 14: Communities & Group Chat (Planned)
+
+> **Status: 📋 Planned** — Design complete, not yet built.
+
+Phase 14 adds WhatsApp/Facebook-style group chat where players create groups, invite friends, chat, and play together — making PlayLoop social-first.
+
+### 1. Navigation Restructure
+
+```mermaid
+flowchart LR
+  subgraph Before["Current Tab Bar"]
+    Home["Home"]
+    Rewards["Rewards"]
+    Create["Create"]
+    Compete["Compete"]
+    Wallet["Wallet"]
+  end
+
+  subgraph After["New Tab Bar"]
+    Home2["Home"]
+    Rewards2["Rewards"]
+    Community["Community 🆕"]
+    Compete2["Compete"]
+    Wallet2["Wallet"]
+  end
+
+  Create -->|"Moves to"| FAB["Floating Action Button"]
+  ScanQR["Arena Scan Button"] -->|"Moves inside"| Community
+```
+
+- **Create tab** → becomes a **floating action button (FAB)** above the tab bar.
+- **Community tab** → takes Create's spot. Icon: `users`, label: "Community".
+- **Arena scan button** → moves inside the Community tab as a "Join Arena" action.
+
+### 2. Core Features
+
+#### A. Group Management
+- Create a community: name + uploaded image (Supabase Storage).
+- **Public groups**: appear in search, anyone can request to join.
+- **Private groups**: invite code/link only.
+- Max **50 members** per group.
+- Roles: **admin** (creator + promoted members) and **member**.
+- Admins can: remove members, promote to admin, edit group info, delete group.
+
+#### B. Chat
+- **Text messages**.
+- **Image sharing**: camera/gallery upload → Supabase Storage.
+- **Emoji reactions** on messages (tap to react).
+- **Real-time delivery** via Supabase Realtime subscriptions (subscribe to `community_messages` inserts).
+
+#### C. Gaming Integrations
+- **Share a game** — sends a playable game card in chat, others tap to play.
+- **Drop a challenge** — challenge the whole group ("Beat my score on Memory Dash!").
+- **Group weekly leaderboard** — who earned the most points this week within the group.
+
+### 3. Database Schema (4 New Tables)
+
+#### `communities`
+| Column | Type | Notes |
+|--------|------|-------|
+| id | uuid | PK |
+| name | text | Group name |
+| description | text | Optional |
+| image_url | text | Supabase Storage URL |
+| is_public | boolean | Default false (private) |
+| invite_code | text | 6-char unique code |
+| creator_id | uuid | FK → profiles |
+| created_at | timestamptz | |
+
+#### `community_members`
+| Column | Type | Notes |
+|--------|------|-------|
+| id | uuid | PK |
+| community_id | uuid | FK → communities |
+| profile_id | uuid | FK → profiles |
+| role | enum | 'admin' / 'member' |
+| joined_at | timestamptz | |
+| **unique** | | (community_id, profile_id) |
+
+#### `community_messages`
+| Column | Type | Notes |
+|--------|------|-------|
+| id | uuid | PK |
+| community_id | uuid | FK → communities |
+| sender_id | uuid | FK → profiles |
+| content | text | Message text |
+| message_type | enum | 'text' / 'image' / 'game_share' / 'challenge' |
+| metadata | jsonb | game_id, image_url, challenge details, etc. |
+| created_at | timestamptz | |
+
+#### `community_reactions`
+| Column | Type | Notes |
+|--------|------|-------|
+| id | uuid | PK |
+| message_id | uuid | FK → community_messages |
+| profile_id | uuid | FK → profiles |
+| emoji | text | e.g. "🔥", "😂", "❤️" |
+| created_at | timestamptz | |
+| **unique** | | (message_id, profile_id, emoji) |
+
+### 4. UI Screens
+
+1. **Community List** (`/community`) — your groups with last message preview, unread badge, "Join Arena" button at top.
+2. **Chat View** (`/community/[id]`) — messages with infinite scroll, input bar, "Share Game" / attachment buttons.
+3. **Group Info** (`/community/[id]/info`) — member list, invite code, settings.
+4. **Create Group** — modal: name, image upload, public/private toggle.
+5. **Search/Discover** — search public groups, request to join.
+6. **Join via Code** — enter invite code.
+
+### 5. Technical Notes
+
+- **Supabase Realtime** for live message delivery (subscribe to `community_messages` inserts).
+- **Supabase Storage** for image uploads (group avatars + chat images).
+- **Infinite scroll** for message history (paginate by `created_at DESC`).
+- **Optimistic UI** for sending messages (show immediately, confirm in background).
