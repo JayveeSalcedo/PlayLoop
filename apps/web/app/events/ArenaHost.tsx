@@ -73,9 +73,10 @@ export function ArenaHost({ games, profileName, initialCode }: Props) {
 
   useEffect(() => {
     if (!sessionCode || state === "setup") return;
-    poll();
+    // Defer initial poll so setState isn't called synchronously in the effect body
+    const t = setTimeout(poll, 0);
     const iv = setInterval(poll, 2000);
-    return () => clearInterval(iv);
+    return () => { clearTimeout(t); clearInterval(iv); };
   }, [sessionCode, state, poll]);
 
   // ─── Setup ────────────────────────────────────────────────────────

@@ -14,16 +14,11 @@ export function ArenaScanButton() {
   const [error, setError] = useState("");
   const [manualCode, setManualCode] = useState("");
   const [scanning, setScanning] = useState(false);
-  const [hasDetector, setHasDetector] = useState(false);
+  const hasDetector = typeof window !== "undefined" && "BarcodeDetector" in window;
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const animRef = useRef<number>(0);
   const router = useRouter();
-
-  // Check BarcodeDetector support
-  useEffect(() => {
-    setHasDetector("BarcodeDetector" in window);
-  }, []);
 
   const stopCamera = useCallback(() => {
     if (animRef.current) cancelAnimationFrame(animRef.current);

@@ -139,7 +139,7 @@ export function CodeGamePlayer({
         backToIntro(e instanceof Error ? e.message : "Couldn't save that play — try again.");
       }
     },
-    [backToIntro, test],
+    [backToIntro, test, arenaSessionId],
   );
 
   useEffect(() => {
