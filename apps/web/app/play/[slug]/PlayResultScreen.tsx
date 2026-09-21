@@ -25,6 +25,7 @@ export function PlayResultScreen({
   result,
   sessionId,
   challengeCode,
+  arenaCode,
   onPlayAgain,
 }: {
   title: string;
@@ -32,6 +33,8 @@ export function PlayResultScreen({
   sessionId: string | null;
   /** The code this play fulfilled, if any — threaded through to the claim CTA below. */
   challengeCode?: string;
+  /** If set, this play was part of an arena session. */
+  arenaCode?: string;
   onPlayAgain: () => void;
 }) {
   const friends = useFriends();
@@ -377,8 +380,22 @@ export function PlayResultScreen({
         </SuccessModal>
       )}
 
-      {/* Guest save CTA vs Logged in share */}
-      {result.isGuest ? (
+      {/* Arena mode — score was submitted to the leaderboard */}
+      {arenaCode ? (
+        <>
+          <div className="card-hard pop-in-3 mt-4 rounded-2xl bg-mint/20 p-4 [border:var(--border-thick)]">
+            <p className="font-extrabold">✅ Score submitted to the arena!</p>
+            <p className="mt-1 text-sm font-bold text-soft">
+              Your score is now on the big-screen leaderboard. Head back to see the results.
+            </p>
+          </div>
+          <div className="mt-3 flex gap-3">
+            <Link href={`/events/join?code=${arenaCode}`} className="btn go flex-1">
+              Back to Arena
+            </Link>
+          </div>
+        </>
+      ) : result.isGuest ? (
         <>
           <div className="card-hard pop-in-3 mt-4 rounded-2xl bg-violet/10 p-4 [border:var(--border-thick)]">
             <p className="font-extrabold">🔥 Nice run — don&apos;t lose this!</p>

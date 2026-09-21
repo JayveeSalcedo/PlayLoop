@@ -1019,3 +1019,76 @@ export const venueEvents = pgTable(
     index("venue_events_code_idx").on(table.code),
   ],
 );
+
+// ---------------------------------------------------------------------------
+// Live Arena — real multiplayer sessions
+// ---------------------------------------------------------------------------
+
+export const arenaSessionStateEnum = pgEnum("arena_session_state", [
+  "lobby",
+  "countdown",
+  "playing",
+  "results",
+]);
+
+/**
+ * A live arena session: the host picks a published game, gets a join code,
+ * waits for players in the lobby, then starts the game on all phones.
+ */
+export const arenaSessions = pgTable(
+  "arena_sessions",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    /** 6-char uppercase join code, shown on QR. */
+    code: text("code").notNull().unique(),
+    gameId: uuid("game_id")
+      .notNull()
+      .references(() => games.id),
+    hostProfileId: uuid("host_profile_id")
+      .notNull()
+      .references(() => profiles.id),
+    state: arenaSessionStateEnum("state").notNull().default("lobby"),
+    /** When the host pressed "Start Game" and the countdown began. */
+    startedAt: timestamp("started_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index("arena_sessions_code_idx").on(table.code),
+    index("arena_sessions_host_idx").on(table.hostProfileId),
+  ],
+);
+
+/**
+ * A player who scanned the QR and joined an arena session's lobby.
+ * Score is updated when the player finishes playing the game.
+ */
+export const arenaPlayers = pgTable(
+  "arena_players",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    sessionId: uuid("session_id")
+      .notNull()
+      .references(() => arenaSessions.id),
+    profileId: uuid("profile_id")
+      .notNull()
+      .references(() => profiles.id),
+    /** Snapshot of name at join time. */
+    name: text("name").notNull(),
+    avatarIndex: integer("avatar_index").notNull().default(0),
+    score: integer("score").notNull().default(0),
+    finishedAt: timestamp("finished_at", { withTimezone: true }),
+    joinedAt: timestamp("joined_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index("arena_players_session_id_idx").on(table.sessionId),
+    uniqueIndex("arena_players_session_profile_idx").on(
+      table.sessionId,
+      table.profileId,
+    ),
+  ],
+);
+

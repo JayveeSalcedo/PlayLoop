@@ -1,8 +1,9 @@
 "use server";
 
-import { randomUUID } from "node:crypto";
+import { randomUUID, randomBytes } from "node:crypto";
 import { getDb, schema } from "@playloop/db";
-import { eq, sql } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
+import { requireProfile } from "@/lib/profile";
 import { createNewProfile } from "@/lib/newProfile";
 import { createSession, getSession } from "@/lib/session";
 import { calculateRoundPayout, VENUE_EVENTS } from "@/lib/events";
@@ -111,3 +112,118 @@ export async function creditEventRoundPoints(args: {
     newBalance: updated?.pointsBalance ?? profile.pointsBalance + cleanPoints,
   };
 }
+
+export async function createArenaSession(gameId: string) {
+  const { profile } = await requireProfile();
+  const code = randomBytes(3).toString("hex").toUpperCase();
+  const db = getDb();
+
+  const [session] = await db
+    .insert(schema.arenaSessions)
+    .values({
+      code,
+      gameId,
+      hostProfileId: profile.id,
+      state: "lobby",
+    })
+    .returning({ id: schema.arenaSessions.id });
+
+  return { code, sessionId: session!.id };
+}
+
+export async function joinArenaSession(code: string) {
+  const { profile } = await requireProfile();
+  const db = getDb();
+
+  const [session] = await db
+    .select({
+      id: schema.arenaSessions.id,
+      state: schema.arenaSessions.state,
+      gameSlug: schema.games.slug,
+    })
+    .from(schema.arenaSessions)
+    .innerJoin(
+      schema.games,
+      eq(schema.arenaSessions.gameId, schema.games.id),
+    )
+    .where(eq(schema.arenaSessions.code, code.toUpperCase()))
+    .limit(1);
+
+  if (!session) throw new Error("Session not found");
+  if (session.state !== "lobby") throw new Error("Session is not in lobby");
+
+  await db
+    .insert(schema.arenaPlayers)
+    .values({
+      sessionId: session.id,
+      profileId: profile.id,
+      name: profile.name ?? "Player",
+      avatarIndex: profile.avatarIndex,
+    })
+    .onConflictDoNothing();
+
+  return { sessionId: session.id, gameSlug: session.gameSlug };
+}
+
+export async function startArenaGame(sessionId: string) {
+  const { profile } = await requireProfile();
+  const db = getDb();
+
+  const [session] = await db
+    .select({ hostProfileId: schema.arenaSessions.hostProfileId })
+    .from(schema.arenaSessions)
+    .where(eq(schema.arenaSessions.id, sessionId))
+    .limit(1);
+
+  if (!session) throw new Error("Session not found");
+  if (session.hostProfileId !== profile.id) throw new Error("Not the host");
+
+  await db
+    .update(schema.arenaSessions)
+    .set({ state: "countdown", startedAt: sql`now()` })
+    .where(eq(schema.arenaSessions.id, sessionId));
+
+  return { ok: true };
+}
+
+export async function advanceArenaState(
+  sessionId: string,
+  newState: "playing" | "results",
+) {
+  const { profile } = await requireProfile();
+  const db = getDb();
+
+  const [session] = await db
+    .select({ hostProfileId: schema.arenaSessions.hostProfileId })
+    .from(schema.arenaSessions)
+    .where(eq(schema.arenaSessions.id, sessionId))
+    .limit(1);
+
+  if (!session) throw new Error("Session not found");
+  if (session.hostProfileId !== profile.id) throw new Error("Not the host");
+
+  await db
+    .update(schema.arenaSessions)
+    .set({ state: newState })
+    .where(eq(schema.arenaSessions.id, sessionId));
+
+  return { ok: true };
+}
+
+export async function submitArenaScore(sessionId: string, score: number) {
+  const { profile } = await requireProfile();
+  const db = getDb();
+
+  await db
+    .update(schema.arenaPlayers)
+    .set({ score, finishedAt: sql`now()` })
+    .where(
+      and(
+        eq(schema.arenaPlayers.sessionId, sessionId),
+        eq(schema.arenaPlayers.profileId, profile.id),
+      ),
+    );
+
+  return { ok: true };
+}
+

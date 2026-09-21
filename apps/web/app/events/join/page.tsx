@@ -1,9 +1,9 @@
-import { getEventConfig, getOrCreateEventPlayer } from "@/lib/eventsServer";
-import { EventMobileClient } from "./EventMobileClient";
+import { ArenaPlayer } from "./ArenaPlayer";
+import { requireProfile } from "@/lib/profile";
 
 export const metadata = {
-  title: "PlayLoop Live — Join Arena",
-  description: "Join the live mall big-screen activation on your phone.",
+  title: "PlayLoop Arena — Join Game",
+  description: "Join a live arena game on your phone.",
 };
 
 export default async function EventJoinPage({
@@ -12,11 +12,14 @@ export default async function EventJoinPage({
   searchParams: Promise<{ code?: string }>;
 }) {
   const { code } = await searchParams;
-  const eventCode = code?.toUpperCase() || "OASIS-LIVE";
-  const [{ event }, player] = await Promise.all([
-    getEventConfig(eventCode),
-    getOrCreateEventPlayer(),
-  ]);
+  const { profile } = await requireProfile();
 
-  return <EventMobileClient initialPlayer={player} event={event} />;
+  return (
+    <ArenaPlayer
+      profileId={profile.id}
+      profileName={profile.name ?? "Player"}
+      avatarIndex={profile.avatarIndex}
+      initialCode={code?.toUpperCase()}
+    />
+  );
 }

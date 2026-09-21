@@ -1,9 +1,11 @@
-import { getEventConfig, getOrCreateEventPlayer } from "@/lib/eventsServer";
-import { EventArenaClient } from "./EventArenaClient";
+import { getDb, schema } from "@playloop/db";
+import { eq } from "drizzle-orm";
+import { requireProfile } from "@/lib/profile";
+import { ArenaHost } from "./ArenaHost";
 
 export const metadata = {
-  title: "PlayLoop Live — Arena Controller & Big-Screen LED Wall",
-  description: "Live venue & mall activation mode for big-screen LED walls with instant QR join, spectator leaderboards, and 3D podium celebrations.",
+  title: "PlayLoop Arena — Event Console",
+  description: "Host live arena games on the big screen.",
 };
 
 export default async function EventsPage({
@@ -12,18 +14,27 @@ export default async function EventsPage({
   searchParams: Promise<{ code?: string }>;
 }) {
   const { code } = await searchParams;
-  const eventCode = code?.toUpperCase() || "OASIS-LIVE";
+  const { profile } = await requireProfile();
+  const db = getDb();
 
-  const [{ event, qrSvgString }, player] = await Promise.all([
-    getEventConfig(eventCode),
-    getOrCreateEventPlayer(),
-  ]);
+  // Fetch published games for the game picker
+  const games = await db
+    .select({
+      id: schema.games.id,
+      slug: schema.games.slug,
+      title: schema.games.title,
+      theme: schema.games.theme,
+      type: schema.games.type,
+      coverImage: schema.games.coverImage,
+    })
+    .from(schema.games)
+    .where(eq(schema.games.status, "published"));
 
   return (
-    <EventArenaClient
-      initialEvent={event}
-      initialQrSvg={qrSvgString}
-      initialHostPlayer={player}
+    <ArenaHost
+      games={games}
+      profileName={profile.name ?? "Host"}
+      initialCode={code?.toUpperCase()}
     />
   );
 }

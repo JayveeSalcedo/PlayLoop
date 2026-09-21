@@ -68,11 +68,15 @@ export function CodeGamePlayer({
   game,
   version,
   challengeCode,
+  arenaSessionId,
+  arenaCode,
   test,
 }: {
   game: CodeGameRow;
   version: CodeGameVersion | null;
   challengeCode?: string;
+  arenaSessionId?: string;
+  arenaCode?: string;
   /**
    * A creator's studio test play of this version: verified by replay exactly
    * like a real play, never credited. Its verified result is what lets them
@@ -124,6 +128,11 @@ export function CodeGamePlayer({
         }
         if (!res.ok || typeof data.payoutPoints !== "number") {
           throw new Error(data.error ?? "Couldn't save that play — try again.");
+        }
+        // If in arena mode, submit score to the arena leaderboard
+        if (arenaSessionId) {
+          const { submitArenaScore } = await import("@/app/events/actions");
+          await submitArenaScore(arenaSessionId, (data as PlayResult).payoutPoints).catch(() => {});
         }
         setStage({ name: "result", result: data as PlayResult, sessionId });
       } catch (e) {
@@ -212,6 +221,7 @@ export function CodeGamePlayer({
         result={stage.result}
         sessionId={stage.sessionId}
         challengeCode={challengeCode}
+        arenaCode={arenaCode}
         onPlayAgain={() => backToIntro(null)}
       />
     );

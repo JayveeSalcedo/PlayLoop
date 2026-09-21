@@ -12,11 +12,11 @@ export default async function PlayPage({
   searchParams,
 }: {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ challenge?: string }>;
+  searchParams: Promise<{ challenge?: string; arena?: string; arenaCode?: string }>;
 }) {
   const session = await requireSession();
   const { slug } = await params;
-  const { challenge } = await searchParams;
+  const { challenge, arena: arenaSessionId, arenaCode } = await searchParams;
 
   const db = getDb();
   const game = await db
@@ -70,6 +70,8 @@ export default async function PlayPage({
         }}
         version={version ? { ...version, meta: version.meta as unknown as GameMeta } : null}
         challengeCode={challenge}
+        arenaSessionId={arenaSessionId}
+        arenaCode={arenaCode}
       />
     );
   }
@@ -90,6 +92,8 @@ export default async function PlayPage({
         coverImage: game.coverImage,
       }}
       challengeCode={challenge}
+      arenaSessionId={arenaSessionId}
+      arenaCode={arenaCode}
     />
   );
 }

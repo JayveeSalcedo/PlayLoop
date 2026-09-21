@@ -5,6 +5,7 @@ import { artSVG, type GameArtType, type ItemKind, type ThemeName } from "@playlo
 import { useRef, useState } from "react";
 import { Spinner } from "@/app/_components/Spinner";
 import { startChallengedPlay, startPlay, submitPlay, type PlayResult } from "./actions";
+import { submitArenaScore } from "@/app/events/actions";
 import { PlayIntro } from "./PlayIntro";
 import { PlayResultScreen } from "./PlayResultScreen";
 
@@ -28,7 +29,17 @@ export interface GameRow {
 
 type Stage = "intro" | "starting" | "playing" | "result" | "submitting";
 
-export function GamePlayer({ game, challengeCode }: { game: GameRow; challengeCode?: string }) {
+export function GamePlayer({
+  game,
+  challengeCode,
+  arenaSessionId,
+  arenaCode,
+}: {
+  game: GameRow;
+  challengeCode?: string;
+  arenaSessionId?: string;
+  arenaCode?: string;
+}) {
   const [stage, setStage] = useState<Stage>("intro");
   const [result, setResult] = useState<PlayResult | null>(null);
   const [lastSessionId, setLastSessionId] = useState<string | null>(null);
@@ -64,6 +75,10 @@ export function GamePlayer({ game, challengeCode }: { game: GameRow; challengeCo
         setStage("submitting");
         try {
           const r = await submitPlay(sessionId, score);
+          // If in arena mode, also record the score on the arena leaderboard
+          if (arenaSessionId) {
+            await submitArenaScore(arenaSessionId, r.payoutPoints).catch(() => {});
+          }
           setResult(r);
           setLastSessionId(sessionId);
           setStage("result");
@@ -109,6 +124,7 @@ export function GamePlayer({ game, challengeCode }: { game: GameRow; challengeCo
         result={result}
         sessionId={lastSessionId}
         challengeCode={challengeCode}
+        arenaCode={arenaCode}
         onPlayAgain={() => {
           setResult(null);
           setStage("intro");
