@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { icon } from "@playloop/ui";
 
 /**
@@ -9,6 +10,14 @@ import { icon } from "@playloop/ui";
  * tab (see CommunityListClient.tsx).
  */
 export function CreateFab() {
+  const pathname = usePathname();
+  // A group chat's own message composer (the Send button) sits in this same
+  // bottom-right corner at phone widths — the FAB would float on top of it
+  // and block taps. The community list and a group's info page don't have
+  // that composer, so the FAB stays there.
+  const inGroupChat = /^\/community\/[^/]+$/.test(pathname);
+  if (inGroupChat) return null;
+
   return (
     <Link
       href="/create"
