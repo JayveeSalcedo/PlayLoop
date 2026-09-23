@@ -1,17 +1,60 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { icon } from "@playloop/ui";
 import type { CommunityListItem } from "@/lib/communities";
+import { getSupabaseBrowserClient } from "@/lib/supabaseClient";
 import { createCommunityAction, joinCommunityByCodeAction, requestToJoinCommunityAction } from "./actions";
 import { ArenaScanButton } from "../_components/ArenaScanButton";
 import { Spinner } from "@/app/_components/Spinner";
 import { SuccessModal } from "@/app/_components/SuccessModal";
 
-export function CommunityListClient({ joined, open }: { joined: CommunityListItem[]; open: CommunityListItem[] }) {
+export function CommunityListClient({
+  joined: initialJoined,
+  open,
+  viewerProfileId,
+}: {
+  joined: CommunityListItem[];
+  open: CommunityListItem[];
+  viewerProfileId: string;
+}) {
   const router = useRouter();
+  const [prevInitialJoined, setPrevInitialJoined] = useState(initialJoined);
+  const [joined, setJoined] = useState(initialJoined);
+  if (initialJoined !== prevInitialJoined) {
+    setPrevInitialJoined(initialJoined);
+    setJoined(initialJoined);
+  }
+
+  // Live unread dot: a message from someone else in any joined group flips
+  // that card's dot without waiting on a reload — same reasoning and shape
+  // as TabBar's own subscription.
+  useEffect(() => {
+    const ids = initialJoined.map((c) => c.id);
+    if (ids.length === 0) return;
+    const supabase = getSupabaseBrowserClient();
+    if (!supabase) return;
+
+    const channel = supabase
+      .channel(`community-list-unread-${viewerProfileId}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "community_messages", filter: `community_id=in.(${ids.join(",")})` },
+        (payload) => {
+          const row = payload.new as { community_id: string; sender_id: string };
+          if (row.sender_id === viewerProfileId) return;
+          setJoined((prev) => prev.map((c) => (c.id === row.community_id ? { ...c, hasUnread: true } : c)));
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialJoined.length, viewerProfileId]);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [createPending, setCreatePending] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);

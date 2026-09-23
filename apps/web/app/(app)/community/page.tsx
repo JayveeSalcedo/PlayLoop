@@ -13,5 +13,5 @@ export default async function CommunityPage() {
   const joinedIds = new Set(joined.map((c) => c.id));
   const open = discover.filter((c) => !joinedIds.has(c.id));
 
-  return <CommunityListClient joined={joined} open={open} />;
+  return <CommunityListClient joined={joined} open={open} viewerProfileId={profile.id} />;
 }

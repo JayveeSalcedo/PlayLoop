@@ -2,7 +2,7 @@ import { TabBar } from "./_components/TabBar";
 import { TopBar } from "./_components/TopBar";
 import { CreateFab } from "./_components/CreateFab";
 import { requireProfile } from "@/lib/profile";
-import { hasAnyUnreadCommunity } from "@/lib/communities";
+import { getCommunityIdsForProfile, hasAnyUnreadCommunity } from "@/lib/communities";
 
 /**
  * Shared chrome for the tabbed screens (feed/wallet/rewards). A route group
@@ -13,14 +13,17 @@ import { hasAnyUnreadCommunity } from "@/lib/communities";
  */
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const { profile } = await requireProfile();
-  const communityUnread = await hasAnyUnreadCommunity(profile.id);
+  const [communityUnread, communityIds] = await Promise.all([
+    hasAnyUnreadCommunity(profile.id),
+    getCommunityIdsForProfile(profile.id),
+  ]);
 
   return (
     <div className="pb-24">
       <TopBar />
       {children}
       <CreateFab />
-      <TabBar communityUnread={communityUnread} />
+      <TabBar communityUnread={communityUnread} communityIds={communityIds} viewerProfileId={profile.id} />
     </div>
   );
 }

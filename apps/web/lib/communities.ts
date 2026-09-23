@@ -610,6 +610,16 @@ export async function hasAnyUnreadCommunity(profileId: string): Promise<boolean>
   return row.length > 0;
 }
 
+/** Just the IDs of a profile's joined groups — for scoping the tab bar's live-unread Realtime filter. */
+export async function getCommunityIdsForProfile(profileId: string): Promise<string[]> {
+  const db = getDb();
+  const rows = await db
+    .select({ communityId: schema.communityMembers.communityId })
+    .from(schema.communityMembers)
+    .where(eq(schema.communityMembers.profileId, profileId));
+  return rows.map((r) => r.communityId);
+}
+
 export interface ReactionSummary {
   emoji: string;
   count: number;
