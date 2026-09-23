@@ -257,9 +257,10 @@ export function ArenaHost({ games, profileName, initialCode }: Props) {
       {/* Header */}
       <header className="relative z-[1] flex items-center justify-between border-b-2 border-white/10 px-6 py-4 sm:px-8">
         <div className="flex items-center gap-3">
-          <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-lemon text-ink [border:var(--border-thick)] [box-shadow:var(--shadow-hard-sm)]">
-            <span className="h-5 w-5" dangerouslySetInnerHTML={{ __html: icon("gamepad") }} />
-          </span>
+          <span
+            className="flex h-10 w-10 items-center justify-center rounded-2xl bg-lemon text-xl text-ink [border:var(--border-thick)] [box-shadow:var(--shadow-hard-sm)]"
+            dangerouslySetInnerHTML={{ __html: icon("gamepad") }}
+          />
           <div>
             <h1 className="text-lg font-extrabold tracking-tight sm:text-2xl">PlayLoop Arena</h1>
             <span className="text-xs font-semibold text-white/50 sm:text-sm">Hosted by {profileName}</span>
@@ -340,7 +341,7 @@ export function ArenaHost({ games, profileName, initialCode }: Props) {
                 {joinUrl}
               </div>
               <div className="mt-1 flex items-center gap-2 rounded-full bg-white/10 px-5 py-2 text-sm font-bold text-white/70">
-                <span className="h-3.5 w-3.5 text-lemon" dangerouslySetInnerHTML={{ __html: icon("play") }} />
+                <span className="text-lemon" dangerouslySetInnerHTML={{ __html: icon("play") }} />
                 {gameTitle}
               </div>
             </div>
@@ -349,7 +350,7 @@ export function ArenaHost({ games, profileName, initialCode }: Props) {
             <div className="flex flex-col rounded-3xl border-2 border-white/10 bg-white/5 p-6 sm:p-8">
               <div className="mb-6 flex items-center justify-between">
                 <h3 className="flex items-center gap-2 text-xl font-extrabold">
-                  <span className="h-5 w-5" dangerouslySetInnerHTML={{ __html: icon("users") }} />
+                  <span dangerouslySetInnerHTML={{ __html: icon("users") }} />
                   Players
                 </h3>
                 <span className="rounded-full bg-lemon px-3 py-1 text-sm font-extrabold text-ink [border:1.5px_solid_var(--ink)]">
@@ -495,7 +496,7 @@ export function ArenaHost({ games, profileName, initialCode }: Props) {
             {/* Full leaderboard */}
             <div className="space-y-3 rounded-3xl border-2 border-white/10 bg-white/5 p-6">
               <h3 className="mb-4 flex items-center gap-2 text-xl font-extrabold">
-                <span className="h-5 w-5" dangerouslySetInnerHTML={{ __html: icon("trophy") }} />
+                <span dangerouslySetInnerHTML={{ __html: icon("trophy") }} />
                 Final Standings
               </h3>
               {sortedPlayers.map((p, i) => (

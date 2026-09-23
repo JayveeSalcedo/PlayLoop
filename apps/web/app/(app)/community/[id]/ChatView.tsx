@@ -378,7 +378,7 @@ export function ChatView({
           className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-card [border:var(--border-thick)]"
           aria-label="Send a photo"
         >
-          {uploading ? <Spinner size={16} /> : <span className="h-5 w-5" dangerouslySetInnerHTML={{ __html: icon("camera") }} />}
+          {uploading ? <Spinner size={16} /> : <span className="text-xl" dangerouslySetInnerHTML={{ __html: icon("camera") }} />}
         </button>
         <button
           type="button"
@@ -386,7 +386,7 @@ export function ChatView({
           className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-card [border:var(--border-thick)]"
           aria-label="Share a game"
         >
-          <span className="h-5 w-5" dangerouslySetInnerHTML={{ __html: icon("gamepad") }} />
+          <span className="text-xl" dangerouslySetInnerHTML={{ __html: icon("gamepad") }} />
         </button>
         <button
           type="button"
@@ -394,7 +394,7 @@ export function ChatView({
           className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-card [border:var(--border-thick)]"
           aria-label="Challenge this group"
         >
-          <span className="h-5 w-5" dangerouslySetInnerHTML={{ __html: icon("bolt") }} />
+          <span className="text-xl" dangerouslySetInnerHTML={{ __html: icon("bolt") }} />
         </button>
         <input
           value={text}
@@ -468,7 +468,7 @@ function MessageBubble({ message, isMe }: { message: CommunityMessageItem; isMe:
     return (
       <Link href={`/play/${slug}`} className={`${base} block hover:brightness-95`}>
         <p className="flex items-center gap-1.5 text-xs font-extrabold uppercase text-soft">
-          <span className="h-3.5 w-3.5" dangerouslySetInnerHTML={{ __html: icon("gamepad") }} />
+          <span dangerouslySetInnerHTML={{ __html: icon("gamepad") }} />
           Shared a game
         </p>
         <p className="mt-1 font-extrabold">{title}</p>
@@ -484,7 +484,7 @@ function MessageBubble({ message, isMe }: { message: CommunityMessageItem; isMe:
     return (
       <Link href={`/c/${code}`} className={`${base} block hover:brightness-95`}>
         <p className="flex items-center gap-1.5 text-xs font-extrabold uppercase text-soft">
-          <span className="h-3.5 w-3.5" dangerouslySetInnerHTML={{ __html: icon("bolt") }} />
+          <span dangerouslySetInnerHTML={{ __html: icon("bolt") }} />
           Challenge dropped
         </p>
         <p className="mt-1 font-extrabold">

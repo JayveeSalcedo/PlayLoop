@@ -185,13 +185,13 @@ export function CommunityInfoClient({
               className="flex h-8 w-8 items-center justify-center rounded-xl bg-paper [border:var(--border-thick)]"
               aria-label="Edit group"
             >
-              <span className="h-4 w-4" dangerouslySetInnerHTML={{ __html: icon("edit") }} />
+              <span className="text-base" dangerouslySetInnerHTML={{ __html: icon("edit") }} />
             </button>
           )}
         </div>
         {community.description && <p className="mt-1 text-sm font-semibold text-soft">{community.description}</p>}
         <p className="mt-2 flex items-center gap-1.5 text-xs font-bold text-soft">
-          <span className="h-3.5 w-3.5" dangerouslySetInnerHTML={{ __html: icon(community.isPublic ? "globe" : "lock") }} />
+          <span dangerouslySetInnerHTML={{ __html: icon(community.isPublic ? "globe" : "lock") }} />
           {community.isPublic ? "Public" : "Private"}
           {community.isPublic && community.requiresApproval ? " · Requires approval" : ""}
         </p>
@@ -346,7 +346,7 @@ export function CommunityInfoClient({
               </div>
               <label className="flex items-center justify-between rounded-xl bg-card p-2.5 [border:var(--border-thick)]">
                 <span className="flex items-center gap-1.5 text-xs font-extrabold text-soft">
-                  <span className="h-3.5 w-3.5" dangerouslySetInnerHTML={{ __html: icon("globe") }} />
+                  <span dangerouslySetInnerHTML={{ __html: icon("globe") }} />
                   Public (discoverable in search)
                 </span>
                 <input type="checkbox" checked={editIsPublic} onChange={(e) => setEditIsPublic(e.target.checked)} className="h-5 w-5" />
@@ -354,7 +354,7 @@ export function CommunityInfoClient({
               {editIsPublic && (
                 <label className="flex items-center justify-between rounded-xl bg-card p-2.5 [border:var(--border-thick)]">
                   <span className="flex items-center gap-1.5 text-xs font-extrabold text-soft">
-                    <span className="h-3.5 w-3.5" dangerouslySetInnerHTML={{ __html: icon("lock") }} />
+                    <span dangerouslySetInnerHTML={{ __html: icon("lock") }} />
                     Require approval to join
                   </span>
                   <input

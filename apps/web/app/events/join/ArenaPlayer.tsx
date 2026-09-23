@@ -252,14 +252,15 @@ export function ArenaPlayer({ profileId, profileName, avatarIndex, initialCode }
         <div className="card-hard w-full max-w-xs space-y-4 rounded-3xl bg-card p-6 text-center [border:var(--border-thick)]">
           <div>
             <p className="flex items-center justify-center gap-1.5 text-lg font-extrabold text-ink">
-              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-mint text-white">
-                <span className="h-3 w-3" dangerouslySetInnerHTML={{ __html: icon("check") }} />
-              </span>
+              <span
+                className="flex h-5 w-5 items-center justify-center rounded-full bg-mint text-xs text-white"
+                dangerouslySetInnerHTML={{ __html: icon("check") }}
+              />
               You&rsquo;re in, {profileName}!
             </p>
             {gameTitle && (
               <span className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-paper px-3 py-1 text-xs font-extrabold text-ink [border:1.5px_solid_var(--ink)]">
-                <span className="h-3.5 w-3.5" dangerouslySetInnerHTML={{ __html: icon("gamepad") }} />
+                <span dangerouslySetInnerHTML={{ __html: icon("gamepad") }} />
                 {gameTitle}
               </span>
             )}
@@ -267,7 +268,7 @@ export function ArenaPlayer({ profileId, profileName, avatarIndex, initialCode }
 
           <div className="border-t-2 border-dashed border-ink/10 pt-4">
             <p className="flex items-center justify-center gap-1.5 text-xs font-extrabold uppercase tracking-wider text-soft">
-              <span className="h-3.5 w-3.5" dangerouslySetInnerHTML={{ __html: icon("users") }} />
+              <span dangerouslySetInnerHTML={{ __html: icon("users") }} />
               {players.length} in the lobby
             </p>
             {shown.length > 0 ? (
@@ -309,9 +310,10 @@ export function ArenaPlayer({ profileId, profileName, avatarIndex, initialCode }
     return (
       <div className="flex min-h-dvh flex-col items-center justify-center gap-4 bg-paper px-6 pb-10">
         <div className="card-hard w-full max-w-xs space-y-4 rounded-3xl bg-card p-6 text-center [border:var(--border-thick)]">
-          <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-violet/15">
-            <span className="h-7 w-7 text-violet" dangerouslySetInnerHTML={{ __html: icon("bolt") }} />
-          </span>
+          <span
+            className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-violet/15 text-2xl text-violet"
+            dangerouslySetInnerHTML={{ __html: icon("bolt") }}
+          />
           <div>
             <p className="text-lg font-extrabold text-ink">Game in progress</p>
             {gameTitle && <p className="text-sm font-bold text-soft">{gameTitle}</p>}
@@ -338,9 +340,10 @@ export function ArenaPlayer({ profileId, profileName, avatarIndex, initialCode }
 
     return (
       <div className="flex min-h-dvh flex-col items-center gap-4 bg-paper px-6 py-10">
-        <div className="pop-in flex h-20 w-20 items-center justify-center rounded-full bg-lemon [border:var(--border-thick)] [box-shadow:var(--shadow-hard)]">
-          <span className="h-9 w-9 text-ink" dangerouslySetInnerHTML={{ __html: icon("trophy") }} />
-        </div>
+        <div
+          className="pop-in flex h-20 w-20 items-center justify-center rounded-full bg-lemon text-4xl text-ink [border:var(--border-thick)] [box-shadow:var(--shadow-hard)]"
+          dangerouslySetInnerHTML={{ __html: icon("trophy") }}
+        />
         <div className="text-center">
           <h1 className="text-2xl font-extrabold text-ink">Results are in!</h1>
           {gameTitle && <p className="text-sm font-bold text-soft">{gameTitle}</p>}
@@ -356,7 +359,7 @@ export function ArenaPlayer({ profileId, profileName, avatarIndex, initialCode }
 
         <div className="pop-in-2 card-hard w-full max-w-xs space-y-1.5 rounded-2xl bg-card p-4 [border:var(--border-thick)]">
           <p className="flex items-center gap-1.5 text-xs font-extrabold uppercase tracking-wider text-soft">
-            <span className="h-3.5 w-3.5" dangerouslySetInnerHTML={{ __html: icon("users") }} />
+            <span dangerouslySetInnerHTML={{ __html: icon("users") }} />
             Final Standings
           </p>
           {sorted.map((p, i) => (
