@@ -455,6 +455,7 @@ function MessageBubble({ message, isMe }: { message: CommunityMessageItem; isMe:
     const url = String(message.metadata.imageUrl ?? "");
     return (
       <div className={base}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
         {url && <img src={url} alt="Shared photo" className="max-w-full rounded-xl" />}
         {message.content && <p className="mt-2">{message.content}</p>}
       </div>
