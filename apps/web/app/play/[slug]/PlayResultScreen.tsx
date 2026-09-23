@@ -26,6 +26,7 @@ export function PlayResultScreen({
   sessionId,
   challengeCode,
   arenaCode,
+  challengeCommunityId,
   onPlayAgain,
 }: {
   title: string;
@@ -35,6 +36,8 @@ export function PlayResultScreen({
   challengeCode?: string;
   /** If set, this play was part of an arena session. */
   arenaCode?: string;
+  /** If set, this play was started from a group chat's "Challenge this group" picker. */
+  challengeCommunityId?: string;
   onPlayAgain: () => void;
 }) {
   const friends = useFriends();
@@ -392,6 +395,20 @@ export function PlayResultScreen({
           <div className="mt-3 flex gap-3">
             <Link href={`/events/join?code=${arenaCode}`} className="btn go flex-1">
               Back to Arena
+            </Link>
+          </div>
+        </>
+      ) : challengeCommunityId ? (
+        <>
+          <div className="card-hard pop-in-3 mt-4 rounded-2xl bg-mint/20 p-4 [border:var(--border-thick)]">
+            <p className="font-extrabold">✅ Challenge posted to the group!</p>
+            <p className="mt-1 text-sm font-bold text-soft">
+              Your score is now a challenge in the group chat — head back to see it.
+            </p>
+          </div>
+          <div className="mt-3 flex gap-3">
+            <Link href={`/community/${challengeCommunityId}`} className="btn go flex-1">
+              Back to Group
             </Link>
           </div>
         </>

@@ -12,11 +12,11 @@ export default async function PlayPage({
   searchParams,
 }: {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ challenge?: string; arena?: string; arenaCode?: string }>;
+  searchParams: Promise<{ challenge?: string; arena?: string; arenaCode?: string; challengeCommunity?: string }>;
 }) {
   const session = await requireSession();
   const { slug } = await params;
-  const { challenge, arena: arenaSessionId, arenaCode } = await searchParams;
+  const { challenge, arena: arenaSessionId, arenaCode, challengeCommunity } = await searchParams;
 
   const db = getDb();
   const game = await db
@@ -72,6 +72,7 @@ export default async function PlayPage({
         challengeCode={challenge}
         arenaSessionId={arenaSessionId}
         arenaCode={arenaCode}
+        challengeCommunityId={challengeCommunity}
       />
     );
   }
@@ -94,6 +95,7 @@ export default async function PlayPage({
       challengeCode={challenge}
       arenaSessionId={arenaSessionId}
       arenaCode={arenaCode}
+      challengeCommunityId={challengeCommunity}
     />
   );
 }

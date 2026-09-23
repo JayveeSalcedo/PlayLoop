@@ -57,6 +57,12 @@ const ICONS: Record<string, string> = {
   sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>',
   coin: '<circle cx="12" cy="12" r="9.5" fill="#FFDD3C" stroke="#18123F" stroke-width="2.2"/><circle cx="12" cy="12" r="6" fill="none" stroke="#18123F" stroke-width="1.6" opacity="0.45"/><circle cx="12" cy="12" r="2.8" fill="#18123F" stroke="none" opacity="0.3"/>',
   points: '<circle cx="12" cy="12" r="9.5" fill="#FFDD3C" stroke="#18123F" stroke-width="2.2"/><circle cx="12" cy="12" r="6" fill="none" stroke="#18123F" stroke-width="1.6" opacity="0.45"/><circle cx="12" cy="12" r="2.8" fill="#18123F" stroke="none" opacity="0.3"/>',
+  globe: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18 14 14 0 0 1 0-18z"/>',
+  lock: '<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
+  camera: '<path d="M4 8a2 2 0 0 1 2-2h1.5l1-2h7l1 2H18a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/><circle cx="12" cy="13" r="3.5"/>',
+  gamepad: '<rect x="2" y="7" width="20" height="11" rx="5"/><path d="M7 10v4M5 12h4M15.5 11.2h.01M18.5 13.2h.01"/>',
+  edit: '<path d="M4 20h4L18.5 9.5a2.1 2.1 0 0 0-3-3L5 17v3z"/><path d="M14 6.5l3 3"/>',
+  search: '<circle cx="10.5" cy="10.5" r="7"/><path d="M20 20l-4.5-4.5"/>',
 };
 
 export type IconName = keyof typeof ICONS;

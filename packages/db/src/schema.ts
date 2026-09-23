@@ -1092,3 +1092,178 @@ export const arenaPlayers = pgTable(
   ],
 );
 
+// ---------------------------------------------------------------------------
+// Communities — group chat, gaming, and social discovery
+// ---------------------------------------------------------------------------
+
+/**
+ * A message's payload shape. This is a closed discriminant that rendering
+ * and Realtime-reconciliation code exhaustively switches over — unlike
+ * community_members.role (a plain two-value flag, kept as text below), so
+ * it gets a real enum, same reasoning as arenaSessionStateEnum.
+ */
+export const communityMessageTypeEnum = pgEnum("community_message_type", [
+  "text",
+  "image",
+  "game_share",
+  "challenge",
+]);
+
+/**
+ * A group. Private groups are invite-code-only (possession of the code is
+ * the invitation, always instant-join). Public groups are discoverable by
+ * search; requiresApproval decides whether tapping to join is instant or
+ * lands in community_join_requests for an admin to approve — set once by
+ * the creator, only meaningful when isPublic is true.
+ */
+export const communities = pgTable(
+  "communities",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    name: text("name").notNull(),
+    description: text("description"),
+    imageUrl: text("image_url"),
+    isPublic: boolean("is_public").notNull().default(false),
+    requiresApproval: boolean("requires_approval").notNull().default(false),
+    /** 6-char uppercase code, same shape/generator as arenaSessions.code. */
+    inviteCode: text("invite_code").notNull().unique(),
+    creatorId: uuid("creator_id").references(() => profiles.id),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [index("communities_is_public_idx").on(table.isPublic)],
+);
+
+/**
+ * A profile's membership in a community. role is plain text ('admin' |
+ * 'member'), matching leagueMembers.role — a two-value flag, not a state
+ * machine. The unique index backs onConflictDoNothing joins and the
+ * 50-member cap check.
+ */
+export const communityMembers = pgTable(
+  "community_members",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    communityId: uuid("community_id")
+      .notNull()
+      .references(() => communities.id, { onDelete: "cascade" }),
+    profileId: uuid("profile_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    role: text("role").notNull().default("member"),
+    joinedAt: timestamp("joined_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("community_members_community_profile_idx").on(
+      table.communityId,
+      table.profileId,
+    ),
+    index("community_members_community_id_idx").on(table.communityId),
+    index("community_members_profile_id_idx").on(table.profileId),
+  ],
+);
+
+/**
+ * A pending request to join a public, approval-required community. A
+ * rejected request is re-usable — requesting again flips the same row back
+ * to 'pending' rather than inserting a new one (the unique index makes this
+ * an upsert target).
+ */
+export const communityJoinRequests = pgTable(
+  "community_join_requests",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    communityId: uuid("community_id")
+      .notNull()
+      .references(() => communities.id, { onDelete: "cascade" }),
+    profileId: uuid("profile_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    status: text("status").notNull().default("pending"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    decidedAt: timestamp("decided_at", { withTimezone: true }),
+    decidedBy: uuid("decided_by").references(() => profiles.id),
+  },
+  (table) => [
+    uniqueIndex("community_join_requests_community_profile_idx").on(
+      table.communityId,
+      table.profileId,
+    ),
+  ],
+);
+
+/**
+ * A chat message. metadata carries type-specific, *snapshotted* data —
+ * { imageUrl } for 'image', { gameId, slug, title, coverImage } for
+ * 'game_share', { code, gameTitle, senderScore } for 'challenge' —
+ * snapshotted rather than a live join so a game's title/cover changing
+ * later doesn't rewrite an old chat bubble's history.
+ *
+ * Enabled for Supabase Realtime (see seed.ts) so INSERTs push to subscribed
+ * clients; append-only, same shape as ledgerEntries — never updated/deleted.
+ */
+export const communityMessages = pgTable(
+  "community_messages",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    communityId: uuid("community_id")
+      .notNull()
+      .references(() => communities.id, { onDelete: "cascade" }),
+    senderId: uuid("sender_id")
+      .notNull()
+      .references(() => profiles.id),
+    content: text("content").notNull().default(""),
+    messageType: communityMessageTypeEnum("message_type")
+      .notNull()
+      .default("text"),
+    metadata: jsonb("metadata")
+      .$type<Record<string, unknown>>()
+      .notNull()
+      .default({}),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    // Chat pagination: latest page per community, DESC.
+    index("community_messages_community_created_idx").on(
+      table.communityId,
+      table.createdAt,
+    ),
+  ],
+);
+
+/**
+ * A tap-to-react emoji on a message. One row per (message, profile, emoji)
+ * — re-tapping the same emoji removes it (toggle); a different emoji from
+ * the same person adds a second row.
+ */
+export const communityReactions = pgTable(
+  "community_reactions",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    messageId: uuid("message_id")
+      .notNull()
+      .references(() => communityMessages.id, { onDelete: "cascade" }),
+    profileId: uuid("profile_id")
+      .notNull()
+      .references(() => profiles.id),
+    emoji: text("emoji").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("community_reactions_message_profile_emoji_idx").on(
+      table.messageId,
+      table.profileId,
+      table.emoji,
+    ),
+  ],
+);
+

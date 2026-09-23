@@ -20,6 +20,7 @@
     "@playloop/replay": "workspace:*",
     "@playloop/runtime": "workspace:*",
     "@playloop/ui": "workspace:*",
+    "@supabase/supabase-js": "^2.45.0",
     "@types/canvas-confetti": "1.9.0",
     "@zxing/browser": "^0.1.5",
     "canvas-confetti": "1.9.4",

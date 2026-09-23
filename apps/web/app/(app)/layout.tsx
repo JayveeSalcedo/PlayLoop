@@ -1,6 +1,6 @@
 import { TabBar } from "./_components/TabBar";
 import { TopBar } from "./_components/TopBar";
-import { ArenaScanButton } from "./_components/ArenaScanButton";
+import { CreateFab } from "./_components/CreateFab";
 
 /**
  * Shared chrome for the tabbed screens (feed/wallet/rewards). A route group
@@ -14,7 +14,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     <div className="pb-24">
       <TopBar />
       {children}
-      <ArenaScanButton />
+      <CreateFab />
       <TabBar />
     </div>
   );

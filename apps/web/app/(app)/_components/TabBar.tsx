@@ -8,7 +8,7 @@ import { useEffect, useState } from "react";
 const TABS: { href: string; label: string; icon: IconName }[] = [
   { href: "/feed", label: "Home", icon: "home" },
   { href: "/rewards", label: "Rewards", icon: "gift" },
-  { href: "/create", label: "Create", icon: "plus" },
+  { href: "/community", label: "Community", icon: "msg" },
   { href: "/challenges", label: "Compete", icon: "users" },
   { href: "/wallet", label: "Wallet", icon: "wallet" },
 ];

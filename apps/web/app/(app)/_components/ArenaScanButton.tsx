@@ -107,10 +107,10 @@ export function ArenaScanButton() {
     return (
       <button
         onClick={() => setOpen(true)}
-        className="fixed bottom-24 right-4 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-violet text-white [border:var(--border-thick)] [box-shadow:var(--shadow-sm)] transition-transform active:scale-90"
+        className="flex w-full items-center justify-center gap-2 rounded-2xl bg-violet px-4 py-3 font-extrabold text-white [border:var(--border-thick)] [box-shadow:var(--shadow-sm)] transition-transform active:scale-95"
         aria-label="Scan QR to join arena"
       >
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <rect x="3" y="3" width="7" height="7" rx="1" />
           <rect x="14" y="3" width="7" height="7" rx="1" />
           <rect x="3" y="14" width="7" height="7" rx="1" />
@@ -118,6 +118,7 @@ export function ArenaScanButton() {
           <line x1="21" y1="14" x2="21" y2="21" />
           <line x1="14" y1="21" x2="21" y2="21" />
         </svg>
+        Join Arena
       </button>
     );
   }
