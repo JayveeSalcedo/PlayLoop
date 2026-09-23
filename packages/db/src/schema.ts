@@ -1155,6 +1155,10 @@ export const communityMembers = pgTable(
     joinedAt: timestamp("joined_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
+    /** Null until the member's first visit to the chat. Compared against
+     *  other members' community_messages.createdAt to decide the unread
+     *  ("new message") dot in the tab bar and group list. */
+    lastReadAt: timestamp("last_read_at", { withTimezone: true }),
   },
   (table) => [
     uniqueIndex("community_members_community_profile_idx").on(

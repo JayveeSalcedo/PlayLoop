@@ -13,7 +13,7 @@ const TABS: { href: string; label: string; icon: IconName }[] = [
   { href: "/wallet", label: "Wallet", icon: "wallet" },
 ];
 
-export function TabBar() {
+export function TabBar({ communityUnread = false }: { communityUnread?: boolean }) {
   const pathname = usePathname();
   const [prevPathname, setPrevPathname] = useState(pathname);
   const [pendingTab, setPendingTab] = useState<string | null>(null);
@@ -40,7 +40,12 @@ export function TabBar() {
               on ? "text-ink font-extrabold" : "text-faint hover:text-ink"
             }`}
           >
-            <span dangerouslySetInnerHTML={{ __html: icon(t.icon) }} className="text-xl" />
+            <span className="relative">
+              <span dangerouslySetInnerHTML={{ __html: icon(t.icon) }} className="text-xl" />
+              {t.href === "/community" && communityUnread && (
+                <span className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-gum [border:1.5px_solid_var(--color-card)]" />
+              )}
+            </span>
             {t.label}
           </Link>
         );

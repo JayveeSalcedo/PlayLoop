@@ -210,6 +210,13 @@ async function main() {
     END $$;
   `);
 
+  // Unread "new message" indicator (tab bar + group list red dot) — when a
+  // member last opened a group's chat, compared against other members'
+  // community_messages.createdAt.
+  await db.execute(sql`
+    ALTER TABLE community_members ADD COLUMN IF NOT EXISTS last_read_at timestamp with time zone;
+  `);
+
   await ensureCommunityMediaBucket();
 
   await db

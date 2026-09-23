@@ -116,11 +116,16 @@ export function CommunityListClient({ joined, open }: { joined: CommunityListIte
               href={`/community/${c.id}`}
               className="card-hard flex items-center gap-3 overflow-hidden rounded-2xl bg-card p-4 [border:var(--border-thick)] [box-shadow:var(--shadow-sm)] transition-transform active:scale-[0.99]"
             >
-              <div
-                className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-lemon [border:var(--border-thick)]"
-                style={c.imageUrl ? { backgroundImage: `url(${c.imageUrl})`, backgroundSize: "cover", backgroundPosition: "center" } : undefined}
-              >
-                {!c.imageUrl && <span dangerouslySetInnerHTML={{ __html: icon("msg") }} />}
+              <div className="relative shrink-0">
+                <div
+                  className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-xl bg-lemon [border:var(--border-thick)]"
+                  style={c.imageUrl ? { backgroundImage: `url(${c.imageUrl})`, backgroundSize: "cover", backgroundPosition: "center" } : undefined}
+                >
+                  {!c.imageUrl && <span dangerouslySetInnerHTML={{ __html: icon("msg") }} />}
+                </div>
+                {c.hasUnread && (
+                  <span className="absolute -right-1 -top-1 h-3.5 w-3.5 rounded-full bg-gum [border:1.5px_solid_var(--color-card)]" />
+                )}
               </div>
               <div className="min-w-0 flex-1">
                 <p className="truncate font-extrabold text-ink">{c.name}</p>

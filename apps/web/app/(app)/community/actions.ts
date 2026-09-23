@@ -15,6 +15,7 @@ import {
   leaveCommunity,
   listJoinRequests,
   listPublishedGamesForPicker,
+  markCommunityRead,
   postChallengeCodeToChat,
   postChallengeToChat,
   promoteMember,
@@ -124,6 +125,11 @@ export async function sendMessageAction(
 ) {
   const { profile } = await requireProfile();
   return sendMessage(profile.id, communityId, args);
+}
+
+export async function markCommunityReadAction(communityId: string) {
+  const { profile } = await requireProfile();
+  await markCommunityRead(profile.id, communityId);
 }
 
 export async function shareGameInChatAction(communityId: string, gameId: string) {

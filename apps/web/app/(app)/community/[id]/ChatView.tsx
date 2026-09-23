@@ -9,6 +9,7 @@ import type { CommunityMemberItem, CommunityMessageItem, PublishedGameItem, Reac
 import {
   getOlderMessagesAction,
   listPublishedGamesAction,
+  markCommunityReadAction,
   requestToJoinCommunityAction,
   sendMessageAction,
   shareGameInChatAction,
@@ -82,6 +83,11 @@ export function ChatView({
     bottomRef.current?.scrollIntoView({ block: "end" });
   }, []);
 
+  // Opening the chat clears its unread dot (tab bar + group list).
+  useEffect(() => {
+    if (isMember) markCommunityReadAction(community.id).catch(() => {});
+  }, [isMember, community.id]);
+
   useEffect(() => {
     if (!isMember) return;
     const supabase = getSupabaseBrowserClient();
@@ -120,6 +126,9 @@ export function ChatView({
               },
             ];
           });
+          // Someone else's message landing while this chat is already open
+          // shouldn't leave a stale unread dot for next time.
+          if (row.sender_id !== viewerProfileId) markCommunityReadAction(community.id).catch(() => {});
           requestAnimationFrame(() => bottomRef.current?.scrollIntoView({ block: "end", behavior: "smooth" }));
         },
       )

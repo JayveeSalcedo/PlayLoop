@@ -1,5 +1,5 @@
 import { getDb, schema } from "@playloop/db";
-import { and, count, desc, eq, ilike, inArray, sql } from "drizzle-orm";
+import { and, count, desc, eq, gt, ilike, inArray, isNull, ne, or, sql } from "drizzle-orm";
 import { randomBytes } from "node:crypto";
 import { createChallenge } from "../app/play/[slug]/challengeActions";
 
@@ -61,6 +61,8 @@ export interface CommunityListItem {
   inviteCode: string;
   memberCount: number;
   role: string | null;
+  /** True when another member has posted since this profile last opened the chat. Always false for a group not yet joined. */
+  hasUnread: boolean;
 }
 
 /**
@@ -527,6 +529,10 @@ function attachCounts(
       inviteCode: r.inviteCode,
       memberCount: countById.get(r.id) ?? 0,
       role: roleById.get(r.id) ?? null,
+      // Set for real by getCommunitiesForProfile, which post-processes its
+      // own call to this helper — a group you haven't joined has nothing to
+      // mark unread.
+      hasUnread: false,
     }));
   });
 }
@@ -547,16 +553,61 @@ export async function listPublicCommunities(profileId: string, query?: string): 
 export async function getCommunitiesForProfile(profileId: string): Promise<CommunityListItem[]> {
   const db = getDb();
   const memberships = await db
-    .select({ communityId: schema.communityMembers.communityId, role: schema.communityMembers.role })
+    .select({ communityId: schema.communityMembers.communityId, role: schema.communityMembers.role, lastReadAt: schema.communityMembers.lastReadAt })
     .from(schema.communityMembers)
     .where(eq(schema.communityMembers.profileId, profileId));
   if (memberships.length === 0) return [];
 
   const ids = memberships.map((m) => m.communityId);
   const roleById = new Map(memberships.map((m) => [m.communityId, m.role]));
+  const lastReadById = new Map(memberships.map((m) => [m.communityId, m.lastReadAt]));
+
   const rows = await db.select().from(schema.communities).where(inArray(schema.communities.id, ids));
 
-  return attachCounts(db, rows, profileId, roleById);
+  const [items, latestMessages] = await Promise.all([
+    attachCounts(db, rows, profileId, roleById),
+    // Only messages from someone else count toward "unread" — sending your
+    // own message shouldn't put a dot on your own tab.
+    db
+      .select({ communityId: schema.communityMessages.communityId, latest: sql<string>`max(${schema.communityMessages.createdAt})` })
+      .from(schema.communityMessages)
+      .where(and(inArray(schema.communityMessages.communityId, ids), ne(schema.communityMessages.senderId, profileId)))
+      .groupBy(schema.communityMessages.communityId),
+  ]);
+
+  const latestById = new Map(latestMessages.map((m) => [m.communityId, m.latest]));
+  return items.map((item) => {
+    const latest = latestById.get(item.id);
+    const lastRead = lastReadById.get(item.id);
+    return { ...item, hasUnread: Boolean(latest) && (!lastRead || new Date(latest!) > lastRead) };
+  });
+}
+
+/** Marks a group's chat read up to now for this profile — called when its chat is opened. */
+export async function markCommunityRead(profileId: string, communityId: string): Promise<void> {
+  const db = getDb();
+  await db
+    .update(schema.communityMembers)
+    .set({ lastReadAt: sql`now()` })
+    .where(and(eq(schema.communityMembers.communityId, communityId), eq(schema.communityMembers.profileId, profileId)));
+}
+
+/** Lean existence check for the tab-bar dot — does this profile have any group with an unread message? */
+export async function hasAnyUnreadCommunity(profileId: string): Promise<boolean> {
+  const db = getDb();
+  const row = await db
+    .select({ id: schema.communityMessages.id })
+    .from(schema.communityMembers)
+    .innerJoin(schema.communityMessages, eq(schema.communityMessages.communityId, schema.communityMembers.communityId))
+    .where(
+      and(
+        eq(schema.communityMembers.profileId, profileId),
+        ne(schema.communityMessages.senderId, profileId),
+        or(isNull(schema.communityMembers.lastReadAt), gt(schema.communityMessages.createdAt, schema.communityMembers.lastReadAt)),
+      ),
+    )
+    .limit(1);
+  return row.length > 0;
 }
 
 export interface ReactionSummary {
