@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { icon } from "@playloop/ui";
+import { avatar, icon } from "@playloop/ui";
 import { getSupabaseBrowserClient } from "@/lib/supabaseClient";
 import type { CommunityMemberItem, CommunityMessageItem, PublishedGameItem, ReactionSummary } from "@/lib/communities";
 import {
@@ -64,8 +64,18 @@ export function ChatView({
   const [games, setGames] = useState<PublishedGameItem[] | null>(null);
   const [reactMessageId, setReactMessageId] = useState<string | null>(null);
   const [requestStatus, setRequestStatus] = useState<"idle" | "pending">("idle");
+  // @-mention autocomplete: mentionAnchor is the index of the "@" that
+  // opened it, mentionQuery is what's been typed since (null = closed).
+  // pickedMentions/mentionsEveryone accumulate as the composer's own state
+  // rather than being re-parsed from text at send time, so two members
+  // named the same thing can't be confused with each other.
+  const [mentionQuery, setMentionQuery] = useState<string | null>(null);
+  const [mentionAnchor, setMentionAnchor] = useState(0);
+  const [pickedMentions, setPickedMentions] = useState<{ profileId: string; name: string }[]>([]);
+  const [mentionsEveryone, setMentionsEveryone] = useState(false);
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const textInputRef = useRef<HTMLInputElement | null>(null);
   const profileById = new Map(members.map((m) => [m.profileId, { name: m.name, avatarIndex: m.avatarIndex }]));
 
   useEffect(() => {
@@ -178,19 +188,66 @@ export function ChatView({
     setMessages((prev) => [...older, ...prev]);
   }
 
+  /** Tracks the "@query" being typed, if any, so the mention dropdown can filter live. */
+  function handleTextChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const value = e.target.value;
+    setText(value);
+    const caret = e.target.selectionStart ?? value.length;
+    const beforeCaret = value.slice(0, caret);
+    const atIndex = beforeCaret.lastIndexOf("@");
+    if (atIndex === -1 || /\s/.test(beforeCaret.slice(atIndex + 1))) {
+      setMentionQuery(null);
+      return;
+    }
+    setMentionAnchor(atIndex);
+    setMentionQuery(beforeCaret.slice(atIndex + 1));
+  }
+
+  /** Replaces the "@query" just typed with "@Name " (or "@everyone ") and records the mention. */
+  function pickMention(pick: { profileId: string; name: string } | "everyone") {
+    const label = pick === "everyone" ? "everyone" : pick.name;
+    const before = text.slice(0, mentionAnchor);
+    const after = text.slice(mentionAnchor + 1 + (mentionQuery?.length ?? 0));
+    const inserted = `@${label} `;
+    setText(`${before}${inserted}${after}`);
+    setMentionQuery(null);
+    if (pick === "everyone") setMentionsEveryone(true);
+    else setPickedMentions((prev) => (prev.some((p) => p.profileId === pick.profileId) ? prev : [...prev, pick]));
+    requestAnimationFrame(() => {
+      const pos = before.length + inserted.length;
+      textInputRef.current?.focus();
+      textInputRef.current?.setSelectionRange(pos, pos);
+    });
+  }
+
+  const mentionCandidates =
+    mentionQuery === null
+      ? []
+      : members.filter((m) => m.profileId !== viewerProfileId && (m.name ?? "").toLowerCase().includes(mentionQuery.toLowerCase()));
+  const showEveryoneMention = mentionQuery !== null && "everyone".startsWith(mentionQuery.toLowerCase());
+
   async function handleSendText(e: React.FormEvent) {
     e.preventDefault();
     const content = text.trim();
     if (!content) return;
     setSending(true);
     setError(null);
-    const result = await sendMessageAction(community.id, { content, messageType: "text" });
+    const mentions = pickedMentions.filter((m) => content.includes(`@${m.name}`));
+    const sendsToEveryone = mentionsEveryone && content.includes("@everyone");
+    const result = await sendMessageAction(community.id, {
+      content,
+      messageType: "text",
+      metadata: mentions.length > 0 || sendsToEveryone ? { mentions, mentionsEveryone: sendsToEveryone } : undefined,
+    });
     setSending(false);
     if (!result.ok || !result.message) {
       setError(result.error ?? "Could not send message.");
       return;
     }
     setText("");
+    setPickedMentions([]);
+    setMentionsEveryone(false);
+    setMentionQuery(null);
     appendOwnMessage(result.message);
   }
 
@@ -327,11 +384,18 @@ export function ChatView({
           </button>
         )}
         {messages.map((m) => {
+          if (m.metadata.system) {
+            return (
+              <p key={m.id} className="pop-in my-1 text-center text-xs font-semibold text-soft">
+                {m.content}
+              </p>
+            );
+          }
           const isMe = m.senderId === viewerProfileId;
           return (
             <div key={m.id} className={`flex flex-col ${isMe ? "items-end" : "items-start"}`}>
               {!isMe && <p className="ml-1 text-[11px] font-bold text-soft">{m.senderName ?? "Player"}</p>}
-              <MessageBubble message={m} isMe={isMe} />
+              <MessageBubble message={m} isMe={isMe} viewerProfileId={viewerProfileId} />
               <div className="mt-1 flex items-center gap-1">
                 {m.reactions.map((r) => (
                   <button
@@ -396,12 +460,40 @@ export function ChatView({
         >
           <span className="text-xl" dangerouslySetInnerHTML={{ __html: icon("bolt") }} />
         </button>
-        <input
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          placeholder="Message..."
-          className="min-w-0 flex-1 rounded-xl bg-card p-2.5 text-sm font-bold [border:var(--border-thick)]"
-        />
+        <div className="relative min-w-0 flex-1">
+          {mentionQuery !== null && (showEveryoneMention || mentionCandidates.length > 0) && (
+            <div className="absolute bottom-full left-0 z-10 mb-1.5 max-h-48 w-full max-w-[240px] overflow-y-auto rounded-xl bg-card p-1.5 [border:var(--border-thick)] [box-shadow:var(--shadow-sm)]">
+              {showEveryoneMention && (
+                <button
+                  type="button"
+                  onClick={() => pickMention("everyone")}
+                  className="flex w-full items-center gap-2 rounded-lg p-1.5 text-left hover:bg-paper"
+                >
+                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-violet text-xs text-white" dangerouslySetInnerHTML={{ __html: icon("users") }} />
+                  <span className="truncate text-sm font-bold text-ink">everyone</span>
+                </button>
+              )}
+              {mentionCandidates.map((m) => (
+                <button
+                  key={m.profileId}
+                  type="button"
+                  onClick={() => pickMention({ profileId: m.profileId, name: m.name ?? "Player" })}
+                  className="flex w-full items-center gap-2 rounded-lg p-1.5 text-left hover:bg-paper"
+                >
+                  <span className="h-6 w-6 shrink-0 overflow-hidden rounded-full" dangerouslySetInnerHTML={{ __html: avatar(m.avatarIndex, 24) }} />
+                  <span className="truncate text-sm font-bold text-ink">{m.name ?? "Player"}</span>
+                </button>
+              ))}
+            </div>
+          )}
+          <input
+            ref={textInputRef}
+            value={text}
+            onChange={handleTextChange}
+            placeholder="Message... @ to mention"
+            className="w-full rounded-xl bg-card p-2.5 text-sm font-bold [border:var(--border-thick)]"
+          />
+        </div>
         <button type="submit" disabled={sending || !text.trim()} className="btn go shrink-0">
           {sending ? <Spinner size={16} /> : "Send"}
         </button>
@@ -448,8 +540,36 @@ export function ChatView({
   );
 }
 
-function MessageBubble({ message, isMe }: { message: CommunityMessageItem; isMe: boolean }) {
-  const base = `max-w-[75%] rounded-2xl p-3 text-sm font-semibold [border:var(--border-thick)] ${isMe ? "bg-lemon text-ink" : "bg-card text-ink"}`;
+/** Splits text on "@Name"/"@everyone" mentions and wraps each in a highlighted span. */
+function renderMentionedText(content: string, metadata: Record<string, unknown>) {
+  const mentions = (metadata.mentions as { profileId: string; name: string }[] | undefined) ?? [];
+  const names = [...mentions.map((m) => m.name), ...(metadata.mentionsEveryone ? ["everyone"] : [])];
+  if (names.length === 0) return content;
+
+  const escaped = [...names].sort((a, b) => b.length - a.length).map((n) => n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+  const re = new RegExp(`@(?:${escaped.join("|")})\\b`, "g");
+  const parts: React.ReactNode[] = [];
+  let last = 0;
+  let match: RegExpExecArray | null;
+  while ((match = re.exec(content))) {
+    if (match.index > last) parts.push(content.slice(last, match.index));
+    parts.push(
+      <span key={match.index} className="font-extrabold text-violet">
+        {match[0]}
+      </span>,
+    );
+    last = match.index + match[0].length;
+  }
+  if (last < content.length) parts.push(content.slice(last));
+  return parts;
+}
+
+function MessageBubble({ message, isMe, viewerProfileId }: { message: CommunityMessageItem; isMe: boolean; viewerProfileId: string }) {
+  const mentions = (message.metadata.mentions as { profileId: string; name: string }[] | undefined) ?? [];
+  const viewerMentioned = !isMe && (Boolean(message.metadata.mentionsEveryone) || mentions.some((m) => m.profileId === viewerProfileId));
+  const base = `max-w-[75%] rounded-2xl p-3 text-sm font-semibold [border:var(--border-thick)] ${
+    isMe ? "bg-lemon text-ink" : viewerMentioned ? "bg-sky/20 [border:2.5px_solid_var(--color-sky)]" : "bg-card text-ink"
+  }`;
 
   if (message.messageType === "image") {
     const url = String(message.metadata.imageUrl ?? "");
@@ -495,5 +615,5 @@ function MessageBubble({ message, isMe }: { message: CommunityMessageItem; isMe:
     );
   }
 
-  return <div className={base}>{message.content}</div>;
+  return <div className={base}>{renderMentionedText(message.content, message.metadata)}</div>;
 }

@@ -23,6 +23,26 @@ async function requireAdmin(db: ReturnType<typeof getDb>, communityId: string, p
   return member;
 }
 
+/**
+ * Drops a subtle "X joined the group!" line into the chat — a real message
+ * row (messageType "text", metadata.system: true) so it's part of history
+ * for anyone who opens the chat later, not just a toast for whoever's online
+ * right now. Rides the same community_messages Realtime channel ChatView
+ * already subscribes to, so no separate live-push plumbing is needed;
+ * ChatView renders metadata.system as a centered line instead of a bubble.
+ */
+async function postMemberJoinedMessage(db: ReturnType<typeof getDb>, communityId: string, profileId: string) {
+  const profile = await db.select({ name: schema.profiles.name }).from(schema.profiles).where(eq(schema.profiles.id, profileId)).then((r) => r[0]);
+  const name = profile?.name?.trim() || "Someone";
+  await db.insert(schema.communityMessages).values({
+    communityId,
+    senderId: profileId,
+    content: `${name} joined the group!`,
+    messageType: "text",
+    metadata: { system: true },
+  });
+}
+
 async function memberCountFor(db: ReturnType<typeof getDb>, communityId: string): Promise<number> {
   return db
     .select({ n: count() })
@@ -127,6 +147,7 @@ export async function joinCommunityByCode(
     .insert(schema.communityMembers)
     .values({ communityId: community.id, profileId, role: "member" })
     .onConflictDoNothing();
+  await postMemberJoinedMessage(db, community.id, profileId);
 
   return { ok: true, community };
 }
@@ -156,6 +177,7 @@ export async function requestToJoinCommunity(
       return { ok: false, error: "This group is full." };
     }
     await db.insert(schema.communityMembers).values({ communityId, profileId, role: "member" }).onConflictDoNothing();
+    await postMemberJoinedMessage(db, communityId, profileId);
     return { ok: true, status: "joined" };
   }
 
@@ -219,6 +241,7 @@ export async function approveJoinRequest(
     .insert(schema.communityMembers)
     .values({ communityId, profileId: request.profileId, role: "member" })
     .onConflictDoNothing();
+  await postMemberJoinedMessage(db, communityId, request.profileId);
   await db
     .update(schema.communityJoinRequests)
     .set({ status: "approved", decidedAt: sql`now()`, decidedBy: actorProfileId })
