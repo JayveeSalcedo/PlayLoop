@@ -25,6 +25,7 @@ import { useRouter } from "next/navigation";
 import { startTestPlay } from "@/app/(app)/create/studio/actions";
 import type { PlayResult } from "@/lib/creditPlay";
 import { startChallengedPlay, startPlay } from "./actions";
+import { ARENA_LIVE_SCORE_THROTTLE_MS } from "./arenaLiveScore";
 import { PlayIntro } from "./PlayIntro";
 import { PlayResultScreen } from "./PlayResultScreen";
 
@@ -70,6 +71,7 @@ export function CodeGamePlayer({
   challengeCode,
   arenaSessionId,
   arenaCode,
+  challengeCommunityId,
   test,
 }: {
   game: CodeGameRow;
@@ -77,6 +79,8 @@ export function CodeGamePlayer({
   challengeCode?: string;
   arenaSessionId?: string;
   arenaCode?: string;
+  /** If set, drop a challenge into this group's chat once the play is submitted. */
+  challengeCommunityId?: string;
   /**
    * A creator's studio test play of this version: verified by replay exactly
    * like a real play, never credited. Its verified result is what lets them
@@ -94,6 +98,7 @@ export function CodeGamePlayer({
   const frameRef = useRef<HTMLIFrameElement>(null);
   const sessionRef = useRef<string | null>(null);
   const readyRef = useRef<{ promise: Promise<void>; resolve: () => void; reject: (e: Error) => void } | null>(null);
+  const lastArenaReportRef = useRef(0);
 
   // The same runtime the server will replay this version with — see buildGameDocument.
   const srcDoc = useMemo(() => (version ? buildGameDocument(version.code, version.runtimeVersion) : ""), [version]);
@@ -134,12 +139,16 @@ export function CodeGamePlayer({
           const { submitArenaScore } = await import("@/app/events/actions");
           await submitArenaScore(arenaSessionId, (data as PlayResult).payoutPoints).catch(() => {});
         }
+        if (challengeCommunityId) {
+          const { postChallengeToChatAction } = await import("@/app/(app)/community/actions");
+          await postChallengeToChatAction(challengeCommunityId, sessionId).catch(() => {});
+        }
         setStage({ name: "result", result: data as PlayResult, sessionId });
       } catch (e) {
         backToIntro(e instanceof Error ? e.message : "Couldn't save that play — try again.");
       }
     },
-    [backToIntro, test, arenaSessionId],
+    [backToIntro, test, arenaSessionId, challengeCommunityId],
   );
 
   useEffect(() => {
@@ -152,9 +161,20 @@ export function CodeGamePlayer({
         case "ready":
           readyRef.current?.resolve();
           break;
-        case "hud":
-          setHud({ score: Number(msg.score) || 0, lives: Number(msg.lives) || 0, timeLeft: Number(msg.timeLeft) || 0 });
+        case "hud": {
+          const score = Number(msg.score) || 0;
+          setHud({ score, lives: Number(msg.lives) || 0, timeLeft: Number(msg.timeLeft) || 0 });
+          // Mirror onto the arena leaderboard, same as the template engine's
+          // onScoreChange — throttled, best-effort, never the source of truth.
+          if (arenaSessionId) {
+            const now = Date.now();
+            if (now - lastArenaReportRef.current >= ARENA_LIVE_SCORE_THROTTLE_MS) {
+              lastArenaReportRef.current = now;
+              import("@/app/events/actions").then(({ reportArenaScore }) => reportArenaScore(arenaSessionId, score)).catch(() => {});
+            }
+          }
           break;
+        }
         case "end":
           void submit(msg);
           break;
@@ -166,7 +186,7 @@ export function CodeGamePlayer({
     };
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
-  }, [submit, backToIntro]);
+  }, [submit, backToIntro, arenaSessionId]);
 
   async function start() {
     if (!version) return;
@@ -222,6 +242,7 @@ export function CodeGamePlayer({
         sessionId={stage.sessionId}
         challengeCode={challengeCode}
         arenaCode={arenaCode}
+        challengeCommunityId={challengeCommunityId}
         onPlayAgain={() => backToIntro(null)}
       />
     );

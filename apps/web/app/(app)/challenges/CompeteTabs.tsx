@@ -1,7 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { avatar, icon } from "@playloop/ui";
+import { getSupabaseBrowserClient } from "@/lib/supabaseClient";
 import { SuccessModal } from "@/app/_components/SuccessModal";
 import { type Season, type PassProgress } from "@playloop/economy";
 import { type LeagueItem, type LeaderboardEntry } from "@/lib/leagues";
@@ -65,8 +67,33 @@ export function CompeteTabs({
   weeklyBoard: FriendLeaderboardEntry[];
   opponents: Opponent[];
 }) {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<"leagues" | "challenges">("leagues");
   const [showBragModal, setShowBragModal] = useState(false);
+
+  // Realtime: a sent challenge has no "opponent replied" push of its own —
+  // it just sits pending until someone plays the link. Watch for that row
+  // flipping to completed and refresh so it moves from "Sent" to "History"
+  // without the sender needing to reload the page themselves.
+  useEffect(() => {
+    const supabase = getSupabaseBrowserClient();
+    if (!supabase) return; // Realtime not configured — still updates on next visit.
+    const channel = supabase
+      .channel(`challenges-sent-${profile.id}`)
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "challenges", filter: `sender_id=eq.${profile.id}` },
+        (payload) => {
+          const row = payload.new as { status: string };
+          if (row.status === "completed") router.refresh();
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [profile.id, router]);
 
   const opponentById = new Map(opponents.map((o) => [o.id, o]));
   const friendById = new Map(friends.map((f) => [f.id, f]));

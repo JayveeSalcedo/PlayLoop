@@ -38,6 +38,11 @@ export function runGame<TConfig>(
   host: HTMLElement,
   onEnd: (result: RunGameResult) => void,
   onQuit?: () => void,
+  /** Fires on every score change during play — e.g. to mirror a provisional
+   *  score onto an arena's live leaderboard. Not the source of truth: the
+   *  authoritative score is still whatever `onEnd` reports, submitted through
+   *  the normal verified-replay pipeline. */
+  onScoreChange?: (score: number) => void,
 ): RunGameHandle {
   host.innerHTML = hostHTML();
   const stage = host.querySelector<HTMLElement>(".gstage")!;
@@ -68,6 +73,7 @@ export function runGame<TConfig>(
       score = Math.max(0, score + n);
       sEl.textContent = num(score);
       bump(sEl);
+      onScoreChange?.(score);
       if (x != null && y != null) {
         const f = document.createElement("div");
         f.className = "ftxt " + (n >= 0 ? "pos" : "neg");

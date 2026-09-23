@@ -48,6 +48,7 @@ export async function GET(
     .then((r) => r[0]);
 
   return NextResponse.json({
+    id: session.id,
     state: session.state,
     startedAt: session.startedAt,
     gameTitle: game?.title ?? "Game",

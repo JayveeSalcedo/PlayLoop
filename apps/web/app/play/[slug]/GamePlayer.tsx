@@ -5,7 +5,9 @@ import { artSVG, type GameArtType, type ItemKind, type ThemeName } from "@playlo
 import { useRef, useState } from "react";
 import { Spinner } from "@/app/_components/Spinner";
 import { startChallengedPlay, startPlay, submitPlay, type PlayResult } from "./actions";
-import { submitArenaScore } from "@/app/events/actions";
+import { reportArenaScore, submitArenaScore } from "@/app/events/actions";
+import { ARENA_LIVE_SCORE_THROTTLE_MS } from "./arenaLiveScore";
+import { postChallengeToChatAction } from "@/app/(app)/community/actions";
 import { PlayIntro } from "./PlayIntro";
 import { PlayResultScreen } from "./PlayResultScreen";
 
@@ -34,11 +36,14 @@ export function GamePlayer({
   challengeCode,
   arenaSessionId,
   arenaCode,
+  challengeCommunityId,
 }: {
   game: GameRow;
   challengeCode?: string;
   arenaSessionId?: string;
   arenaCode?: string;
+  /** If set, drop a challenge into this group's chat once the play is submitted. */
+  challengeCommunityId?: string;
 }) {
   const [stage, setStage] = useState<Stage>("intro");
   const [result, setResult] = useState<PlayResult | null>(null);
@@ -79,6 +84,9 @@ export function GamePlayer({
           if (arenaSessionId) {
             await submitArenaScore(arenaSessionId, r.payoutPoints).catch(() => {});
           }
+          if (challengeCommunityId) {
+            await postChallengeToChatAction(challengeCommunityId, sessionId).catch(() => {});
+          }
           setResult(r);
           setLastSessionId(sessionId);
           setStage("result");
@@ -89,12 +97,23 @@ export function GamePlayer({
       };
       const onQuit = () => setStage("intro");
 
+      let lastReportedAt = 0;
+      const onScoreChange = arenaSessionId
+        ? (score: number) => {
+            const now = Date.now();
+            if (now - lastReportedAt < ARENA_LIVE_SCORE_THROTTLE_MS) return;
+            lastReportedAt = now;
+            reportArenaScore(arenaSessionId, score).catch(() => {});
+          }
+        : undefined;
+
       runGameFromConfig(
         type,
         { difficulty: game.difficulty, theme: game.theme as ThemeName, config },
         host,
         onEnd,
         onQuit,
+        onScoreChange,
       );
     });
   }
@@ -125,6 +144,7 @@ export function GamePlayer({
         sessionId={lastSessionId}
         challengeCode={challengeCode}
         arenaCode={arenaCode}
+        challengeCommunityId={challengeCommunityId}
         onPlayAgain={() => {
           setResult(null);
           setStage("intro");

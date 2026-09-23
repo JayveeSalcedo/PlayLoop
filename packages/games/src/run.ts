@@ -28,25 +28,26 @@ export function runGameFromConfig(
   host: HTMLElement,
   onEnd: (result: RunGameResult) => void,
   onQuit?: () => void,
+  onScoreChange?: (score: number) => void,
 ): RunGameHandle {
   const { difficulty, theme, config } = opts;
 
   switch (type) {
     case "catch": {
       const c: CatchConfig = { difficulty, theme, item: (config.item as ItemKind) ?? "bean" };
-      return runGame(catchGame, c, host, onEnd, onQuit);
+      return runGame(catchGame, c, host, onEnd, onQuit, onScoreChange);
     }
     case "quiz": {
       const c: QuizConfig = { difficulty, questions: (config.questions as QuizQuestion[]) ?? [] };
-      return runGame(quizGame, c, host, onEnd, onQuit);
+      return runGame(quizGame, c, host, onEnd, onQuit, onScoreChange);
     }
     case "memory": {
       const c: MemoryConfig = { difficulty, images: config.images as (string | null)[] | undefined };
-      return runGame(memoryGame, c, host, onEnd, onQuit);
+      return runGame(memoryGame, c, host, onEnd, onQuit, onScoreChange);
     }
     case "reflex": {
       const c: ReflexConfig = { difficulty, target: (config.target as ReflexTarget) ?? "mint" };
-      return runGame(reflexGame, c, host, onEnd, onQuit);
+      return runGame(reflexGame, c, host, onEnd, onQuit, onScoreChange);
     }
   }
 }

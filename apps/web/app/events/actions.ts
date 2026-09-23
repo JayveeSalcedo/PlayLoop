@@ -227,3 +227,33 @@ export async function submitArenaScore(sessionId: string, score: number) {
   return { ok: true };
 }
 
+/**
+ * Mirrors a player's in-progress score onto the arena leaderboard while
+ * they're still playing, so the host's big screen ticks up live instead of
+ * sitting at 0 until each player finishes. Purely cosmetic — deliberately
+ * separate from submitArenaScore: it never sets finishedAt, and the final,
+ * authoritative score submitted there (via the verified-replay pipeline)
+ * always overwrites whatever this wrote. Best-effort by design: the caller
+ * (GamePlayer/CodeGamePlayer) fires this on a throttle during play and
+ * shouldn't surface a network hiccup to a mid-game player, so a player no
+ * longer in this session (already finished, or session reset) is a silent
+ * no-op rather than a thrown error.
+ */
+export async function reportArenaScore(sessionId: string, score: number) {
+  const { profile } = await requireProfile();
+  const db = getDb();
+
+  await db
+    .update(schema.arenaPlayers)
+    .set({ score })
+    .where(
+      and(
+        eq(schema.arenaPlayers.sessionId, sessionId),
+        eq(schema.arenaPlayers.profileId, profile.id),
+        sql`${schema.arenaPlayers.finishedAt} IS NULL`,
+      ),
+    );
+
+  return { ok: true };
+}
+

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { getSupabaseBrowserClient } from "@/lib/supabaseClient";
 import { joinArenaSession } from "../actions";
 
 type Phase = "join" | "waiting" | "error";
@@ -24,6 +25,9 @@ export function ArenaPlayer({ profileId, profileName, avatarIndex, initialCode }
   const [busy, setBusy] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
   const joinedRef = useRef(false);
+  const navigatedRef = useRef(false);
+  const gameSlugRef = useRef(gameSlug);
+  useEffect(() => { gameSlugRef.current = gameSlug; }, [gameSlug]);
 
   const doJoin = useCallback(async (joinCode: string) => {
     if (!joinCode.trim() || busy) return;
@@ -51,7 +55,17 @@ export function ArenaPlayer({ profileId, profileName, avatarIndex, initialCode }
     }
   }, [initialCode, doJoin]);
 
-  /* Poll for game start while waiting */
+  /** Navigate to the game once the host starts it — called from either the
+   *  poll or the Realtime push below, whichever notices first. */
+  const goToGame = useCallback((slugFromEvent?: string) => {
+    if (navigatedRef.current) return;
+    navigatedRef.current = true;
+    clearInterval(pollRef.current);
+    const slug = slugFromEvent || gameSlugRef.current;
+    router.push(`/play/${slug}?arena=${sessionId}&arenaCode=${code}`);
+  }, [router, sessionId, code]);
+
+  /* Poll for game start while waiting (fallback if Realtime is unavailable) */
   useEffect(() => {
     if (phase !== "waiting" || !code) return;
     pollRef.current = setInterval(async () => {
@@ -60,15 +74,35 @@ export function ArenaPlayer({ profileId, profileName, avatarIndex, initialCode }
         if (!r.ok) return;
         const data = await r.json();
         if (data.gameTitle) setGameTitle(data.gameTitle);
-        if (data.state === "playing") {
-          clearInterval(pollRef.current);
-          const slug = data.gameSlug || gameSlug;
-          router.push(`/play/${slug}?arena=${sessionId}&arenaCode=${code}`);
-        }
+        if (data.state === "playing") goToGame(data.gameSlug);
       } catch { /* ignore */ }
     }, 2000);
     return () => clearInterval(pollRef.current);
-  }, [phase, code, gameSlug, sessionId, router]);
+  }, [phase, code, goToGame]);
+
+  /* Realtime: jump the moment the host starts the game instead of waiting
+   * on the next poll tick. The poll above stays on as a fallback. */
+  useEffect(() => {
+    if (phase !== "waiting" || !code) return;
+    const supabase = getSupabaseBrowserClient();
+    if (!supabase) return; // Realtime not configured — polling still covers this.
+
+    const channel = supabase
+      .channel(`arena-join-${code}`)
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "arena_sessions", filter: `code=eq.${code}` },
+        (payload) => {
+          const row = payload.new as { state: string };
+          if (row.state === "playing") goToGame();
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [phase, code, goToGame]);
 
   /* ── Join phase ─────────────────────────────── */
   if (phase === "join") {

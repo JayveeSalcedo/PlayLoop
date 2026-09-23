@@ -13,6 +13,30 @@ import { brandMembers, brands, games, leagueMembers, leagues, profiles, rewards,
 // Load the monorepo root .env regardless of CWD (see apps/web/next.config.ts for the same pattern).
 config({ path: path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../.env") });
 
+/**
+ * Idempotently creates the community-media Storage bucket used for group
+ * cover photos and chat images. No-ops (with a log line) when Supabase env
+ * vars aren't set, so local/non-Supabase Postgres dev keeps working.
+ */
+async function ensureCommunityMediaBucket() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !serviceKey) {
+    console.log("Skipping Storage bucket setup — Supabase env vars not set.");
+    return;
+  }
+  const { createClient } = await import("@supabase/supabase-js");
+  const admin = createClient(url, serviceKey);
+  const { data: buckets } = await admin.storage.listBuckets();
+  if (!buckets?.some((b) => b.name === "community-media")) {
+    await admin.storage.createBucket("community-media", {
+      public: true,
+      fileSizeLimit: "5MB",
+    });
+    console.log("Created Storage bucket: community-media");
+  }
+}
+
 async function main() {
   const db = getDb();
 
@@ -64,6 +88,129 @@ async function main() {
     CREATE INDEX IF NOT EXISTS venue_events_brand_id_idx ON venue_events(brand_id);
     CREATE INDEX IF NOT EXISTS venue_events_code_idx ON venue_events(code);
   `);
+
+  // Communities & group chat (Phase 14) — tables, message-type enum, and
+  // Realtime replication for community_messages.
+  await db.execute(sql`
+    DO $$ BEGIN
+      CREATE TYPE community_message_type AS ENUM ('text', 'image', 'game_share', 'challenge');
+    EXCEPTION WHEN duplicate_object THEN null;
+    END $$;
+
+    CREATE TABLE IF NOT EXISTS communities (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      name text NOT NULL,
+      description text,
+      image_url text,
+      is_public boolean NOT NULL DEFAULT false,
+      requires_approval boolean NOT NULL DEFAULT false,
+      invite_code text NOT NULL UNIQUE,
+      creator_id uuid REFERENCES profiles(id),
+      created_at timestamp with time zone NOT NULL DEFAULT now()
+    );
+    CREATE INDEX IF NOT EXISTS communities_is_public_idx ON communities(is_public);
+
+    CREATE TABLE IF NOT EXISTS community_members (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      community_id uuid NOT NULL REFERENCES communities(id) ON DELETE CASCADE,
+      profile_id uuid NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+      role text NOT NULL DEFAULT 'member',
+      joined_at timestamp with time zone NOT NULL DEFAULT now(),
+      CONSTRAINT community_members_community_profile_unique UNIQUE (community_id, profile_id)
+    );
+    CREATE INDEX IF NOT EXISTS community_members_community_id_idx ON community_members(community_id);
+    CREATE INDEX IF NOT EXISTS community_members_profile_id_idx ON community_members(profile_id);
+
+    CREATE TABLE IF NOT EXISTS community_join_requests (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      community_id uuid NOT NULL REFERENCES communities(id) ON DELETE CASCADE,
+      profile_id uuid NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+      status text NOT NULL DEFAULT 'pending',
+      created_at timestamp with time zone NOT NULL DEFAULT now(),
+      decided_at timestamp with time zone,
+      decided_by uuid REFERENCES profiles(id),
+      CONSTRAINT community_join_requests_community_profile_unique UNIQUE (community_id, profile_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS community_messages (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      community_id uuid NOT NULL REFERENCES communities(id) ON DELETE CASCADE,
+      sender_id uuid NOT NULL REFERENCES profiles(id),
+      content text NOT NULL DEFAULT '',
+      message_type community_message_type NOT NULL DEFAULT 'text',
+      metadata jsonb NOT NULL DEFAULT '{}'::jsonb,
+      created_at timestamp with time zone NOT NULL DEFAULT now()
+    );
+    CREATE INDEX IF NOT EXISTS community_messages_community_created_idx ON community_messages(community_id, created_at);
+
+    CREATE TABLE IF NOT EXISTS community_reactions (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      message_id uuid NOT NULL REFERENCES community_messages(id) ON DELETE CASCADE,
+      profile_id uuid NOT NULL REFERENCES profiles(id),
+      emoji text NOT NULL,
+      created_at timestamp with time zone NOT NULL DEFAULT now(),
+      CONSTRAINT community_reactions_message_profile_emoji_unique UNIQUE (message_id, profile_id, emoji)
+    );
+
+    DO $$
+    BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM pg_publication_tables
+        WHERE pubname = 'supabase_realtime' AND tablename = 'community_messages'
+      ) THEN
+        ALTER PUBLICATION supabase_realtime ADD TABLE community_messages;
+      END IF;
+    END $$;
+  `);
+
+  // Live arena (Phase: QR-join sessions) — Realtime replication for
+  // arena_sessions (host/players watch `state` flip lobby -> countdown ->
+  // playing -> results) and arena_players (host watches players join and
+  // score updates). Tables already exist from an earlier drizzle-kit push;
+  // this just turns Realtime on for them, same idempotent pattern as
+  // community_messages above.
+  await db.execute(sql`
+    DO $$
+    BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM pg_publication_tables
+        WHERE pubname = 'supabase_realtime' AND tablename = 'arena_sessions'
+      ) THEN
+        ALTER PUBLICATION supabase_realtime ADD TABLE arena_sessions;
+      END IF;
+      IF NOT EXISTS (
+        SELECT 1 FROM pg_publication_tables
+        WHERE pubname = 'supabase_realtime' AND tablename = 'arena_players'
+      ) THEN
+        ALTER PUBLICATION supabase_realtime ADD TABLE arena_players;
+      END IF;
+    END $$;
+  `);
+
+  // Community join requests (admin sees a new request land without
+  // refreshing) + community_members (a requester's own "waiting for
+  // approval" screen flips to the chat the instant they're approved) +
+  // challenges (a sender's "waiting for opponent" list moves a challenge to
+  // history the instant it's completed). Same idempotent add-to-publication
+  // pattern, looped since it's now three tables at once.
+  await db.execute(sql`
+    DO $$
+    DECLARE
+      t text;
+    BEGIN
+      FOREACH t IN ARRAY ARRAY['community_members', 'community_join_requests', 'challenges']
+      LOOP
+        IF NOT EXISTS (
+          SELECT 1 FROM pg_publication_tables
+          WHERE pubname = 'supabase_realtime' AND tablename = t
+        ) THEN
+          EXECUTE format('ALTER PUBLICATION supabase_realtime ADD TABLE %I', t);
+        END IF;
+      END LOOP;
+    END $$;
+  `);
+
+  await ensureCommunityMediaBucket();
 
   await db
     .insert(games)
