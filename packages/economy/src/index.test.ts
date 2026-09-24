@@ -99,6 +99,10 @@ describe("scoreTarget", () => {
   it("targets snake at a solid run, well under the grid-capacity ceiling", () => {
     expect(scoreTarget("snake")).toBe(200);
   });
+
+  it("targets tic-tac-toe at a draw, not a win", () => {
+    expect(scoreTarget("tictactoe")).toBe(100);
+  });
 });
 
 describe("voucherStatus", () => {

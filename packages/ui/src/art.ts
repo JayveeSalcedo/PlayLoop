@@ -232,7 +232,7 @@ export const MEMORY_SHAPES: string[] = [
   `<svg viewBox="0 0 40 40"><path d="M20 34S5 25 5 15a7.5 7.5 0 0 1 15-3 7.5 7.5 0 0 1 15 3c0 10-15 19-15 19z" fill="#8A6BFF" stroke="${INK}" stroke-width="3" stroke-linejoin="round"/></svg>`,
 ];
 
-export type GameArtType = "catch" | "quiz" | "memory" | "reflex" | "merge" | "slide" | "snake";
+export type GameArtType = "catch" | "quiz" | "memory" | "reflex" | "merge" | "slide" | "snake" | "tictactoe";
 
 /**
  * Renders the 160x120 cover art used on game cards, per template type + theme.
@@ -284,6 +284,15 @@ export function artSVG(type: GameArtType | null, theme: ThemeName = "neon", item
       seg(58, 60, false) +
       seg(58, 42, true) +
       itemShape(item, 110, 40, 1.3);
+  } else if (type === "tictactoe") {
+    const gx = 46;
+    const gy = 26;
+    const s = 22;
+    const lines = `<path d="M${gx + s} ${gy}V${gy + s * 3}M${gx + s * 2} ${gy}V${gy + s * 3}M${gx} ${gy + s}H${gx + s * 3}M${gx} ${gy + s * 2}H${gx + s * 3}" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round"/>`;
+    const xMark = (cx: number, cy: number) =>
+      `<path d="M${cx - 7} ${cy - 7}L${cx + 7} ${cy + 7}M${cx + 7} ${cy - 7}L${cx - 7} ${cy + 7}" stroke="${b}" stroke-width="4" stroke-linecap="round"/>`;
+    const oMark = (cx: number, cy: number) => `<circle cx="${cx}" cy="${cy}" r="8" fill="none" stroke="${INK}" stroke-width="4"/>`;
+    inner = lines + xMark(gx + s * 0.5, gy + s * 0.5) + oMark(gx + s * 1.5, gy + s * 0.5) + xMark(gx + s * 0.5, gy + s * 1.5) + xMark(gx + s * 1.5, gy + s * 1.5) + oMark(gx + s * 2.5, gy + s * 2.5);
   } else {
     inner = `<g transform="translate(74 62)"><circle r="44" fill="#fff" ${sw}/><circle r="30" fill="${b}" ${sw}/><circle r="15" fill="#fff" ${sw}/><circle r="5" fill="${INK}"/></g><g transform="translate(122 36)"><circle r="16" fill="#D7FF4A" ${sw}/><circle cx="-5" cy="-2" r="2.4" fill="${INK}"/><circle cx="5" cy="-2" r="2.4" fill="${INK}"/><path d="M-5 5q5 4 10 0" stroke="${INK}" stroke-width="2.4" fill="none" stroke-linecap="round"/></g><path d="M100 18l-6-8M140 20l6-8M146 40h9" stroke="${INK}" stroke-width="3" stroke-linecap="round"/>`;
   }

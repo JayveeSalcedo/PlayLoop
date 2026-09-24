@@ -10,3 +10,4 @@ export * from "./templates/reflex";
 export * from "./templates/merge";
 export * from "./templates/slide";
 export * from "./templates/snake";
+export * from "./templates/tictactoe";

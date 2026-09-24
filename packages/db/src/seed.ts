@@ -48,6 +48,8 @@ async function main() {
   await db.execute(sql`ALTER TYPE game_type ADD VALUE IF NOT EXISTS 'slide';`);
   // "Snake" template type (classic: eat food to grow, die on wall/self hit).
   await db.execute(sql`ALTER TYPE game_type ADD VALUE IF NOT EXISTS 'snake';`);
+  // "Tic-Tac-Toe" template type (solo vs. a computer opponent).
+  await db.execute(sql`ALTER TYPE game_type ADD VALUE IF NOT EXISTS 'tictactoe';`);
 
   // Ensure leagues, league_members, and venue_events tables exist, and games has cover_image
   await db.execute(sql`

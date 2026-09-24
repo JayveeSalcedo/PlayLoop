@@ -17,6 +17,7 @@ import { quizGame, type QuizConfig } from "./templates/quiz";
 import { reflexGame, type ReflexConfig, type ReflexTarget } from "./templates/reflex";
 import { slideGame, type SlideConfig } from "./templates/slide";
 import { snakeGame, type SnakeConfig } from "./templates/snake";
+import { tictactoeGame, type TicTacToeConfig } from "./templates/tictactoe";
 import type { Difficulty, QuizQuestion, RunGameResult } from "./types";
 
 export interface GameRunOptions {
@@ -63,6 +64,10 @@ export function runGameFromConfig(
     case "snake": {
       const c: SnakeConfig = { difficulty, theme, item: (config.item as ItemKind) ?? "bean" };
       return runGame(snakeGame, c, host, onEnd, onQuit, onScoreChange);
+    }
+    case "tictactoe": {
+      const c: TicTacToeConfig = { difficulty, theme };
+      return runGame(tictactoeGame, c, host, onEnd, onQuit, onScoreChange);
     }
   }
 }

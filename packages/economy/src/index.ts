@@ -102,7 +102,7 @@ export const GUEST_DAILY_CAP = 2_000;
 /** Bonus points awarded to 1st, 2nd, and 3rd place finishers in live big-screen event rounds. */
 export const EVENT_PODIUM_BONUS = [100, 60, 30] as const;
 
-export type GameType = "quiz" | "catch" | "memory" | "reflex" | "merge" | "slide" | "snake";
+export type GameType = "quiz" | "catch" | "memory" | "reflex" | "merge" | "slide" | "snake" | "tictactoe";
 
 /** Score needed to earn the full maxPoints payout, per game type. */
 export function scoreTarget(type: GameType, questionCount?: number): number {
@@ -128,6 +128,11 @@ export function scoreTarget(type: GameType, questionCount?: number): number {
       // 20 food eaten (200 points) is a solid run, well short of the 1930
       // grid-capacity ceiling — payout() clamps a longer run at maxPoints.
       return 200;
+    case "tictactoe":
+      // A draw (100) earns full payout — on Hard, a perfect-play AI, that's
+      // the best any player can achieve, so it shouldn't take a win (300) to
+      // get full credit. payout() still clamps a win at maxPoints anyway.
+      return 100;
   }
 }
 

@@ -7,7 +7,7 @@
  */
 import type { Difficulty } from "./types";
 
-export type PlayableType = "catch" | "quiz" | "memory" | "reflex" | "merge" | "slide" | "snake";
+export type PlayableType = "catch" | "quiz" | "memory" | "reflex" | "merge" | "slide" | "snake" | "tictactoe";
 
 /** Difficulty -> spawn/timer speed multiplier, ported from the prototype's SPD (playloop-prototype.html:1429). */
 export const SPEED_BY_DIFFICULTY: Record<Difficulty, number> = {
@@ -28,6 +28,7 @@ export const GAME_DURATION_SECONDS: Record<PlayableType, number> = {
   merge: 0,
   slide: 75,
   snake: 0,
+  tictactoe: 0,
 };
 
 /** Difficulty -> how many random (guaranteed-solvable) slides scramble the board. */
@@ -50,6 +51,14 @@ export const MERGE_TIME_CAP_SECONDS = 6 * 60;
  * on collision), but bounded so a very long survival doesn't sit open forever.
  */
 export const SNAKE_TIME_CAP_SECONDS = 3 * 60;
+
+/**
+ * Soft ceiling tictactoe.ts enforces client-side — a turn-based game has no
+ * natural clock forcing it to resolve (unlike merge/snake's continuous
+ * ticking), so this is what stops an abandoned mid-game session from sitting
+ * open indefinitely.
+ */
+export const TICTACTOE_TIME_CAP_SECONDS = 5 * 60;
 
 
 /** Timer-drift / frame-granularity allowance applied to minimum durations. */
@@ -150,6 +159,16 @@ export function playRules(type: PlayableType, opts: { difficulty: Difficulty; qu
         minSeconds: COUNTDOWN_SECONDS + 2,
         maxSeconds: COUNTDOWN_SECONDS + SNAKE_TIME_CAP_SECONDS + STALE_SLACK_SECONDS,
         maxScore: 10 * (196 - 3),
+      };
+    }
+    case "tictactoe": {
+      // Exactly three outcomes: win (300), draw (100), or loss (0) — 300 is
+      // the true maximum, not an estimate. Self-terminating (ends the moment
+      // the board resolves), bounded by the same client-enforced time cap.
+      return {
+        minSeconds: COUNTDOWN_SECONDS + 2,
+        maxSeconds: COUNTDOWN_SECONDS + TICTACTOE_TIME_CAP_SECONDS + STALE_SLACK_SECONDS,
+        maxScore: 300,
       };
     }
   }

@@ -132,6 +132,9 @@ export function normalizeConfig(type: PlayableType, raw: unknown): Record<string
       const item = src.item as ItemKind;
       return { item: CATCH_ITEMS.includes(item) ? item : "bean" };
     }
+    case "tictactoe":
+      // No per-game content — the board, marks, and AI are all fixed by the template.
+      return {};
   }
 }
 

@@ -49,6 +49,7 @@ const DESCRIPTIONS: Record<
   merge: () => "Swipe or use arrow keys to merge matching tiles. Reach the top tier to win.",
   slide: () => "Slide the tiles into the gap to solve the puzzle before time runs out.",
   snake: () => "Eat the food to grow. Don't hit the wall or yourself.",
+  tictactoe: () => "You're X against the computer. First to three in a row wins.",
 };
 
 export interface PublishedGame {

@@ -27,6 +27,7 @@ export const gameTypeEnum = pgEnum("game_type", [
   "merge",
   "slide",
   "snake",
+  "tictactoe",
 ]);
 export const difficultyEnum = pgEnum("difficulty", ["Easy", "Medium", "Hard"]);
 export const playSessionStatusEnum = pgEnum("play_session_status", [

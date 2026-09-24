@@ -86,6 +86,12 @@ const TEMPLATES: {
     blurb: "Eat food to grow. Don't hit the wall or yourself.",
     best: "Quick sessions, leaderboards",
   },
+  {
+    type: "tictactoe",
+    name: "Tic Tac Duel",
+    blurb: "You're X, the computer is O. First to three in a row wins.",
+    best: "Waiting rooms, quick breaks",
+  },
 ];
 
 const STEPS = ["Template", "Customise", "Test", "Publish"];
@@ -139,7 +145,9 @@ function toGameDraft(d: Draft): GameDraft {
               ? { icons: d.icons }
               : type === "slide"
                 ? { image: d.slideImage }
-                : { item: d.item };
+                : type === "snake"
+                  ? { item: d.item }
+                  : {};
   return {
     type,
     title: d.title.trim(),
