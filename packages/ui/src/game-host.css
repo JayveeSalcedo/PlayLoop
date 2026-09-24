@@ -589,17 +589,16 @@
   position: absolute;
   inset: 0;
   display: grid;
-  gap: 1px;
   padding: 10px;
   max-width: min(100%, 78vh);
   max-height: min(100%, 78vh);
   margin: auto;
+  border: 2.5px solid var(--color-ink);
+  border-radius: 12px;
   touch-action: none;
 }
 .sk-c {
   position: relative;
-  border-radius: 3px;
-  background: rgba(255, 255, 255, 0.05);
 }
 .sk-body,
 .sk-head {
