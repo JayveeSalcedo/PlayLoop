@@ -95,6 +95,10 @@ describe("scoreTarget", () => {
   it("targets slide at solving with roughly half the clock left", () => {
     expect(scoreTarget("slide")).toBe(450);
   });
+
+  it("targets snake at a solid run, well under the grid-capacity ceiling", () => {
+    expect(scoreTarget("snake")).toBe(200);
+  });
 });
 
 describe("voucherStatus", () => {

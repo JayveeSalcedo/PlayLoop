@@ -128,6 +128,10 @@ export function normalizeConfig(type: PlayableType, raw: unknown): Record<string
       // resolution, not an icon-sized cap — same ceiling as coverImage.
       return isValidCoverImageDataUrl(src.image) ? { image: src.image } : {};
     }
+    case "snake": {
+      const item = src.item as ItemKind;
+      return { item: CATCH_ITEMS.includes(item) ? item : "bean" };
+    }
   }
 }
 
@@ -187,6 +191,10 @@ export function validateGameDraft(draft: GameDraft): DraftIssue[] {
 
   if (draft.type === "catch" && !CATCH_ITEMS.includes(config.item as ItemKind)) {
     issues.push({ field: "item", message: "Pick what falls from the sky." });
+  }
+
+  if (draft.type === "snake" && !CATCH_ITEMS.includes(config.item as ItemKind)) {
+    issues.push({ field: "item", message: "Pick what the snake eats." });
   }
 
   if (draft.type === "reflex" && !REFLEX_TARGETS.includes(config.target as ReflexTarget)) {

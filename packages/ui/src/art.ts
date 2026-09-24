@@ -232,7 +232,7 @@ export const MEMORY_SHAPES: string[] = [
   `<svg viewBox="0 0 40 40"><path d="M20 34S5 25 5 15a7.5 7.5 0 0 1 15-3 7.5 7.5 0 0 1 15 3c0 10-15 19-15 19z" fill="#8A6BFF" stroke="${INK}" stroke-width="3" stroke-linejoin="round"/></svg>`,
 ];
 
-export type GameArtType = "catch" | "quiz" | "memory" | "reflex" | "merge" | "slide";
+export type GameArtType = "catch" | "quiz" | "memory" | "reflex" | "merge" | "slide" | "snake";
 
 /**
  * Renders the 160x120 cover art used on game cards, per template type + theme.
@@ -274,6 +274,16 @@ export function artSVG(type: GameArtType | null, theme: ThemeName = "neon", item
       return `<g transform="translate(${x + 17} ${y + 17})">${shape(10, index % 2 === 0 ? ta : tb, INK)}</g>`;
     };
     inner = `${cell(28, 24, 0)}${cell(66, 24, 1)}${cell(104, 24, 2)}${cell(28, 62, 3)}${cell(66, 62, null)}${cell(104, 62, 5)}${cell(28, 100, 6)}${cell(66, 100, 7)}`;
+  } else if (type === "snake") {
+    const seg = (x: number, y: number, head: boolean) =>
+      `<rect x="${x}" y="${y}" width="20" height="20" rx="6" fill="${head ? b : "#fff"}" ${sw}/>`;
+    inner =
+      seg(22, 78, false) +
+      seg(40, 78, false) +
+      seg(58, 78, false) +
+      seg(58, 60, false) +
+      seg(58, 42, true) +
+      itemShape(item, 110, 40, 1.3);
   } else {
     inner = `<g transform="translate(74 62)"><circle r="44" fill="#fff" ${sw}/><circle r="30" fill="${b}" ${sw}/><circle r="15" fill="#fff" ${sw}/><circle r="5" fill="${INK}"/></g><g transform="translate(122 36)"><circle r="16" fill="#D7FF4A" ${sw}/><circle cx="-5" cy="-2" r="2.4" fill="${INK}"/><circle cx="5" cy="-2" r="2.4" fill="${INK}"/><path d="M-5 5q5 4 10 0" stroke="${INK}" stroke-width="2.4" fill="none" stroke-linecap="round"/></g><path d="M100 18l-6-8M140 20l6-8M146 40h9" stroke="${INK}" stroke-width="3" stroke-linecap="round"/>`;
   }

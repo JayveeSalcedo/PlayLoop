@@ -16,6 +16,7 @@ import { mergeGame, type MergeConfig } from "./templates/merge";
 import { quizGame, type QuizConfig } from "./templates/quiz";
 import { reflexGame, type ReflexConfig, type ReflexTarget } from "./templates/reflex";
 import { slideGame, type SlideConfig } from "./templates/slide";
+import { snakeGame, type SnakeConfig } from "./templates/snake";
 import type { Difficulty, QuizQuestion, RunGameResult } from "./types";
 
 export interface GameRunOptions {
@@ -58,6 +59,10 @@ export function runGameFromConfig(
     case "slide": {
       const c: SlideConfig = { difficulty, theme, image: config.image as string | null | undefined };
       return runGame(slideGame, c, host, onEnd, onQuit, onScoreChange);
+    }
+    case "snake": {
+      const c: SnakeConfig = { difficulty, theme, item: (config.item as ItemKind) ?? "bean" };
+      return runGame(snakeGame, c, host, onEnd, onQuit, onScoreChange);
     }
   }
 }

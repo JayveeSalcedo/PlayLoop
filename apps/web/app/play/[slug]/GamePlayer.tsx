@@ -18,7 +18,7 @@ export interface GameRow {
    * Which template to mount. Null for a code game, which this component can't
    * play — those go to the sandboxed runner instead.
    */
-  type: "quiz" | "catch" | "memory" | "reflex" | "merge" | "slide" | null;
+  type: "quiz" | "catch" | "memory" | "reflex" | "merge" | "slide" | "snake" | null;
   title: string;
   description: string;
   theme: string;

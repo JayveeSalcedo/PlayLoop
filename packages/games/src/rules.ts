@@ -7,7 +7,7 @@
  */
 import type { Difficulty } from "./types";
 
-export type PlayableType = "catch" | "quiz" | "memory" | "reflex" | "merge" | "slide";
+export type PlayableType = "catch" | "quiz" | "memory" | "reflex" | "merge" | "slide" | "snake";
 
 /** Difficulty -> spawn/timer speed multiplier, ported from the prototype's SPD (playloop-prototype.html:1429). */
 export const SPEED_BY_DIFFICULTY: Record<Difficulty, number> = {
@@ -27,6 +27,7 @@ export const GAME_DURATION_SECONDS: Record<PlayableType, number> = {
   quiz: 0,
   merge: 0,
   slide: 75,
+  snake: 0,
 };
 
 /** Difficulty -> how many random (guaranteed-solvable) slides scramble the board. */
@@ -43,6 +44,12 @@ export const QUIZ_SECONDS_PER_QUESTION: Record<Difficulty, number> = { Easy: 12,
  * untimed like real 2048, but bounded so a play can't sit open indefinitely.
  */
 export const MERGE_TIME_CAP_SECONDS = 6 * 60;
+
+/**
+ * Soft ceiling snake.ts enforces client-side — untimed like real Snake (ends
+ * on collision), but bounded so a very long survival doesn't sit open forever.
+ */
+export const SNAKE_TIME_CAP_SECONDS = 3 * 60;
 
 
 /** Timer-drift / frame-granularity allowance applied to minimum durations. */
@@ -130,6 +137,19 @@ export function playRules(type: PlayableType, opts: { difficulty: Difficulty; qu
         minSeconds: COUNTDOWN_SECONDS + 5,
         maxSeconds: COUNTDOWN_SECONDS + d + STALE_SLACK_SECONDS,
         maxScore: 300 + d * 3,
+      };
+    }
+    case "snake": {
+      // snake.ts plays on a 14x14 grid (196 cells), starting at length 3, 10
+      // points per food. The snake can never grow past filling the whole
+      // grid, so 10 * (196 - 3) = 1930 is the true maximum score regardless
+      // of how long or fast the play ran — an exact capacity bound, not a
+      // time-based estimate. Self-terminating (ends on collision), like
+      // merge, so maxSeconds is bounded by the same client-enforced time cap.
+      return {
+        minSeconds: COUNTDOWN_SECONDS + 2,
+        maxSeconds: COUNTDOWN_SECONDS + SNAKE_TIME_CAP_SECONDS + STALE_SLACK_SECONDS,
+        maxScore: 10 * (196 - 3),
       };
     }
   }

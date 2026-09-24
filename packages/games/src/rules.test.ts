@@ -27,6 +27,10 @@ describe("playRules", () => {
     expect(playRules("slide", { difficulty: "Medium" }).maxScore).toBe(300 + 75 * 3);
   });
 
+  it("caps snake at the grid's exact capacity", () => {
+    expect(playRules("snake", { difficulty: "Medium" }).maxScore).toBe(1930);
+  });
+
   it("allows a higher ceiling on harder (faster-spawning) difficulties", () => {
     const easy = playRules("catch", { difficulty: "Easy" }).maxScore;
     const hard = playRules("catch", { difficulty: "Hard" }).maxScore;
@@ -34,7 +38,7 @@ describe("playRules", () => {
   });
 
   it("never caps a legit player below the score needed for full payout", () => {
-    const types: PlayableType[] = ["catch", "reflex", "memory", "quiz", "merge", "slide"];
+    const types: PlayableType[] = ["catch", "reflex", "memory", "quiz", "merge", "slide", "snake"];
     for (const type of types) {
       const r = playRules(type, { difficulty: "Easy", questionCount: 5 });
       expect(r.maxScore).toBeGreaterThanOrEqual(scoreTarget(type, 5));

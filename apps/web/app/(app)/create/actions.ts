@@ -48,6 +48,7 @@ const DESCRIPTIONS: Record<
   reflex: () => "Tap the smiling orbs, avoid the spiky ones, chain combos.",
   merge: () => "Swipe or use arrow keys to merge matching tiles. Reach the top tier to win.",
   slide: () => "Slide the tiles into the gap to solve the puzzle before time runs out.",
+  snake: () => "Eat the food to grow. Don't hit the wall or yourself.",
 };
 
 export interface PublishedGame {

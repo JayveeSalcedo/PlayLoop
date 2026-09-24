@@ -80,6 +80,12 @@ const TEMPLATES: {
     blurb: "One gap, slide the tiles to solve it. Use your own photo.",
     best: "Reveal shots, brand photos",
   },
+  {
+    type: "snake",
+    name: "Snake Chase",
+    blurb: "Eat food to grow. Don't hit the wall or yourself.",
+    best: "Quick sessions, leaderboards",
+  },
 ];
 
 const STEPS = ["Template", "Customise", "Test", "Publish"];
@@ -131,7 +137,9 @@ function toGameDraft(d: Draft): GameDraft {
             ? { target: d.target }
             : type === "merge"
               ? { icons: d.icons }
-              : { image: d.slideImage };
+              : type === "slide"
+                ? { image: d.slideImage }
+                : { item: d.item };
   return {
     type,
     title: d.title.trim(),
@@ -789,6 +797,24 @@ function Customise({
                 Remove
               </button>
             ) : null}
+          </div>
+        </Field>
+      ) : null}
+
+      {draft.type === "snake" ? (
+        <Field label="What the snake eats" error={issueFor("item")}>
+          <div className="flex gap-2">
+            {CATCH_ITEMS.map((item) => (
+              <button
+                key={item}
+                aria-label={item}
+                onClick={() => set({ item })}
+                className={`h-14 w-14 rounded-xl [border:var(--border-thick)] ${draft.item === item ? "bg-lemon" : "bg-card"}`}
+                dangerouslySetInnerHTML={{
+                  __html: `<svg viewBox="-20 -20 40 40">${itemShape(item, 0, 0, 1.4)}</svg>`,
+                }}
+              />
+            ))}
           </div>
         </Field>
       ) : null}
