@@ -87,6 +87,10 @@ describe("scoreTarget", () => {
     expect(scoreTarget("quiz", 1)).toBe(120);
     expect(scoreTarget("quiz", 0)).toBe(120); // floors at 1 question
   });
+
+  it("targets merge at the exact minimum score a 1024 win requires", () => {
+    expect(scoreTarget("merge")).toBe(9216);
+  });
 });
 
 describe("voucherStatus", () => {

@@ -7,7 +7,7 @@
  */
 import type { Difficulty } from "./types";
 
-export type PlayableType = "catch" | "quiz" | "memory" | "reflex";
+export type PlayableType = "catch" | "quiz" | "memory" | "reflex" | "merge";
 
 /** Difficulty -> spawn/timer speed multiplier, ported from the prototype's SPD (playloop-prototype.html:1429). */
 export const SPEED_BY_DIFFICULTY: Record<Difficulty, number> = {
@@ -19,15 +19,23 @@ export const SPEED_BY_DIFFICULTY: Record<Difficulty, number> = {
 /** The engine's 3-2-1-Go countdown before a template starts (runGame: 4 steps x 620 ms). */
 export const COUNTDOWN_SECONDS = (4 * 620) / 1000;
 
-/** Session length per template, in seconds. Quiz is self-terminating (0 = no shared clock). */
+/** Session length per template, in seconds. Quiz and merge are self-terminating (0 = no shared clock). */
 export const GAME_DURATION_SECONDS: Record<PlayableType, number> = {
   catch: 25,
   reflex: 20,
   memory: 45,
   quiz: 0,
+  merge: 0,
 };
 
 export const QUIZ_SECONDS_PER_QUESTION: Record<Difficulty, number> = { Easy: 12, Medium: 10, Hard: 7 };
+
+/**
+ * Soft ceiling merge.ts enforces client-side (calls api.end() if it's hit) —
+ * untimed like real 2048, but bounded so a play can't sit open indefinitely.
+ */
+export const MERGE_TIME_CAP_SECONDS = 6 * 60;
+
 
 /** Timer-drift / frame-granularity allowance applied to minimum durations. */
 const TOLERANCE_SECONDS = 1;
@@ -86,6 +94,21 @@ export function playRules(type: PlayableType, opts: { difficulty: Difficulty; qu
         minSeconds: COUNTDOWN_SECONDS + n * 1,
         maxSeconds: COUNTDOWN_SECONDS + n * (per + 1.05) + STALE_SLACK_SECONDS,
         maxScore: n * 150,
+      };
+    }
+    case "merge": {
+      // merge.ts merges tiles 2->4->...->1024 (10 tiers); a merge awards the new
+      // tile's value. Building one 1024 tile takes exactly 9 tiers of merges
+      // above the base, and every tier's merges sum to exactly 1024 points
+      // regardless of path (fewer, bigger merges or more, smaller ones) — so
+      // 9 * 1024 = 9216 is the true minimum score a win can be claimed with.
+      // maxScore leaves headroom above that floor for the side-merges a real
+      // board racks up while playing toward the win, bounded by the same
+      // MERGE_TIME_CAP_SECONDS the client enforces (self-terminating, like quiz).
+      return {
+        minSeconds: COUNTDOWN_SECONDS + 5,
+        maxSeconds: COUNTDOWN_SECONDS + MERGE_TIME_CAP_SECONDS + STALE_SLACK_SECONDS,
+        maxScore: 9216 * 3,
       };
     }
   }

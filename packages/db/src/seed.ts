@@ -40,6 +40,11 @@ async function ensureCommunityMediaBucket() {
 async function main() {
   const db = getDb();
 
+  // "Merge" template type (2048-with-icons, capped at a 1024-equivalent win
+  // tile) — a bare ALTER TYPE, not bundled with other DDL, since it can't run
+  // in the same batch as a statement that would use the new value.
+  await db.execute(sql`ALTER TYPE game_type ADD VALUE IF NOT EXISTS 'merge';`);
+
   // Ensure leagues, league_members, and venue_events tables exist, and games has cover_image
   await db.execute(sql`
     ALTER TABLE games ADD COLUMN IF NOT EXISTS cover_image text;

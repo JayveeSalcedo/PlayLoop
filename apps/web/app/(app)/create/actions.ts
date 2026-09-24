@@ -46,6 +46,7 @@ const DESCRIPTIONS: Record<
   memory: () => "Flip cards and match all six pairs before time runs out.",
   catch: () => "Drag to catch the falling items. Dodge the spiky ones.",
   reflex: () => "Tap the smiling orbs, avoid the spiky ones, chain combos.",
+  merge: () => "Swipe or use arrow keys to merge matching tiles. Reach the top tier to win.",
 };
 
 export interface PublishedGame {

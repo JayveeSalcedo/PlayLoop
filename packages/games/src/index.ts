@@ -7,3 +7,4 @@ export * from "./templates/catch";
 export * from "./templates/quiz";
 export * from "./templates/memory";
 export * from "./templates/reflex";
+export * from "./templates/merge";

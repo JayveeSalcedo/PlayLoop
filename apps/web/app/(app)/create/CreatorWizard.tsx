@@ -7,6 +7,7 @@ import {
   MAX_POINTS_MIN,
   MAX_POINTS_STEP,
   MEMORY_PAIRS,
+  MERGE_TIERS,
   QUIZ_MAX_QUESTIONS,
   REFLEX_TARGETS,
   TITLE_MAX,
@@ -20,6 +21,7 @@ import {
   artSVG,
   icon,
   itemShape,
+  mergeTileArt,
   type GameArtType,
   type ItemKind,
   type ThemeName,
@@ -64,6 +66,12 @@ const TEMPLATES: {
     blurb: "Tap the good, dodge the bad. Chain combos.",
     best: "Events and big screens",
   },
+  {
+    type: "merge",
+    name: "Merge Flow",
+    blurb: "Swipe to merge matching tiles up to the top. Use your own icons.",
+    best: "Puzzle fans, replayability",
+  },
 ];
 
 const STEPS = ["Template", "Customise", "Test", "Publish"];
@@ -79,6 +87,7 @@ interface Draft {
   images: (string | null)[];
   item: ItemKind;
   target: (typeof REFLEX_TARGETS)[number];
+  icons: (string | null)[];
 }
 
 const EMPTY: Draft = {
@@ -95,6 +104,7 @@ const EMPTY: Draft = {
   images: Array(MEMORY_PAIRS).fill(null),
   item: "star",
   target: "mint",
+  icons: Array(MERGE_TIERS).fill(null),
 };
 
 /** The draft in the shape @playloop/games validates and the server stores. */
@@ -107,7 +117,9 @@ function toGameDraft(d: Draft): GameDraft {
         ? { images: d.images }
         : type === "catch"
           ? { item: d.item }
-          : { target: d.target };
+          : type === "reflex"
+            ? { target: d.target }
+            : { icons: d.icons };
   return {
     type,
     title: d.title.trim(),
@@ -614,6 +626,82 @@ function Customise({
                   }
                 }
                 set({ images });
+              }}
+            />
+          </label>
+        </Field>
+      ) : null}
+
+      {draft.type === "merge" ? (
+        <Field
+          label="Tier icons"
+          hint={`Up to ${MERGE_TIERS}, from the smallest tile to the winning one. Empty slots use the built-in shape pack.`}
+          error={uploadError ?? issueFor("icons")}
+        >
+          <div className="grid grid-cols-5 gap-2">
+            {draft.icons.map((im, i) => (
+              <div
+                key={i}
+                className="relative grid aspect-square place-items-center overflow-hidden rounded-xl bg-card p-1 [border:var(--border-thick)]"
+              >
+                {im ? (
+                  <>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={im}
+                      alt={`Tier ${i + 1}`}
+                      className="h-full w-full object-cover"
+                    />
+                    <button
+                      aria-label={`Remove tier ${i + 1} icon`}
+                      className="absolute top-1 right-1 h-5 w-5 rounded-full bg-paper text-[10px] font-extrabold [border:var(--border-thick)]"
+                      onClick={() => {
+                        const icons = [...draft.icons];
+                        icons[i] = null;
+                        set({ icons });
+                      }}
+                    >
+                      ×
+                    </button>
+                  </>
+                ) : (
+                  <span
+                    className="h-full w-full"
+                    dangerouslySetInnerHTML={{
+                      __html: mergeTileArt(i, draft.theme),
+                    }}
+                  />
+                )}
+              </div>
+            ))}
+          </div>
+          <label className="btn sm mt-3 inline-flex">
+            <span dangerouslySetInnerHTML={{ __html: icon("upload") }} /> Upload
+            icons
+            <input
+              type="file"
+              accept="image/*"
+              multiple
+              className="hidden"
+              onChange={async (e) => {
+                setUploadError(null);
+                const files = [...(e.target.files ?? [])];
+                e.target.value = "";
+                const icons = [...draft.icons];
+                for (const file of files) {
+                  const slot = icons.indexOf(null);
+                  if (slot === -1) break;
+                  try {
+                    icons[slot] = await shrinkImage(file);
+                  } catch (err) {
+                    setUploadError(
+                      err instanceof Error
+                        ? err.message
+                        : "Couldn't read that image.",
+                    );
+                  }
+                }
+                set({ icons });
               }}
             />
           </label>

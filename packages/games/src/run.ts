@@ -12,6 +12,7 @@ import { runGame, type RunGameHandle } from "./engine";
 import type { PlayableType } from "./rules";
 import { catchGame, type CatchConfig } from "./templates/catch";
 import { memoryGame, type MemoryConfig } from "./templates/memory";
+import { mergeGame, type MergeConfig } from "./templates/merge";
 import { quizGame, type QuizConfig } from "./templates/quiz";
 import { reflexGame, type ReflexConfig, type ReflexTarget } from "./templates/reflex";
 import type { Difficulty, QuizQuestion, RunGameResult } from "./types";
@@ -48,6 +49,10 @@ export function runGameFromConfig(
     case "reflex": {
       const c: ReflexConfig = { difficulty, target: (config.target as ReflexTarget) ?? "mint" };
       return runGame(reflexGame, c, host, onEnd, onQuit, onScoreChange);
+    }
+    case "merge": {
+      const c: MergeConfig = { difficulty, theme, icons: config.icons as (string | null)[] | undefined };
+      return runGame(mergeGame, c, host, onEnd, onQuit, onScoreChange);
     }
   }
 }

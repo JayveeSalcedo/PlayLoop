@@ -20,6 +20,7 @@ export const ANSWER_MAX = 60;
 export const QUIZ_MIN_QUESTIONS = 2;
 export const QUIZ_MAX_QUESTIONS = 8;
 export const MEMORY_PAIRS = 6;
+export const MERGE_TIERS = 10;
 
 export const MAX_POINTS_MIN = 100;
 export const MAX_POINTS_MAX = 400;
@@ -116,6 +117,12 @@ export function normalizeConfig(type: PlayableType, raw: unknown): Record<string
       // All-empty is the shape-pack default; store nothing rather than six nulls.
       return images.some(Boolean) ? { images } : {};
     }
+    case "merge": {
+      const list = Array.isArray(src.icons) ? src.icons : [];
+      const icons = Array.from({ length: MERGE_TIERS }, (_, i) => (isValidImageDataUrl(list[i]) ? (list[i] as string) : null));
+      // All-empty is the procedural default; store nothing rather than ten nulls.
+      return icons.some(Boolean) ? { icons } : {};
+    }
   }
 }
 
@@ -188,6 +195,16 @@ export function validateGameDraft(draft: GameDraft): DraftIssue[] {
     }
     if (images.some((im) => im != null && !isValidImageDataUrl(im))) {
       issues.push({ field: "images", message: "One of those images couldn't be read — remove it and try again." });
+    }
+  }
+
+  if (draft.type === "merge") {
+    const icons = Array.isArray(config.icons) ? config.icons : [];
+    if (icons.length > MERGE_TIERS) {
+      issues.push({ field: "icons", message: `Up to ${MERGE_TIERS} tier icons.` });
+    }
+    if (icons.some((im) => im != null && !isValidImageDataUrl(im))) {
+      issues.push({ field: "icons", message: "One of those icons couldn't be read — remove it and try again." });
     }
   }
 

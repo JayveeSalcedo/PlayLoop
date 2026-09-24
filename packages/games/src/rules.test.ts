@@ -18,6 +18,11 @@ describe("playRules", () => {
     expect(playRules("memory", { difficulty: "Medium" }).maxScore).toBe(525);
   });
 
+  it("floors merge's ceiling at the exact minimum score a 1024 win requires", () => {
+    const r = playRules("merge", { difficulty: "Medium" });
+    expect(r.maxScore).toBeGreaterThanOrEqual(9216);
+  });
+
   it("allows a higher ceiling on harder (faster-spawning) difficulties", () => {
     const easy = playRules("catch", { difficulty: "Easy" }).maxScore;
     const hard = playRules("catch", { difficulty: "Hard" }).maxScore;
@@ -25,7 +30,7 @@ describe("playRules", () => {
   });
 
   it("never caps a legit player below the score needed for full payout", () => {
-    const types: PlayableType[] = ["catch", "reflex", "memory", "quiz"];
+    const types: PlayableType[] = ["catch", "reflex", "memory", "quiz", "merge"];
     for (const type of types) {
       const r = playRules(type, { difficulty: "Easy", questionCount: 5 });
       expect(r.maxScore).toBeGreaterThanOrEqual(scoreTarget(type, 5));
