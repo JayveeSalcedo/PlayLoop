@@ -44,6 +44,8 @@ async function main() {
   // tile) — a bare ALTER TYPE, not bundled with other DDL, since it can't run
   // in the same batch as a statement that would use the new value.
   await db.execute(sql`ALTER TYPE game_type ADD VALUE IF NOT EXISTS 'merge';`);
+  // "Slide" template type (the 8-puzzle: one gap, slide tiles to solve it).
+  await db.execute(sql`ALTER TYPE game_type ADD VALUE IF NOT EXISTS 'slide';`);
 
   // Ensure leagues, league_members, and venue_events tables exist, and games has cover_image
   await db.execute(sql`

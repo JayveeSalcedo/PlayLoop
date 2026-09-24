@@ -7,7 +7,7 @@
  */
 import type { Difficulty } from "./types";
 
-export type PlayableType = "catch" | "quiz" | "memory" | "reflex" | "merge";
+export type PlayableType = "catch" | "quiz" | "memory" | "reflex" | "merge" | "slide";
 
 /** Difficulty -> spawn/timer speed multiplier, ported from the prototype's SPD (playloop-prototype.html:1429). */
 export const SPEED_BY_DIFFICULTY: Record<Difficulty, number> = {
@@ -26,6 +26,14 @@ export const GAME_DURATION_SECONDS: Record<PlayableType, number> = {
   memory: 45,
   quiz: 0,
   merge: 0,
+  slide: 75,
+};
+
+/** Difficulty -> how many random (guaranteed-solvable) slides scramble the board. */
+export const SLIDE_SHUFFLE_MOVES: Record<Difficulty, number> = {
+  Easy: 40,
+  Medium: 80,
+  Hard: 140,
 };
 
 export const QUIZ_SECONDS_PER_QUESTION: Record<Difficulty, number> = { Easy: 12, Medium: 10, Hard: 7 };
@@ -109,6 +117,19 @@ export function playRules(type: PlayableType, opts: { difficulty: Difficulty; qu
         minSeconds: COUNTDOWN_SECONDS + 5,
         maxSeconds: COUNTDOWN_SECONDS + MERGE_TIME_CAP_SECONDS + STALE_SLACK_SECONDS,
         maxScore: 9216 * 3,
+      };
+    }
+    case "slide": {
+      const d = GAME_DURATION_SECONDS.slide;
+      // slide.ts ends early once the board is solved: a flat 300 for solving,
+      // plus a time bonus of at most d x 3 for finishing early — same shape as
+      // memory's completion + time-bonus scoring. minSeconds is a floor, not a
+      // tight bound: solve length varies with the random (but always solvable)
+      // scramble, so this only rules out a literally-instant submission.
+      return {
+        minSeconds: COUNTDOWN_SECONDS + 5,
+        maxSeconds: COUNTDOWN_SECONDS + d + STALE_SLACK_SECONDS,
+        maxScore: 300 + d * 3,
       };
     }
   }

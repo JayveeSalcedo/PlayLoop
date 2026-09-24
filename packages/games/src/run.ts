@@ -15,6 +15,7 @@ import { memoryGame, type MemoryConfig } from "./templates/memory";
 import { mergeGame, type MergeConfig } from "./templates/merge";
 import { quizGame, type QuizConfig } from "./templates/quiz";
 import { reflexGame, type ReflexConfig, type ReflexTarget } from "./templates/reflex";
+import { slideGame, type SlideConfig } from "./templates/slide";
 import type { Difficulty, QuizQuestion, RunGameResult } from "./types";
 
 export interface GameRunOptions {
@@ -53,6 +54,10 @@ export function runGameFromConfig(
     case "merge": {
       const c: MergeConfig = { difficulty, theme, icons: config.icons as (string | null)[] | undefined };
       return runGame(mergeGame, c, host, onEnd, onQuit, onScoreChange);
+    }
+    case "slide": {
+      const c: SlideConfig = { difficulty, theme, image: config.image as string | null | undefined };
+      return runGame(slideGame, c, host, onEnd, onQuit, onScoreChange);
     }
   }
 }

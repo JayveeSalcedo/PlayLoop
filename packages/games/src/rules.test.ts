@@ -23,6 +23,10 @@ describe("playRules", () => {
     expect(r.maxScore).toBeGreaterThanOrEqual(9216);
   });
 
+  it("caps slide at a flat completion bonus plus the full time bonus", () => {
+    expect(playRules("slide", { difficulty: "Medium" }).maxScore).toBe(300 + 75 * 3);
+  });
+
   it("allows a higher ceiling on harder (faster-spawning) difficulties", () => {
     const easy = playRules("catch", { difficulty: "Easy" }).maxScore;
     const hard = playRules("catch", { difficulty: "Hard" }).maxScore;
@@ -30,7 +34,7 @@ describe("playRules", () => {
   });
 
   it("never caps a legit player below the score needed for full payout", () => {
-    const types: PlayableType[] = ["catch", "reflex", "memory", "quiz", "merge"];
+    const types: PlayableType[] = ["catch", "reflex", "memory", "quiz", "merge", "slide"];
     for (const type of types) {
       const r = playRules(type, { difficulty: "Easy", questionCount: 5 });
       expect(r.maxScore).toBeGreaterThanOrEqual(scoreTarget(type, 5));

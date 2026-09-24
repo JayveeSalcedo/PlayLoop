@@ -210,6 +210,19 @@ export function mergeTileArt(tier: number, theme: ThemeName = "neon", size = 1):
   return `<svg viewBox="0 0 40 40" width="40" height="40"><g transform="translate(20 20)">${mergeBlob(tier, theme, size)}</g></svg>`;
 }
 
+/**
+ * Default (uncustomized) art for one slide-puzzle tile: the same shape
+ * family as mergeTileArt, but flat — no growth/tier ramp, since a sliding
+ * puzzle's 8 tiles are peers, not a ladder. `index` picks the shape (0..7);
+ * the theme's two stops alternate by parity so neighboring tiles read as
+ * distinct even before you've solved for position.
+ */
+export function slideTileArt(index: number, theme: ThemeName = "neon"): string {
+  const [a, b] = THEMES[theme] || THEMES.neon!;
+  const shape = TIER_SHAPES[((index % TIER_SHAPES.length) + TIER_SHAPES.length) % TIER_SHAPES.length]!;
+  return `<svg viewBox="0 0 40 40" width="40" height="40"><g transform="translate(20 20)">${shape(13, index % 2 === 0 ? a : b, INK)}</g></svg>`;
+}
+
 export const MEMORY_SHAPES: string[] = [
   `<svg viewBox="0 0 40 40"><circle cx="20" cy="20" r="14" fill="#22D39B" stroke="${INK}" stroke-width="3"/></svg>`,
   `<svg viewBox="0 0 40 40"><path d="M20 5 36 34H4Z" fill="#FF5FA2" stroke="${INK}" stroke-width="3" stroke-linejoin="round"/></svg>`,
@@ -219,7 +232,7 @@ export const MEMORY_SHAPES: string[] = [
   `<svg viewBox="0 0 40 40"><path d="M20 34S5 25 5 15a7.5 7.5 0 0 1 15-3 7.5 7.5 0 0 1 15 3c0 10-15 19-15 19z" fill="#8A6BFF" stroke="${INK}" stroke-width="3" stroke-linejoin="round"/></svg>`,
 ];
 
-export type GameArtType = "catch" | "quiz" | "memory" | "reflex" | "merge";
+export type GameArtType = "catch" | "quiz" | "memory" | "reflex" | "merge" | "slide";
 
 /**
  * Renders the 160x120 cover art used on game cards, per template type + theme.
@@ -253,6 +266,14 @@ export function artSVG(type: GameArtType | null, theme: ThemeName = "neon", item
     const tile = (x: number, y: number, s: number, tier: number) =>
       `<g transform="translate(${x} ${y})">${mergeBlob(tier, theme, s)}</g>`;
     inner = `${tile(34, 74, 1.05, 0)}${tile(66, 78, 1.2, 1)}${tile(100, 68, 1.4, 2)}${tile(128, 40, 1.7, 4)}`;
+  } else if (type === "slide") {
+    const [ta, tb] = THEMES[theme] || THEMES.neon!;
+    const cell = (x: number, y: number, index: number | null) => {
+      if (index == null) return `<rect x="${x}" y="${y}" width="34" height="34" rx="7" fill="rgba(255,255,255,.25)" stroke="${INK}" stroke-width="2" stroke-dasharray="3 3"/>`;
+      const shape = TIER_SHAPES[index % TIER_SHAPES.length]!;
+      return `<g transform="translate(${x + 17} ${y + 17})">${shape(10, index % 2 === 0 ? ta : tb, INK)}</g>`;
+    };
+    inner = `${cell(28, 24, 0)}${cell(66, 24, 1)}${cell(104, 24, 2)}${cell(28, 62, 3)}${cell(66, 62, null)}${cell(104, 62, 5)}${cell(28, 100, 6)}${cell(66, 100, 7)}`;
   } else {
     inner = `<g transform="translate(74 62)"><circle r="44" fill="#fff" ${sw}/><circle r="30" fill="${b}" ${sw}/><circle r="15" fill="#fff" ${sw}/><circle r="5" fill="${INK}"/></g><g transform="translate(122 36)"><circle r="16" fill="#D7FF4A" ${sw}/><circle cx="-5" cy="-2" r="2.4" fill="${INK}"/><circle cx="5" cy="-2" r="2.4" fill="${INK}"/><path d="M-5 5q5 4 10 0" stroke="${INK}" stroke-width="2.4" fill="none" stroke-linecap="round"/></g><path d="M100 18l-6-8M140 20l6-8M146 40h9" stroke="${INK}" stroke-width="3" stroke-linecap="round"/>`;
   }

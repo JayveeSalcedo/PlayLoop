@@ -102,7 +102,7 @@ export const GUEST_DAILY_CAP = 2_000;
 /** Bonus points awarded to 1st, 2nd, and 3rd place finishers in live big-screen event rounds. */
 export const EVENT_PODIUM_BONUS = [100, 60, 30] as const;
 
-export type GameType = "quiz" | "catch" | "memory" | "reflex" | "merge";
+export type GameType = "quiz" | "catch" | "memory" | "reflex" | "merge" | "slide";
 
 /** Score needed to earn the full maxPoints payout, per game type. */
 export function scoreTarget(type: GameType, questionCount?: number): number {
@@ -120,6 +120,10 @@ export function scoreTarget(type: GameType, questionCount?: number): number {
       // @playloop/games' rules.ts) — reaching it means a full-payout win, and
       // payout() already clamps anything above that at maxPoints.
       return 9216;
+    case "slide":
+      // 300 (solving) + 150 of the 225 max time bonus — solving with roughly
+      // half the clock left earns full payout; payout() clamps the rest.
+      return 450;
   }
 }
 

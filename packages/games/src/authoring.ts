@@ -123,6 +123,11 @@ export function normalizeConfig(type: PlayableType, raw: unknown): Record<string
       // All-empty is the procedural default; store nothing rather than ten nulls.
       return icons.some(Boolean) ? { icons } : {};
     }
+    case "slide": {
+      // One photo sliced into the 8 tiles, so it needs cover-image-grade
+      // resolution, not an icon-sized cap — same ceiling as coverImage.
+      return isValidCoverImageDataUrl(src.image) ? { image: src.image } : {};
+    }
   }
 }
 
@@ -206,6 +211,10 @@ export function validateGameDraft(draft: GameDraft): DraftIssue[] {
     if (icons.some((im) => im != null && !isValidImageDataUrl(im))) {
       issues.push({ field: "icons", message: "One of those icons couldn't be read — remove it and try again." });
     }
+  }
+
+  if (draft.type === "slide" && config.image != null && !isValidCoverImageDataUrl(config.image)) {
+    issues.push({ field: "image", message: "That photo couldn't be read — remove it and try again." });
   }
 
   if (draft.coverImage != null && !isValidCoverImageDataUrl(draft.coverImage)) {

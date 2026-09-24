@@ -91,6 +91,10 @@ describe("scoreTarget", () => {
   it("targets merge at the exact minimum score a 1024 win requires", () => {
     expect(scoreTarget("merge")).toBe(9216);
   });
+
+  it("targets slide at solving with roughly half the clock left", () => {
+    expect(scoreTarget("slide")).toBe(450);
+  });
 });
 
 describe("voucherStatus", () => {

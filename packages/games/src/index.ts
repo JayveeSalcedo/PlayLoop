@@ -8,3 +8,4 @@ export * from "./templates/quiz";
 export * from "./templates/memory";
 export * from "./templates/reflex";
 export * from "./templates/merge";
+export * from "./templates/slide";

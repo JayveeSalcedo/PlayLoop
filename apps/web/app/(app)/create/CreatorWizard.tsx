@@ -9,6 +9,7 @@ import {
   MEMORY_PAIRS,
   MERGE_TIERS,
   QUIZ_MAX_QUESTIONS,
+  SLIDE_GRID_SIZE,
   REFLEX_TARGETS,
   TITLE_MAX,
   normalizeConfig,
@@ -22,6 +23,7 @@ import {
   icon,
   itemShape,
   mergeTileArt,
+  slideTileArt,
   type GameArtType,
   type ItemKind,
   type ThemeName,
@@ -72,6 +74,12 @@ const TEMPLATES: {
     blurb: "Swipe to merge matching tiles up to the top. Use your own icons.",
     best: "Puzzle fans, replayability",
   },
+  {
+    type: "slide",
+    name: "Slide Puzzle",
+    blurb: "One gap, slide the tiles to solve it. Use your own photo.",
+    best: "Reveal shots, brand photos",
+  },
 ];
 
 const STEPS = ["Template", "Customise", "Test", "Publish"];
@@ -88,6 +96,7 @@ interface Draft {
   item: ItemKind;
   target: (typeof REFLEX_TARGETS)[number];
   icons: (string | null)[];
+  slideImage: string | null;
 }
 
 const EMPTY: Draft = {
@@ -105,6 +114,7 @@ const EMPTY: Draft = {
   item: "star",
   target: "mint",
   icons: Array(MERGE_TIERS).fill(null),
+  slideImage: null,
 };
 
 /** The draft in the shape @playloop/games validates and the server stores. */
@@ -119,7 +129,9 @@ function toGameDraft(d: Draft): GameDraft {
           ? { item: d.item }
           : type === "reflex"
             ? { target: d.target }
-            : { icons: d.icons };
+            : type === "merge"
+              ? { icons: d.icons }
+              : { image: d.slideImage };
   return {
     type,
     title: d.title.trim(),
@@ -705,6 +717,79 @@ function Customise({
               }}
             />
           </label>
+        </Field>
+      ) : null}
+
+      {draft.type === "slide" ? (
+        <Field
+          label="Puzzle photo (optional)"
+          hint="Sliced into the 9 tiles. Square photos work best. No photo uses the built-in shape set."
+          error={uploadError ?? issueFor("image")}
+        >
+          <div
+            className="grid aspect-square w-40 gap-0.5 overflow-hidden rounded-xl [border:var(--border-thick)]"
+            style={{ gridTemplateColumns: `repeat(${SLIDE_GRID_SIZE}, 1fr)` }}
+          >
+            {Array.from({ length: SLIDE_GRID_SIZE * SLIDE_GRID_SIZE }, (_, i) => {
+              const last = i === SLIDE_GRID_SIZE * SLIDE_GRID_SIZE - 1;
+              const col = i % SLIDE_GRID_SIZE;
+              const row = Math.floor(i / SLIDE_GRID_SIZE);
+              return (
+                <div key={i} className="relative bg-card">
+                  {last ? null : draft.slideImage ? (
+                    <div
+                      className="h-full w-full"
+                      style={{
+                        backgroundImage: `url(${draft.slideImage})`,
+                        backgroundSize: `${SLIDE_GRID_SIZE * 100}% ${SLIDE_GRID_SIZE * 100}%`,
+                        backgroundPosition: `${(col * 100) / (SLIDE_GRID_SIZE - 1)}% ${(row * 100) / (SLIDE_GRID_SIZE - 1)}%`,
+                      }}
+                    />
+                  ) : (
+                    <span
+                      className="grid h-full w-full place-items-center"
+                      dangerouslySetInnerHTML={{ __html: slideTileArt(i, draft.theme) }}
+                    />
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <label className="btn sm inline-flex cursor-pointer">
+              <span dangerouslySetInnerHTML={{ __html: icon("upload") }} />{" "}
+              {draft.slideImage ? "Change photo" : "Upload photo"}
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={async (e) => {
+                  setUploadError(null);
+                  const file = e.target.files?.[0];
+                  e.target.value = "";
+                  if (!file) return;
+                  try {
+                    set({ slideImage: await shrinkCoverImage(file) });
+                  } catch (err) {
+                    setUploadError(
+                      err instanceof Error
+                        ? err.message
+                        : "Couldn't read that image.",
+                    );
+                  }
+                }}
+              />
+            </label>
+            {draft.slideImage ? (
+              <button
+                type="button"
+                className="btn sm"
+                onClick={() => set({ slideImage: null })}
+              >
+                Remove
+              </button>
+            ) : null}
+          </div>
         </Field>
       ) : null}
 
