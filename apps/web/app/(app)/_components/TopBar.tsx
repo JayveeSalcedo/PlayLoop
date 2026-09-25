@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Logo } from "@/app/_components/brand/Logo";
 import { InstallPrompt } from "@/app/_components/pwa/InstallPrompt";
 import { requireProfile } from "@/lib/profile";
 import { surfacesFor } from "@/lib/surfaces";
@@ -6,7 +7,7 @@ import { GuestSaveBanner } from "./GuestSaveBanner";
 
 /**
  * Persistent header above the tab bar on every tabbed screen. Shows the
- * playloop wordmark, role shortcuts (Admin, Brand, Staff), install CTA,
+ * playloop logo, role shortcuts (Admin, Brand, Staff), install CTA,
  * points-balance pill linking to /wallet, and guest save reminder banner.
  */
 export async function TopBar() {
@@ -17,7 +18,7 @@ export async function TopBar() {
     <div className="sticky top-0 z-30">
       <header className="flex items-center justify-between gap-2 bg-paper px-4 py-2 [border-bottom:var(--border-thick)]">
         <div className="flex min-w-0 items-center gap-2">
-          <span className="shrink-0 text-sm font-extrabold tracking-tight">playloop</span>
+          <Logo height={28} className="shrink-0" />
           {surfaces.map((s) => (
             <Link
               key={s.href}

@@ -1,6 +1,7 @@
 import { getDb, schema } from "@playloop/db";
 import { eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
+import { Logo } from "@/app/_components/brand/Logo";
 import { SubmitButton } from "@/app/_components/SubmitButton";
 import { getSession } from "@/lib/session";
 import { requestCode, startGuestSession } from "./actions";
@@ -32,7 +33,8 @@ export default async function LoginPage({
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-sm flex-col justify-center p-6">
-      <h1 className="text-4xl font-extrabold tracking-tight">playloop</h1>
+      <h1 className="sr-only">playloop</h1>
+      <Logo height={96} />
       <p className="mt-1 text-soft">
         {guestProfile
           ? "Save your guest account to OnePass so your points never expire."
