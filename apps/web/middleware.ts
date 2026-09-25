@@ -7,7 +7,20 @@ const COOKIE_NAME = "pl_session";
 // logged-out visitor reaches the page itself and can play immediately as a
 // guest, rather than middleware bouncing them to /login before they've even
 // seen what they're being challenged to.
-const PROTECTED = ["/feed", "/play", "/onboarding", "/wallet", "/rewards", "/challenges", "/create", "/admin", "/staff", "/brand"];
+const PROTECTED = [
+  "/feed",
+  "/play",
+  "/onboarding",
+  "/wallet",
+  "/rewards",
+  "/challenges",
+  "/create",
+  "/community",
+  "/events",
+  "/admin",
+  "/staff",
+  "/brand",
+];
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
@@ -25,7 +38,11 @@ export async function middleware(req: NextRequest) {
     }
   }
 
+  // Carry the page they were headed to along to /login so it can send them
+  // back here once they're signed in, instead of dropping them on the
+  // generic default landing page — see login/verify/actions.ts.
   const loginUrl = new URL("/login", req.url);
+  loginUrl.searchParams.set("redirect", pathname + req.nextUrl.search);
   return NextResponse.redirect(loginUrl);
 }
 
@@ -38,6 +55,8 @@ export const config = {
     "/rewards/:path*",
     "/challenges/:path*",
     "/create/:path*",
+    "/community/:path*",
+    "/events/:path*",
     "/admin/:path*",
     "/staff/:path*",
     "/brand/:path*",

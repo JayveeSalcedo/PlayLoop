@@ -9,7 +9,7 @@ import { completeOnboarding } from "./actions";
 const AVATAR_COUNT = 6;
 const INTERESTS = ["Quizzes", "Arcade", "Puzzles", "Food and coffee", "Sport", "Culture", "Music"];
 
-export function OnboardingFlow({ challenge }: { challenge?: string }) {
+export function OnboardingFlow({ challenge, redirect }: { challenge?: string; redirect?: string }) {
   const [step, setStep] = useState<"profile" | "gift">("profile");
   const [profile, setProfile] = useState<FormData | null>(null);
   const [opened, setOpened] = useState(false);
@@ -24,6 +24,7 @@ export function OnboardingFlow({ challenge }: { challenge?: string }) {
   function finish() {
     if (!profile || pending) return;
     setPending(true);
+    if (redirect) profile.set("redirect", redirect);
     completeOnboarding(profile);
   }
 

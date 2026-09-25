@@ -55,6 +55,7 @@ export default async function LoginPage({
 
       <form action={requestCode} className="mt-6 flex flex-col gap-3">
         {challenge ? <input type="hidden" name="challenge" value={challenge} /> : null}
+        {redirectTo ? <input type="hidden" name="redirect" value={redirectTo} /> : null}
         <label className="text-sm font-extrabold" htmlFor="email">
           Email
         </label>
@@ -90,7 +91,7 @@ export default async function LoginPage({
           </div>
 
           <form action={startGuestSession}>
-            {redirectTo ? <input type="hidden" name="redirectTo" value={redirectTo} /> : null}
+            {redirectTo ? <input type="hidden" name="redirect" value={redirectTo} /> : null}
             <SubmitButton
               className="btn gum lg block w-full text-center"
               pendingText="Starting guest session…"

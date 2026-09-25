@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { mergeGuestIntoProfile } from "@/lib/claimGuest";
 import { maybeAwardReferralBonus } from "@/lib/creditPlay";
 import { createNewProfile } from "@/lib/newProfile";
+import { safeRedirectPath } from "@/lib/redirectPath";
 import { createSession, getSession } from "@/lib/session";
 import { landingFor } from "@/lib/surfaces";
 import { verifyOtp } from "@/lib/otp";
@@ -16,13 +17,15 @@ export async function verifyCode(formData: FormData) {
     .toLowerCase();
   const code = String(formData.get("code") || "").trim();
   const challenge = String(formData.get("challenge") || "").trim() || undefined;
+  const redirectTo = safeRedirectPath(String(formData.get("redirect") || ""));
+  const redirectQuery = redirectTo ? `&redirect=${encodeURIComponent(redirectTo)}` : "";
 
   const ok = await verifyOtp(email, code);
   if (!ok) {
     redirect(
       `/login/verify?email=${encodeURIComponent(email)}&error=${encodeURIComponent("Incorrect or expired code")}${
         challenge ? `&challenge=${encodeURIComponent(challenge)}` : ""
-      }`,
+      }${redirectQuery}`,
     );
   }
 
@@ -77,9 +80,15 @@ export async function verifyCode(formData: FormData) {
   await createSession({ sub: profile.id, email: profile.email });
 
   if (!profile.onboardedAt) {
-    redirect(challenge ? `/onboarding?challenge=${encodeURIComponent(challenge)}` : "/onboarding");
+    const challengeQuery = challenge ? `challenge=${encodeURIComponent(challenge)}` : "";
+    const query = [challengeQuery, redirectTo ? `redirect=${encodeURIComponent(redirectTo)}` : ""].filter(Boolean).join("&");
+    redirect(query ? `/onboarding?${query}` : "/onboarding");
   }
   // A challenge link always wins — that's what they clicked to get here.
   if (challenge) redirect(`/c/${encodeURIComponent(challenge)}`);
+  // Otherwise, back to whatever protected page sent them here (see
+  // middleware.ts and requireSession()'s callers), before falling back to
+  // the generic default landing surface.
+  if (redirectTo) redirect(redirectTo);
   redirect(await landingFor(profile));
 }

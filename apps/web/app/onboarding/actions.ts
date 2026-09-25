@@ -3,6 +3,7 @@
 import { getDb, schema } from "@playloop/db";
 import { eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
+import { safeRedirectPath } from "@/lib/redirectPath";
 import { requireSession } from "@/lib/session";
 
 export async function completeOnboarding(formData: FormData) {
@@ -11,6 +12,7 @@ export async function completeOnboarding(formData: FormData) {
   const avatarIndex = Number(formData.get("avatarIndex") || 0);
   const interests = formData.getAll("interests").map(String);
   const challenge = String(formData.get("challenge") || "").trim();
+  const redirectTo = safeRedirectPath(String(formData.get("redirect") || ""));
 
   const db = getDb();
   await db
@@ -18,5 +20,7 @@ export async function completeOnboarding(formData: FormData) {
     .set({ name, avatarIndex, interests, onboardedAt: new Date() })
     .where(eq(schema.profiles.id, session.sub));
 
-  redirect(challenge ? `/c/${encodeURIComponent(challenge)}` : "/feed?accountSecured=true");
+  // A challenge link always wins — see the same rule in login/verify/actions.ts.
+  if (challenge) redirect(`/c/${encodeURIComponent(challenge)}`);
+  redirect(redirectTo ?? "/feed?accountSecured=true");
 }

@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { sendOtpEmail } from "@/lib/mailer";
 import { createNewProfile } from "@/lib/newProfile";
 import { issueOtp } from "@/lib/otp";
+import { safeRedirectPath } from "@/lib/redirectPath";
 import { createSession, getSession } from "@/lib/session";
 
 export async function requestCode(formData: FormData) {
@@ -13,15 +14,17 @@ export async function requestCode(formData: FormData) {
     .trim()
     .toLowerCase();
   const challenge = String(formData.get("challenge") || "").trim();
+  const redirectTo = safeRedirectPath(String(formData.get("redirect") || ""));
   const challengeQuery = challenge ? `&challenge=${encodeURIComponent(challenge)}` : "";
+  const redirectQuery = redirectTo ? `&redirect=${encodeURIComponent(redirectTo)}` : "";
 
   if (!email || !email.includes("@")) {
-    redirect(`/login?error=${encodeURIComponent("Enter a valid email")}${challengeQuery}`);
+    redirect(`/login?error=${encodeURIComponent("Enter a valid email")}${challengeQuery}${redirectQuery}`);
   }
 
   const code = await issueOtp(email);
   await sendOtpEmail(email, code);
-  redirect(`/login/verify?email=${encodeURIComponent(email)}${challengeQuery}`);
+  redirect(`/login/verify?email=${encodeURIComponent(email)}${challengeQuery}${redirectQuery}`);
 }
 
 /**
@@ -50,6 +53,6 @@ export async function startGuestSession(formData?: FormData) {
 
   await createSession({ sub: profile.id, email: profile.email });
 
-  const redirectTo = formData ? String(formData.get("redirectTo") || "").trim() : "";
-  redirect(redirectTo && redirectTo.startsWith("/") ? redirectTo : "/feed");
+  const redirectTo = safeRedirectPath(formData ? String(formData.get("redirect") || "") : "");
+  redirect(redirectTo ?? "/feed");
 }
