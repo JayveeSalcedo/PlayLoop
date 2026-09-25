@@ -50,7 +50,19 @@ export interface PlayResult {
   isPersonalBest: boolean;
 }
 
-export type CreditOutcome = ({ ok: true } & PlayResult) | { ok: false; error: string };
+export type CreditOutcome =
+  | ({ ok: true } & PlayResult)
+  | {
+      ok: false;
+      error: string;
+      /**
+       * Set only for outcomes the play UI should recover from gracefully
+       * (show the score, offer a specific next step) rather than treat as a
+       * generic failure — see submitPlay and the /api/play submit route,
+       * which both pass this straight through to the client.
+       */
+      reason?: "guest_cap";
+    };
 
 /**
  * Credits REFERRAL_JOIN_BONUS to whoever's challenge link brought `profile`
@@ -143,7 +155,7 @@ export async function creditVerifiedPlay(
       );
     const earned = earnedRows[0]?.earned ?? 0;
     if (earned >= GUEST_DAILY_CAP) {
-      return { ok: false, error: "Daily limit reached. Save your progress to keep earning." };
+      return { ok: false, reason: "guest_cap", error: "Daily limit reached. Save your progress to keep earning." };
     }
   }
 

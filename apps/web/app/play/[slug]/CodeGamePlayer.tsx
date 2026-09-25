@@ -24,9 +24,10 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { startTestPlay } from "@/app/(app)/create/studio/actions";
 import type { PlayResult } from "@/lib/creditPlay";
-import { startChallengedPlay, startPlay } from "./actions";
+import { startChallengedPlay, startPlay, type NotCreditedReason } from "./actions";
 import { ARENA_LIVE_SCORE_THROTTLE_MS } from "./arenaLiveScore";
 import { PlayIntro } from "./PlayIntro";
+import { PlayNotCreditedScreen } from "./PlayNotCreditedScreen";
 import { PlayResultScreen } from "./PlayResultScreen";
 
 export interface CodeGameRow {
@@ -56,7 +57,8 @@ type Stage =
   | { name: "playing" }
   | { name: "verifying" }
   | { name: "result"; result: PlayResult; sessionId: string }
-  | { name: "tested"; score: number };
+  | { name: "tested"; score: number }
+  | { name: "notCredited"; reason: NotCreditedReason; score: number; message: string };
 
 const COUNTDOWN = ["3", "2", "1", "Go"];
 /** Same beat as the template engine's countdown (runGame: 620 ms per step). */
@@ -125,13 +127,31 @@ export function CodeGamePlayer({
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ score: msg.score, log: msg.log }),
         });
-        const data = (await res.json().catch(() => ({}))) as Partial<PlayResult> & { error?: string; test?: boolean };
+        const data = (await res.json().catch(() => ({}))) as Partial<PlayResult> & {
+          error?: string;
+          test?: boolean;
+          reason?: NotCreditedReason;
+        };
         if (test) {
           if (!res.ok || !data.test) throw new Error(data.error ?? "Couldn't check that test play — try again.");
           setStage({ name: "tested", score: data.score ?? 0 });
           return;
         }
         if (!res.ok || typeof data.payoutPoints !== "number") {
+          if (data.reason === "guest_cap" || data.reason === "rejected") {
+            // Recoverable: an honest play that just didn't earn anything
+            // (guest cap or an anti-cheat rejection) — show the score instead
+            // of an error banner back on the intro screen.
+            post({ type: "quit" });
+            setShowVerifiedModal(true);
+            setStage({
+              name: "notCredited",
+              reason: data.reason,
+              score: data.score ?? 0,
+              message: data.error ?? "That play couldn't be verified.",
+            });
+            return;
+          }
           throw new Error(data.error ?? "Couldn't save that play — try again.");
         }
         // If in arena mode, submit score to the arena leaderboard
@@ -243,6 +263,19 @@ export function CodeGamePlayer({
         challengeCode={challengeCode}
         arenaCode={arenaCode}
         challengeCommunityId={challengeCommunityId}
+        onPlayAgain={() => backToIntro(null)}
+      />
+    );
+  }
+
+  if (stage.name === "notCredited") {
+    return (
+      <PlayNotCreditedScreen
+        title={game.title}
+        score={stage.score}
+        reason={stage.reason}
+        message={stage.message}
+        challengeCode={challengeCode}
         onPlayAgain={() => backToIntro(null)}
       />
     );

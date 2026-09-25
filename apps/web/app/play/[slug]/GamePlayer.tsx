@@ -4,11 +4,12 @@ import { runGameFromConfig } from "@playloop/games";
 import { artSVG, type GameArtType, type ItemKind, type ThemeName } from "@playloop/ui";
 import { useRef, useState } from "react";
 import { Spinner } from "@/app/_components/Spinner";
-import { startChallengedPlay, startPlay, submitPlay, type PlayResult } from "./actions";
+import { startChallengedPlay, startPlay, submitPlay, type NotCreditedReason, type PlayResult } from "./actions";
 import { reportArenaScore, submitArenaScore } from "@/app/events/actions";
 import { ARENA_LIVE_SCORE_THROTTLE_MS } from "./arenaLiveScore";
 import { postChallengeToChatAction } from "@/app/(app)/community/actions";
 import { PlayIntro } from "./PlayIntro";
+import { PlayNotCreditedScreen } from "./PlayNotCreditedScreen";
 import { PlayResultScreen } from "./PlayResultScreen";
 
 export interface GameRow {
@@ -29,7 +30,7 @@ export interface GameRow {
   coverImage?: string | null;
 }
 
-type Stage = "intro" | "starting" | "playing" | "result" | "submitting";
+type Stage = "intro" | "starting" | "playing" | "result" | "submitting" | "notCredited";
 
 export function GamePlayer({
   game,
@@ -47,6 +48,7 @@ export function GamePlayer({
 }) {
   const [stage, setStage] = useState<Stage>("intro");
   const [result, setResult] = useState<PlayResult | null>(null);
+  const [notCredited, setNotCredited] = useState<{ reason: NotCreditedReason; score: number; message: string } | null>(null);
   const [lastSessionId, setLastSessionId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const hostRef = useRef<HTMLDivElement>(null);
@@ -80,6 +82,14 @@ export function GamePlayer({
         setStage("submitting");
         try {
           const r = await submitPlay(sessionId, score);
+          if (!r.ok) {
+            // Recoverable: the play was honest, just didn't earn anything
+            // (guest cap or an anti-cheat rejection) — show the score instead
+            // of bouncing to a bare error on the intro screen.
+            setNotCredited({ reason: r.reason, score: r.score, message: r.error });
+            setStage("notCredited");
+            return;
+          }
           // If in arena mode, also record the score on the arena leaderboard
           if (arenaSessionId) {
             await submitArenaScore(arenaSessionId, r.payoutPoints).catch(() => {});
@@ -147,6 +157,22 @@ export function GamePlayer({
         challengeCommunityId={challengeCommunityId}
         onPlayAgain={() => {
           setResult(null);
+          setStage("intro");
+        }}
+      />
+    );
+  }
+
+  if (stage === "notCredited" && notCredited) {
+    return (
+      <PlayNotCreditedScreen
+        title={game.title}
+        score={notCredited.score}
+        reason={notCredited.reason}
+        message={notCredited.message}
+        challengeCode={challengeCode}
+        onPlayAgain={() => {
+          setNotCredited(null);
           setStage("intro");
         }}
       />

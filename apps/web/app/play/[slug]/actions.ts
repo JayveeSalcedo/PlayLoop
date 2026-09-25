@@ -12,6 +12,23 @@ import { requireSession } from "@/lib/session";
 
 export type { PlayResult };
 
+/**
+ * The two ways a completed, honestly-played game can still earn nothing.
+ * Both are routine outcomes a player can act on — not errors — so the UI
+ * shows the score they actually got instead of just an error banner:
+ *  - "guest_cap": today's guest earning cap is reached; saving the account
+ *    (see profiles.isGuest) is the way out.
+ *  - "rejected": the anti-cheat check didn't accept the claimed score (too
+ *    fast, too old, or implausible for the template/difficulty).
+ * Anything else (bad/duplicate session, deleted game, suspended account)
+ * stays a thrown Error — those aren't states the play UI has a specific
+ * recovery for, so the generic catch-and-retry handling is enough.
+ */
+export type NotCreditedReason = "guest_cap" | "rejected";
+export type SubmitPlayOutcome =
+  | ({ ok: true } & PlayResult)
+  | { ok: false; reason: NotCreditedReason; error: string; score: number };
+
 type GameForStart = {
   id: string;
   status: "draft" | "pending_review" | "published" | "rejected";
@@ -153,9 +170,11 @@ export async function startChallengedPlay(
  *
  * Everything inside the transaction only ever returns, never throws
  * (Drizzle/Postgres rolls back the *entire* transaction if anything inside it
- * throws, including writes we want to keep); the error is thrown after commit.
+ * throws, including writes we want to keep); the error is thrown after commit,
+ * except for the two NotCreditedReason cases, which are returned instead —
+ * see SubmitPlayOutcome.
  */
-export async function submitPlay(sessionId: string, rawScore: number): Promise<PlayResult> {
+export async function submitPlay(sessionId: string, rawScore: number): Promise<SubmitPlayOutcome> {
   const session = await requireSession();
   const score = Math.max(0, Math.round(rawScore));
   const db = getDb();
@@ -213,7 +232,12 @@ export async function submitPlay(sessionId: string, rawScore: number): Promise<P
         .update(schema.playSessions)
         .set({ status: "rejected", rejectReason: verdict.reason, score })
         .where(eq(schema.playSessions.id, sessionId));
-      return { ok: false as const, error: "That play couldn't be verified, so no points were awarded. Please try again." };
+      return {
+        ok: false as const,
+        reason: "rejected" as const,
+        error: "That play couldn't be verified, so no points were awarded.",
+        score,
+      };
     }
 
     return creditVerifiedPlay(tx, {
@@ -226,7 +250,14 @@ export async function submitPlay(sessionId: string, rawScore: number): Promise<P
     });
   });
 
-  if (!outcome.ok) throw new Error(outcome.error);
+  if (!outcome.ok) {
+    // guest_cap and rejected are recoverable — hand them back to the caller
+    // with the score, instead of throwing them into a generic catch.
+    if (outcome.reason === "guest_cap" || outcome.reason === "rejected") {
+      return { ok: false, reason: outcome.reason, error: outcome.error, score: "score" in outcome ? outcome.score : score };
+    }
+    throw new Error(outcome.error);
+  }
   const { ok: _ok, ...result } = outcome;
-  return result;
+  return { ok: true, ...result };
 }

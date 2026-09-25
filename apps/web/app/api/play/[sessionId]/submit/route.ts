@@ -186,7 +186,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ ses
       return {
         ok: false as const,
         error: claimed.isTest ? `That test play didn't verify: ${verdict.detail}` : rejectionMessage(verdict.reason),
-        reason: claimed.isTest ? verdict.reason : undefined,
+        // A test play gets the verifier's specific internal reason (useful for
+        // a creator debugging their own game); a real play gets the same
+        // stable "rejected" tag the template engine uses, so the client can
+        // show the score it got instead of just an error banner — see
+        // NotCreditedReason in app/play/[slug]/actions.ts.
+        reason: claimed.isTest ? verdict.reason : "rejected",
+        score: pre.score,
         status: 422,
       };
     }
@@ -205,10 +211,15 @@ export async function POST(request: Request, { params }: { params: Promise<{ ses
       target: row.scoreTarget ?? 0,
       challengeId: claimed.challengeId,
     });
-    return credited.ok ? credited : { ...credited, status: 403 };
+    return credited.ok ? credited : { ...credited, score: verdict.score, status: 403 };
   });
 
-  if (!outcome.ok) return NextResponse.json({ error: outcome.error, reason: "reason" in outcome ? outcome.reason : undefined }, { status: outcome.status });
+  if (!outcome.ok) {
+    return NextResponse.json(
+      { error: outcome.error, reason: "reason" in outcome ? outcome.reason : undefined, score: "score" in outcome ? outcome.score : undefined },
+      { status: outcome.status },
+    );
+  }
   const { ok: _ok, ...result } = outcome;
   return NextResponse.json(result);
 }
