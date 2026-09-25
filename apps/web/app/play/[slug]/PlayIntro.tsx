@@ -1,11 +1,10 @@
 "use client";
 
-import { icon } from "@playloop/ui";
 import Link from "next/link";
-import { Spinner } from "@/app/_components/Spinner";
+import { PlayLogoCta } from "@/app/_components/brand/PlayLogoCta";
 
 /**
- * The page before a play: cover, title, what it pays, and the Play button.
+ * The page before a play: cover, title, what it pays, and the logo CTA.
  * Shared by the template player and the code-game player.
  */
 export function PlayIntro({
@@ -85,17 +84,7 @@ export function PlayIntro({
         </div>
       ) : null}
       {error ? <p className="mt-3 text-sm font-bold text-gum">{error}</p> : null}
-      <button onClick={onStart} disabled={starting || awaitingReview} className="btn go lg block mt-6">
-        {starting ? (
-          <>
-            <Spinner size={22} /> Starting…
-          </>
-        ) : (
-          <>
-            <span dangerouslySetInnerHTML={{ __html: icon("play", "fill") }} /> Play now
-          </>
-        )}
-      </button>
+      <PlayLogoCta onStart={onStart} starting={starting} disabled={awaitingReview} />
     </main>
   );
 }
