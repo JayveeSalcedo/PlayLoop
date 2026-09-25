@@ -291,7 +291,7 @@ export function artSVG(type: GameArtType | null, theme: ThemeName = "neon", item
     const lines = `<path d="M${gx + s} ${gy}V${gy + s * 3}M${gx + s * 2} ${gy}V${gy + s * 3}M${gx} ${gy + s}H${gx + s * 3}M${gx} ${gy + s * 2}H${gx + s * 3}" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round"/>`;
     const xMark = (cx: number, cy: number) =>
       `<path d="M${cx - 7} ${cy - 7}L${cx + 7} ${cy + 7}M${cx + 7} ${cy - 7}L${cx - 7} ${cy + 7}" stroke="${b}" stroke-width="4" stroke-linecap="round"/>`;
-    const oMark = (cx: number, cy: number) => `<circle cx="${cx}" cy="${cy}" r="8" fill="none" stroke="${INK}" stroke-width="4"/>`;
+    const oMark = (cx: number, cy: number) => `<circle cx="${cx}" cy="${cy}" r="8" fill="none" stroke="#E5484D" stroke-width="4"/>`;
     inner = lines + xMark(gx + s * 0.5, gy + s * 0.5) + oMark(gx + s * 1.5, gy + s * 0.5) + xMark(gx + s * 0.5, gy + s * 1.5) + xMark(gx + s * 1.5, gy + s * 1.5) + oMark(gx + s * 2.5, gy + s * 2.5);
   } else {
     inner = `<g transform="translate(74 62)"><circle r="44" fill="#fff" ${sw}/><circle r="30" fill="${b}" ${sw}/><circle r="15" fill="#fff" ${sw}/><circle r="5" fill="${INK}"/></g><g transform="translate(122 36)"><circle r="16" fill="#D7FF4A" ${sw}/><circle cx="-5" cy="-2" r="2.4" fill="${INK}"/><circle cx="5" cy="-2" r="2.4" fill="${INK}"/><path d="M-5 5q5 4 10 0" stroke="${INK}" stroke-width="2.4" fill="none" stroke-linecap="round"/></g><path d="M100 18l-6-8M140 20l6-8M146 40h9" stroke="${INK}" stroke-width="3" stroke-linecap="round"/>`;

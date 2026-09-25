@@ -8,7 +8,7 @@
  * unit tested directly — see tictactoe.test.ts — same split rules.ts uses
  * between "what's a legal/valid play" and the template.
  */
-import { INK, THEMES, type ThemeName } from "@playloop/ui";
+import { THEMES, type ThemeName } from "@playloop/ui";
 import { GAME_DURATION_SECONDS, TICTACTOE_TIME_CAP_SECONDS } from "../rules";
 import type { Difficulty, GameApi, GameDefinition } from "../types";
 
@@ -115,6 +115,9 @@ export interface TicTacToeConfig {
   theme: ThemeName;
 }
 
+/** The computer opponent's mark color — deliberately fixed (not theme-driven), so O always reads as "the other side" regardless of the game's theme. */
+const OPPONENT_COLOR = "#E5484D";
+
 function markSvg(mark: NonNullable<Mark>, color: string): string {
   if (mark === "X") {
     return `<svg viewBox="-20 -20 40 40"><path d="M-12-12 12 12M12-12-12 12" stroke="${color}" stroke-width="5" stroke-linecap="round"/></svg>`;
@@ -126,7 +129,7 @@ function render(gridEl: HTMLElement, board: readonly Mark[], colors: [string, st
   gridEl.innerHTML = board
     .map((mark, i) => {
       const win = winLine?.includes(i) ? " ttt-win" : "";
-      const inner = mark ? markSvg(mark, mark === "X" ? colors[1] : INK) : "";
+      const inner = mark ? markSvg(mark, mark === "X" ? colors[1] : OPPONENT_COLOR) : "";
       return `<button class="ttt-c${win}" type="button" data-i="${i}" aria-label="Cell ${i + 1}" ${mark ? "disabled" : ""}>${inner}</button>`;
     })
     .join("");
