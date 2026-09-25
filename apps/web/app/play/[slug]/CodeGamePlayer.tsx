@@ -355,6 +355,9 @@ export function CodeGamePlayer({
         onStart={start}
         testMode={!!test}
         coverImage={game.coverImage}
+        gameType={null}
+        codeHint={version?.meta.hint}
+        instructionsKey={`code:${game.slug}`}
       />
     );
   }

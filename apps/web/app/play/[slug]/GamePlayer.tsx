@@ -191,6 +191,8 @@ export function GamePlayer({
       starting={stage === "starting"}
       onStart={start}
       coverImage={game.coverImage}
+      gameType={game.type as GameArtType}
+      instructionsKey={game.type as string}
     />
   );
 }

@@ -63,6 +63,12 @@ const ICONS: Record<string, string> = {
   gamepad: '<rect x="2" y="7" width="20" height="11" rx="5"/><path d="M7 10v4M5 12h4M15.5 11.2h.01M18.5 13.2h.01"/>',
   edit: '<path d="M4 20h4L18.5 9.5a2.1 2.1 0 0 0-3-3L5 17v3z"/><path d="M14 6.5l3 3"/>',
   search: '<circle cx="10.5" cy="10.5" r="7"/><path d="M20 20l-4.5-4.5"/>',
+  /** A fingertip press with two expanding ripple rings — "tap here". */
+  tap: '<circle cx="12" cy="12" r="2.5" fill="currentColor"/><circle cx="12" cy="12" r="7" opacity=".5"/><circle cx="12" cy="12" r="10.5" opacity=".25"/>',
+  /** A directional arrow with short trailing motion-lines — "swipe (or arrow keys)". */
+  swipe: '<path d="M4 12h13M13 7l4 5-4 5"/><path d="M2 8v8" opacity=".35"/><path d="M6 9v6" opacity=".55"/>',
+  /** A filled "start" square and a dashed "end" square joined by a small arrow — "drag this here". */
+  drag: '<rect x="3" y="3" width="8" height="8" rx="2" fill="currentColor" opacity=".85"/><rect x="13" y="13" width="8" height="8" rx="2" stroke-dasharray="2.4 2.4"/><path d="M11 11 17 17M17 17h-3.5M17 17v-3.5" opacity=".6"/>',
 };
 
 export type IconName = keyof typeof ICONS;
